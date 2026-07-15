@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+/*
+  Kindred Creature Co. design system
+  ----------------------------------
+  RADIUS RULE (project-wide, use these everywhere):
+    - Interactive controls (buttons, pills, chips): full pill  -> rounded-full
+    - Cards, images, panels:                        16px       -> rounded-2xl (var --radius-card)
+    - Form inputs:                                  10px       -> var --radius-input
+  Never use pure #000 or #fff. One accent only (terracotta).
+
+  Theming strategy: CSS variables flipped by prefers-color-scheme, so the whole
+  page is a single coherent theme. Tokens below are the source of truth; the
+  --color-* tokens are exposed to Tailwind as utilities (bg-base, text-ink,
+  bg-surface, text-muted, bg-accent, border-line, font-display, etc.).
+
+  Contrast note: the plain terracotta accent (#BF5B3B on the light base) lands at
+  4.21:1, just under WCAG AA for small text. Per the accessibility requirement we
+  keep the accent token as-is for decorative use, and text-bearing button surfaces
+  use the darkened, AA-verified --btn tokens (light rest 4.94:1, dark rest 5.26:1).
+*/
+
+:root {
+  --base: #fafaf8;
+  --surface: #f0f1ef;
+  --ink: #23272e;
+  --muted: #5b6470;
+  --accent: #bf5b3b;
+  --accent-deep: #a84d30;
+  --line: #e2e4e0;
+
+  /* AA-verified terracotta for text-bearing button surfaces */
+  --btn: #b0512f;
+  --btn-hover: #9e4a2d;
+
+  --radius-card: 16px;
+  --radius-input: 10px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --base: #17191d;
+    --surface: #1f2227;
+    --ink: #ecedea;
+    --muted: #9aa1ab;
+    --accent: #d96e4a;
+    --accent-deep: #c05b3c;
+    --line: #2c3036;
+
+    --btn: #d96e4a;
+    --btn-hover: #d2683f;
+  }
+}
+
+@theme inline {
+  --color-base: var(--base);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
+  --color-line: var(--line);
+  --color-btn: var(--btn);
+  --color-btn-hover: var(--btn-hover);
+
+  --font-sans: var(--font-sans-body);
+  --font-display: var(--font-display-head);
+
+  --radius-card: 16px;
+  --radius-input: 10px;
+}
+
+body {
+  background: var(--base);
+  color: var(--ink);
+  font-family: var(--font-sans-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Skeleton loading: gentle opacity pulse (no gradient sweep, transform/opacity
+   only), gated behind reduced-motion. */
+@keyframes kc-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .kc-skeleton {
+    animation: kc-skeleton-pulse 1.6s ease-in-out infinite;
+  }
+}
