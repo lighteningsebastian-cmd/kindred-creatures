@@ -12,15 +12,15 @@ describe("ProductConfigurator", () => {
 
     // Before a size is picked, the CTA is a disabled button (no link).
     expect(
-      screen.queryByRole("link", { name: "Add your creature" }),
+      screen.queryByRole("link", { name: "Start your portrait" }),
     ).toBeNull();
-    const disabled = screen.getByRole("button", { name: "Add your creature" });
+    const disabled = screen.getByRole("button", { name: "Start your portrait" });
     expect(disabled).toBeDisabled();
     expect(screen.getByText("Choose a size to continue.")).toBeInTheDocument();
 
     // Pick a size -> CTA becomes an enabled link carrying colour + size.
     await user.click(screen.getByRole("button", { name: "M" }));
-    const cta = screen.getByRole("link", { name: "Add your creature" });
+    const cta = screen.getByRole("link", { name: "Start your portrait" });
     const href = cta.getAttribute("href") ?? "";
     expect(href).toContain("/customize/hoodie");
     expect(href).toContain("color=Stone");
@@ -31,7 +31,7 @@ describe("ProductConfigurator", () => {
     const tote = getProduct("tote")!;
     render(<ProductConfigurator product={tote} />);
 
-    const cta = screen.getByRole("link", { name: "Add your creature" });
+    const cta = screen.getByRole("link", { name: "Start your portrait" });
     const href = cta.getAttribute("href") ?? "";
     expect(href).toContain("/customize/tote");
     expect(href).toContain("color=Natural");

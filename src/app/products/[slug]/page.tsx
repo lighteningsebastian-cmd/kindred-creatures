@@ -44,13 +44,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
         <div className="mt-16 grid gap-10 border-t border-line pt-12 md:grid-cols-2 md:gap-16">
           <div className="flex flex-col gap-4">
-            <h2 className="font-display text-2xl font-semibold tracking-tight text-ink">
+            <h2 className="font-display text-2xl leading-[1.2] text-ink">
               How your portrait happens
             </h2>
             <ol className="flex flex-col gap-3">
               {portraitSteps.map((step, index) => (
                 <li key={index} className="flex gap-3 text-muted">
-                  <span className="font-display font-semibold text-accent">
+                  <span className="font-block font-black text-accent-secondary tabular-nums">
                     {index + 1}
                   </span>
                   <span>{step}</span>
@@ -60,7 +60,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           </div>
 
           <div className="flex flex-col gap-4">
-            <h2 className="font-display text-2xl font-semibold tracking-tight text-ink">
+            <h2 className="font-display text-2xl leading-[1.2] text-ink">
               Delivery
             </h2>
             {/* PLACEHOLDER: R 99 flat courier rate pending logistics confirmation. */}
