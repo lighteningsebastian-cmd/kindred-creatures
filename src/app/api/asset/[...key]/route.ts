@@ -10,6 +10,7 @@ const CONTENT_TYPES: Record<string, string> = {
   jpeg: "image/jpeg",
   webp: "image/webp",
   heic: "image/heic",
+  svg: "image/svg+xml",
 };
 
 function contentTypeFor(key: string): string {
