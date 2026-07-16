@@ -95,10 +95,7 @@ export function CatSwat({ word, children, className, as = "h2" }: CatSwatProps) 
     <Tag
       ref={ref}
       onMouseEnter={() => void swat()}
-      className={cn(
-        "font-display font-semibold tracking-tight text-ink",
-        className,
-      )}
+      className={cn("font-display leading-[1.16] text-ink", className)}
     >
       {children}{" "}
       <span ref={scope} className="relative inline-block">

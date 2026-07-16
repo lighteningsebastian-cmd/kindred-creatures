@@ -29,7 +29,7 @@ export function HowItWorks() {
     <section className="bg-surface py-20 md:py-28">
       <Container>
         <Reveal>
-          <h2 className="max-w-xl font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
+          <h2 className="max-w-xl font-display text-3xl leading-[1.16] text-ink md:text-4xl">
             From your camera roll to your wardrobe
           </h2>
         </Reveal>
@@ -40,12 +40,12 @@ export function HowItWorks() {
               <Reveal
                 key={step.title}
                 delay={index * 0.1}
-                className="flex flex-col gap-4 rounded-2xl border border-line bg-base p-7"
+                className="flex flex-col gap-4 rounded-lg border border-line bg-base p-7"
               >
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-surface text-accent">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-md bg-accent-tint text-accent">
                   <Icon size={24} />
                 </span>
-                <h3 className="font-display text-xl font-semibold tracking-tight text-ink">
+                <h3 className="font-display text-xl leading-[1.2] text-ink">
                   {step.title}
                 </h3>
                 <p className="text-muted">{step.body}</p>

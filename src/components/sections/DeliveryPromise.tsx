@@ -11,7 +11,7 @@ export function DeliveryPromise() {
     <section className="bg-surface py-20 md:py-28">
       <Container className="grid items-center gap-12 md:grid-cols-2 md:gap-16">
         <Reveal className="flex flex-col gap-4">
-          <h2 className="max-w-md font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
+          <h2 className="max-w-md font-display text-3xl leading-[1.16] text-ink md:text-4xl">
             Printed and delivered in 5 working days
           </h2>
           <p className="max-w-md text-lg leading-relaxed text-muted">

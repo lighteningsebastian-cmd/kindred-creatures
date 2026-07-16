@@ -37,7 +37,7 @@ export function LoveWall() {
     <section className="bg-base py-20 md:py-28">
       <Container>
         <Reveal>
-          <h2 className="max-w-xl font-display text-3xl font-semibold tracking-tight text-ink md:text-4xl">
+          <h2 className="max-w-xl font-display text-3xl leading-[1.16] text-ink md:text-4xl">
             People and the pets they love
           </h2>
         </Reveal>
@@ -48,7 +48,7 @@ export function LoveWall() {
               delay={index * 0.1}
               className={`${item.span} ${item.offset}`}
             >
-              <figure className="flex h-full flex-col justify-between gap-6 rounded-2xl border border-line bg-surface p-7">
+              <figure className="flex h-full flex-col justify-between gap-6 rounded-lg border border-line bg-surface p-7">
                 <blockquote className="font-display text-xl leading-snug text-ink">
                   {item.quote}
                 </blockquote>
