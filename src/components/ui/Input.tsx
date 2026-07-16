@@ -43,7 +43,7 @@ export function Input({
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         className={cn(
-          "w-full rounded-[10px] border bg-base px-3 py-2 text-base text-ink",
+          "w-full rounded-md border bg-base px-3 py-2 text-base text-ink",
           "placeholder:text-muted focus-visible:outline-none focus-visible:ring-2",
           "focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base",
           error ? "border-btn" : "border-line",

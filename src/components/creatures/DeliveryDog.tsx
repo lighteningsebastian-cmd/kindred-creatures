@@ -116,12 +116,12 @@ export function DeliveryDog({ className }: DeliveryDogProps) {
           />
           <circle cx={122.5} cy={29} r={1.7} fill="var(--color-ink)" />
           <circle cx={136.3} cy={35.2} r={2} fill="var(--color-ink)" />
-          {/* Terracotta collar across the neck */}
+          {/* Oxblood collar across the neck */}
           <path
             d="M 98.5 41.5 C 102.5 45.5, 107 48.8, 112 50 L 110.8 54.2 C 105 52.8, 99.5 49, 95.6 44.8 Z"
             fill="var(--color-accent)"
           />
-          {/* Floppy ear with terracotta inner */}
+          {/* Floppy ear with oxblood inner */}
           <Pivot px={116.5} py={21} {...gait([0, 7, 0, 7, 0])}>
             <path
               d="M 112.5 26 C 110 28.5, 108.8 33, 109 36.5 C 109.2 39.3, 111 39.8, 112.5 37.5 C 114 34.5, 114.2 29, 113.5 26 Z"

@@ -4,8 +4,8 @@ import { Container } from "@/components/ui/Container";
 const shopLinks = [
   { href: "/shop", label: "Shop" },
   { href: "/how-it-works", label: "How it works" },
+  { href: "/about", label: "Our story" },
   { href: "/faq", label: "FAQ" },
-  { href: "/contact", label: "Contact" },
 ];
 
 const policyLinks = [
@@ -18,9 +18,7 @@ export function Footer() {
     <footer className="border-t border-line bg-surface">
       <Container className="grid grid-cols-1 gap-10 py-12 md:grid-cols-3">
         <div className="max-w-xs">
-          <p className="font-display text-lg font-semibold text-ink">
-            Kindred Creature Co.
-          </p>
+          <p className="font-display text-lg text-ink">Kindred Creatures</p>
           <p className="mt-3 text-sm text-muted">
             Custom apparel starring your favourite creature. Printed in South
             Africa.

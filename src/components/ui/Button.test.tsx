@@ -22,14 +22,21 @@ describe("Button", () => {
     const el = screen.getByRole("button", { name: "Buy" });
     expect(el).toHaveClass("bg-btn");
     expect(el).toHaveClass("text-base");
-    expect(el).toHaveClass("rounded-full");
+    expect(el).toHaveClass("rounded-md");
   });
 
   it("applies secondary variant classes", () => {
     render(<Button variant="secondary">Details</Button>);
     const el = screen.getByRole("button", { name: "Details" });
-    expect(el).toHaveClass("border-ink");
+    expect(el).toHaveClass("border-line-strong");
     expect(el).toHaveClass("text-ink");
+  });
+
+  it("applies the varsity-block label style when block is set", () => {
+    render(<Button block>Start</Button>);
+    const el = screen.getByRole("button", { name: "Start" });
+    expect(el).toHaveClass("uppercase");
+    expect(el).toHaveClass("tracking-[0.08em]");
   });
 
   it("forwards the disabled attribute to the button", () => {

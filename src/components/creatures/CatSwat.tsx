@@ -129,7 +129,7 @@ export function CatSwat({ word, children, className, as = "h2" }: CatSwatProps) 
               opacity: reducedMotion ? 1 : 0,
             }}
           >
-            {/* Terracotta pads on the underside */}
+            {/* Oxblood pads on the underside */}
             <path
               d="M 22.5 33 C 26 30, 31.5 31.2, 33 35 C 34.2 38.2, 31 41.4, 26.8 40.6 C 22.8 39.8, 20.5 35.4, 22.5 33 Z"
               fill="var(--color-accent)"

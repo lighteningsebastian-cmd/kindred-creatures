@@ -105,3 +105,20 @@ export function getProduct(slug: string): Product | undefined {
 export function fromPriceZar(product: Product): number {
   return Math.min(...product.variants.map((variant) => variant.priceZar));
 }
+
+/**
+ * Builds a stable picsum photo URL for a product, optionally keyed to a colour
+ * so the configurator can swap the shot when a swatch is picked. Using a
+ * deterministic seed keeps the same image across renders and builds.
+ */
+export function productPhoto(
+  slug: ProductSlug,
+  width: number,
+  height: number,
+  color?: string,
+): string {
+  const seedParts = ["kindred", slug];
+  if (color) seedParts.push(color.toLowerCase().replace(/\s+/g, "-"));
+  const seed = seedParts.join("-");
+  return `https://picsum.photos/seed/${seed}/${width}/${height}`;
+}

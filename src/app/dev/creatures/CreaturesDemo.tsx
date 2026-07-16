@@ -48,7 +48,7 @@ export function CreaturesDemo() {
               href="/"
               className="font-display text-lg font-semibold tracking-tight text-ink"
             >
-              Kindred Creature Co.
+              Kindred Creatures
             </Link>
             <nav className="hidden items-center gap-8 md:flex">
               <span className="text-sm text-muted">Shop</span>
