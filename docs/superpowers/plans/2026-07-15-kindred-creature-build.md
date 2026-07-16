@@ -17,20 +17,16 @@
 
 ## Design System Contract (all tasks must use these tokens)
 
-CSS variables defined in `src/app/globals.css`, exposed to Tailwind v4 via `@theme`:
+**SUPERSEDED by the real Claude Design UI kit.** The authoritative tokens, fonts, radii,
+and brand name now live in `design/DESIGN-SYSTEM.md` (distilled from
+`design/kindred-creatures-ui-kit.html`). Every task reads that file first. Summary of the
+override: brand is **Kindred Creatures**; fonts **Young Serif** (display 400) + **Archivo**
+(body + 900 uppercase block); accent **oxblood** `oklch(42% 0.115 25)` (not terracotta);
+base stone-greige parchment, warm brown-black bark ink; **near-square radii 2 to 6px, not
+pills/16px**; border-first elevation; maroon utility bar. Colors are OKLCH, used verbatim.
 
-| Token | Light | Dark |
-|---|---|---|
-| `--color-base` (page bg) | `#FAFAF8` | `#17191D` |
-| `--color-surface` (tinted section/card bg) | `#F0F1EF` | `#1F2227` |
-| `--color-ink` (headings/body) | `#23272E` | `#ECEDEA` |
-| `--color-muted` (secondary text) | `#5B6470` | `#9AA1AB` |
-| `--color-accent` (terracotta) | `#BF5B3B` | `#D96E4A` |
-| `--color-accent-deep` (hover) | `#A84D30` | `#C05B3C` |
-| `--color-line` (hairlines) | `#E2E4E0` | `#2C3036` |
-
-- **Radius rule (documented, applied everywhere):** interactive controls (buttons, pills, inputs' focus chips) = full pill; cards/images/panels = `16px`; form inputs = `10px`.
-- **Type scale:** display `text-4xl md:text-5xl lg:text-6xl tracking-tight`, headlines ≤ 8 words; body `text-base leading-relaxed max-w-[65ch]`, section subtext ≤ 25 words.
+- **Radius rule (documented, applied everywhere):** buttons and inputs = `--radius-md` (4px); cards/images/panels = `--radius-md`/`--radius-lg` (4 to 6px); pills are rare. Editorial, near-square, not soft-SaaS.
+- **Type scale:** see `design/DESIGN-SYSTEM.md` (display-xl 58px Young Serif down to caption); headlines are Young Serif; eyebrows/badges/CTA labels are Archivo-900 uppercase, `letter-spacing:.08em`; body Archivo.
 - **Motion:** Motion (`motion/react`) only; springs (`type:"spring", stiffness:100, damping:20`) or ease `[0.16,1,0.3,1]`; every animated component honors `useReducedMotion()`; animate only `transform`/`opacity`; no `window.addEventListener("scroll")`; dials VARIANCE 7 / MOTION 7 / DENSITY 3.
 - **Theme:** dual light/dark from the start via `prefers-color-scheme` (CSS variables strategy), whole page one theme.
 - **Icons:** `@phosphor-icons/react` only, one weight (`regular`) globally.
