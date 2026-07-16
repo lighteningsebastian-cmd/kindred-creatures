@@ -2,9 +2,13 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 
+// Node-environment test files (e.g. route handlers) have no window; the DOM
+// shims below only apply to jsdom tests.
+const hasWindow = typeof window !== "undefined";
+
 // jsdom lacks matchMedia (used by motion's useReducedMotion). Default to
 // "no reduced motion" so animation-bearing components render their motion path.
-if (!window.matchMedia) {
+if (hasWindow && !window.matchMedia) {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
     matches: false,
     media: query,
@@ -18,7 +22,7 @@ if (!window.matchMedia) {
 }
 
 // jsdom lacks IntersectionObserver (used by motion's useInView).
-if (!("IntersectionObserver" in window)) {
+if (hasWindow && !("IntersectionObserver" in window)) {
   class MockIntersectionObserver {
     observe() {}
     unobserve() {}
@@ -34,5 +38,5 @@ if (!("IntersectionObserver" in window)) {
 }
 
 afterEach(() => {
-  cleanup();
+  if (hasWindow) cleanup();
 });
