@@ -1,83 +1,195 @@
 @import "tailwindcss";
 
 /*
-  Kindred Creature Co. design system
-  ----------------------------------
-  RADIUS RULE (project-wide, use these everywhere):
-    - Interactive controls (buttons, pills, chips): full pill  -> rounded-full
-    - Cards, images, panels:                        16px       -> rounded-2xl (var --radius-card)
-    - Form inputs:                                  10px       -> var --radius-input
-  Never use pure #000 or #fff. One accent only (terracotta).
+  Kindred Creatures design system
+  -------------------------------
+  Source of truth: design/DESIGN-SYSTEM.md (distilled from the Claude UI kit).
+  Editorial craft catalogue, not soft SaaS: warm stone-greige paper, warm
+  brown-black ink, oxblood accent, camel secondary, NEAR-SQUARE corners
+  (2 to 6px), border-first elevation, Young Serif headlines, Archivo body,
+  Archivo-900 uppercase "varsity block" for eyebrows/badges/numerals.
 
-  Theming strategy: CSS variables flipped by prefers-color-scheme, so the whole
-  page is a single coherent theme. Tokens below are the source of truth; the
-  --color-* tokens are exposed to Tailwind as utilities (bg-base, text-ink,
-  bg-surface, text-muted, bg-accent, border-line, font-display, etc.).
+  RADIUS RULE: near-square is the default. Buttons/inputs/chips -> --radius-md
+  (4px). Cards/images -> --radius-md / --radius-lg (4-6px). Pill (999px) is rare.
 
-  Contrast note: the plain terracotta accent (#BF5B3B on the light base) lands at
-  4.21:1, just under WCAG AA for small text. Per the accessibility requirement we
-  keep the accent token as-is for decorative use, and text-bearing button surfaces
-  use the darkened, AA-verified --btn tokens (light rest 4.94:1, dark rest 5.26:1).
+  Theming: one coherent theme per page, flipped by prefers-color-scheme. The
+  raw OKLCH palette and semantic aliases below are the source of truth; the
+  --color-* tokens are exposed to Tailwind as utilities. Existing utility names
+  (bg-base, bg-surface, text-ink, text-muted, bg-accent, border-line) are kept
+  but remapped to the new semantic tokens so sections recolor automatically.
 */
 
 :root {
-  --base: #fafaf8;
-  --surface: #f0f1ef;
-  --ink: #23272e;
-  --muted: #5b6470;
-  --accent: #bf5b3b;
-  --accent-deep: #a84d30;
-  --line: #e2e4e0;
+  /* base neutrals: stone greige to dark bark ink */
+  --parchment-0: oklch(94.5% 0.005 80); /* page background */
+  --parchment-50: oklch(92% 0.006 78); /* card / surface background */
+  --parchment-100: oklch(88.5% 0.008 76); /* subtle fill, tags */
+  --dune-200: oklch(82% 0.01 75); /* borders, dividers */
+  --dune-300: oklch(73% 0.012 72); /* stronger borders, disabled */
+  --taupe-500: oklch(46% 0.015 65); /* secondary text, muted icons */
+  --bark-700: oklch(35% 0.024 65); /* headings on light, body emphasis */
+  --bark-900: oklch(23% 0.02 60); /* primary text, warm brown-black ink */
 
-  /* AA-verified terracotta for text-bearing button surfaces */
-  --btn: #b0512f;
-  --btn-hover: #9e4a2d;
+  /* accents: oxblood (primary) + camel (secondary) */
+  --oxblood-400: oklch(49% 0.115 25);
+  --oxblood-500: oklch(42% 0.115 25); /* PRIMARY accent (CTAs) */
+  --oxblood-600: oklch(36% 0.11 25); /* accent hover/active */
+  --oxblood-100: oklch(90% 0.03 25); /* accent tint background */
+  --camel-500: oklch(63% 0.085 78); /* secondary accent: numerals, trim */
+  --camel-100: oklch(91% 0.035 80); /* secondary tint background */
 
-  --radius-card: 16px;
-  --radius-input: 10px;
+  /* deep maroon: inverse bands (utility strip, footer, closing CTAs) */
+  --maroon-900: oklch(24% 0.055 25);
+  --maroon-800: oklch(29% 0.058 25);
+
+  /* semantic status (earthy, not saturated) */
+  --signal-success: oklch(48% 0.09 145);
+  --signal-error: oklch(48% 0.13 30);
+  --signal-hold: oklch(60% 0.1 80);
+
+  /* semantic aliases (kit names) */
+  --bg-page: var(--parchment-0);
+  --bg-surface: var(--parchment-50);
+  --bg-surface-alt: var(--parchment-100);
+  --bg-inverse: var(--maroon-900);
+  --text-primary: var(--bark-900);
+  --text-secondary: var(--taupe-500);
+  --text-heading: var(--bark-700);
+  --text-on-inverse: var(--parchment-0);
+  --text-on-accent: var(--parchment-0);
+  --border-subtle: var(--dune-200);
+  --border-strong: var(--dune-300);
+  --border-inverse: oklch(36% 0.06 25);
+  --accent-primary: var(--oxblood-500);
+  --accent-primary-hover: var(--oxblood-600);
+  --accent-tint: var(--oxblood-100);
+  --accent-secondary: var(--camel-500);
+  --accent-secondary-tint: var(--camel-100);
+
+  /* legacy utility-name aliases (kept so existing markup recolors in place) */
+  --base: var(--bg-page);
+  --surface: var(--bg-surface);
+  --surface-alt: var(--bg-surface-alt);
+  --ink: var(--text-primary);
+  --muted: var(--text-secondary);
+  --accent: var(--accent-primary);
+  --accent-deep: var(--accent-primary-hover);
+  --line: var(--border-subtle);
+  --line-strong: var(--border-strong);
+  --inverse: var(--bg-inverse);
+  --on-inverse: var(--text-on-inverse);
+  --on-accent: var(--text-on-accent);
+  --camel: var(--accent-secondary);
+  /* primary button surface = oxblood; text = parchment (AA in both themes) */
+  --btn: var(--accent-primary);
+  --btn-hover: var(--accent-primary-hover);
+
+  /* spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
+
+  /* near-square radii */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-pill: 999px;
+
+  /* elevation is mostly border-based, not shadow-based */
+  --shadow-card: 0 1px 2px oklch(23% 0.018 45 / 0.06);
+  --shadow-raised: 0 4px 16px oklch(23% 0.018 45 / 0.1);
+
+  --border-hairline: 1px solid var(--border-subtle);
+  --border-hairline-strong: 1px solid var(--border-strong);
+
+  --max-content-width: 1200px;
 }
 
+/*
+  Dark mode: warm dark-bark inversion. Page/surface lift off pure black into
+  warm bark; text goes parchment; oxblood accent lifts to oxblood-400 for
+  contrast; maroon inverse bands stay. One theme per page. Maintain WCAG AA.
+*/
 @media (prefers-color-scheme: dark) {
   :root {
-    --base: #17191d;
-    --surface: #1f2227;
-    --ink: #ecedea;
-    --muted: #9aa1ab;
-    --accent: #d96e4a;
-    --accent-deep: #c05b3c;
-    --line: #2c3036;
-
-    --btn: #d96e4a;
-    --btn-hover: #d2683f;
+    --bg-page: oklch(23% 0.02 60);
+    --bg-surface: oklch(27% 0.02 60);
+    --bg-surface-alt: oklch(31% 0.02 60);
+    --text-primary: var(--parchment-0);
+    --text-secondary: oklch(74% 0.012 72);
+    --text-heading: oklch(88.5% 0.008 76);
+    --border-subtle: oklch(36% 0.02 60);
+    --border-strong: oklch(45% 0.02 60);
+    --accent-primary: var(--oxblood-400);
+    --accent-primary-hover: oklch(56% 0.115 25);
+    --accent-tint: oklch(34% 0.06 25);
+    --accent-secondary: oklch(70% 0.085 78);
+    --accent-secondary-tint: oklch(36% 0.05 78);
+    /* maroon inverse band stays; oxblood button lifts for AA on dark */
+    --btn: var(--oxblood-400);
+    --btn-hover: oklch(56% 0.115 25);
   }
 }
 
 @theme inline {
   --color-base: var(--base);
   --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
+  --color-heading: var(--text-heading);
   --color-accent: var(--accent);
   --color-accent-deep: var(--accent-deep);
+  --color-accent-hover: var(--accent-primary-hover);
+  --color-accent-tint: var(--accent-tint);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-accent-secondary-tint: var(--accent-secondary-tint);
+  --color-camel: var(--camel);
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-inverse: var(--inverse);
+  --color-maroon: var(--maroon-900);
+  --color-on-inverse: var(--on-inverse);
+  --color-on-accent: var(--on-accent);
   --color-btn: var(--btn);
   --color-btn-hover: var(--btn-hover);
 
-  --font-sans: var(--font-sans-body);
-  --font-display: var(--font-display-head);
+  /* font families (next/font supplies the raw family vars in layout.tsx) */
+  --font-display: var(--font-display-serif), "Iowan Old Style", Georgia, serif;
+  --font-body: var(--font-body-sans), "Helvetica Neue", Arial, sans-serif;
+  --font-block: var(--font-body-sans), "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--font-body-sans), "Helvetica Neue", Arial, sans-serif;
 
-  --radius-card: 16px;
-  --radius-input: 10px;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
 }
 
 body {
   background: var(--base);
   color: var(--ink);
-  font-family: var(--font-sans-body), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-body-sans), "Helvetica Neue", Arial, sans-serif;
 }
 
-/* Skeleton loading: gentle opacity pulse (no gradient sweep, transform/opacity
-   only), gated behind reduced-motion. */
+/*
+  Varsity block eyebrow: Archivo 900, uppercase, tracked. Reusable across
+  eyebrows, badges and CTA labels. Pair with a size utility (e.g. text-xs).
+*/
+.eyebrow {
+  font-family: var(--font-body-sans), "Helvetica Neue", Arial, sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Skeleton loading: gentle opacity pulse, transform/opacity only, gated. */
 @keyframes kc-skeleton-pulse {
   0%,
   100% {
