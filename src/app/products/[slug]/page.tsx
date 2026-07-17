@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { ProductConfigurator } from "@/components/products/ProductConfigurator";
+import { TrackProductView } from "@/components/analytics/TrackProductView";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
   PRODUCTS,
@@ -111,6 +112,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
     <div className="bg-base py-14 md:py-20">
       <Container>
         <JsonLd data={structuredData} />
+        <TrackProductView slug={product.slug} priceZar={fromPriceZar(product)} />
         <ProductConfigurator product={product} />
 
         <div className="mt-16 grid gap-10 border-t border-line pt-12 md:grid-cols-2 md:gap-16">

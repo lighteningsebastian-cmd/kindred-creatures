@@ -7,6 +7,12 @@ import { cn } from "@/lib/cn";
 import { formatZar, type Product, type Variant } from "@/lib/products";
 import type { ArtStyle } from "@/lib/images/provider";
 import { useCartStore } from "@/lib/cart-store";
+import {
+  trackAddToCart,
+  trackArtGenerated,
+  trackArtRegenerated,
+  trackPhotoUploaded,
+} from "@/lib/analytics";
 import { downscaleImage } from "./downscale";
 import { UploadDropzone } from "./UploadDropzone";
 import { StylePicker } from "./StylePicker";
@@ -80,7 +86,7 @@ export function Customizer({
   };
 
   const generate = useCallback(
-    async (id: string, chosen: ArtStyle) => {
+    async (id: string, chosen: ArtStyle, kind: "generate" | "regenerate") => {
       setPhase("generating");
       setUploadError(null);
       try {
@@ -103,11 +109,18 @@ export function Customizer({
         setPreviewUrl(data.previewUrl);
         setRemaining(data.remaining);
         setPhase("ready");
+        // Fired only on a portrait that actually drew: the first draw from a
+        // chosen style is a generate, the Regenerate button is a regenerate.
+        if (kind === "generate") {
+          trackArtGenerated({ slug: product.slug, style: chosen });
+        } else {
+          trackArtRegenerated({ slug: product.slug, style: chosen });
+        }
       } catch {
         setPhase("failed");
       }
     },
-    [],
+    [product.slug],
   );
 
   const handleFile = useCallback(
@@ -153,6 +166,7 @@ export function Customizer({
         }
         setArtworkId(data.artworkId);
         setPhase("uploaded");
+        trackPhotoUploaded({ slug: product.slug });
       } catch {
         setUploadError("That upload did not go through. Please try again.");
         setPhase("idle");
@@ -168,12 +182,12 @@ export function Customizer({
   const handleSelectStyle = (next: ArtStyle) => {
     if (!artworkId || phase === "generating" || atCap) return;
     setStyle(next);
-    void generate(artworkId, next);
+    void generate(artworkId, next, "generate");
   };
 
   const handleRegenerate = () => {
     if (!artworkId || !style || phase === "generating" || atCap) return;
-    void generate(artworkId, style);
+    void generate(artworkId, style, "regenerate");
   };
 
   const canAddToCart =
@@ -190,6 +204,7 @@ export function Customizer({
       // Priced at add time so a later price change cannot re-price this line.
       unitPriceZar: color.priceZar,
     });
+    trackAddToCart({ slug: product.slug, priceZar: color.priceZar });
     router.push("/cart");
   };
 

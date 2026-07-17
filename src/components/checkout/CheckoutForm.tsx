@@ -6,7 +6,13 @@ import { Container } from "@/components/ui/Container";
 import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { formatZar, getProduct, type ProductSlug } from "@/lib/products";
-import { subtotalZar, useCartHydrated, useCartItems } from "@/lib/cart-store";
+import {
+  itemCount,
+  subtotalZar,
+  useCartHydrated,
+  useCartItems,
+} from "@/lib/cart-store";
+import { trackBeginCheckout } from "@/lib/analytics";
 import {
   CUSTOMER_FIELDS,
   FREE_SHIPPING_THRESHOLD_ZAR,
@@ -215,6 +221,17 @@ export function CheckoutForm() {
 
   const subtotal = subtotalZar(items);
   const { shippingZar, totalZar } = orderTotals(subtotal);
+
+  // begin_checkout fires once the persisted cart is known and holds something.
+  // Gated on hydration so it never reports the empty cart the store shows on
+  // the first pass, and once so a re-render cannot double-count it.
+  const beginCheckoutFired = useRef(false);
+  useEffect(() => {
+    if (beginCheckoutFired.current) return;
+    if (!hydrated || items.length === 0) return;
+    beginCheckoutFired.current = true;
+    trackBeginCheckout({ subtotalZar: subtotal, itemCount: itemCount(items) });
+  }, [hydrated, items, subtotal]);
 
   const setField = (field: CustomerField) => (value: string) => {
     setValues((current) => ({ ...current, [field]: value }));

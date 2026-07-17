@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { ClearCartOnPaid } from "@/components/order/ClearCartOnPaid";
+import { TrackPurchase } from "@/components/analytics/TrackPurchase";
 import { getDb } from "@/lib/db/client";
 import { orderItems, orders, type Order, type OrderStatus } from "@/lib/db/schema";
 import { verifyOrderToken } from "@/lib/order-token";
@@ -193,6 +194,11 @@ export default async function OrderPage({ params }: OrderPageProps) {
   return (
     <div className="bg-base py-14 md:py-20">
       {view.confirmed ? <ClearCartOnPaid /> : null}
+      {/* purchase is reported only on a genuinely paid order, off the DB status,
+          never on the browser having landed here. */}
+      {order.status === "paid" ? (
+        <TrackPurchase orderRef={order.id} totalZar={order.totalZar} />
+      ) : null}
 
       <Container>
         <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-14">

@@ -3,6 +3,7 @@ import { Young_Serif, Archivo } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/layout/Nav";
 import { Footer } from "@/components/layout/Footer";
+import { Analytics } from "@/components/analytics/Analytics";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { buildOrganization, buildWebSite } from "@/lib/seo/jsonld";
 import {
@@ -100,6 +101,7 @@ export default function RootLayout({
     >
       <body className="flex min-h-[100dvh] flex-col bg-base text-ink">
         <JsonLd data={identity} />
+        <Analytics />
         <Nav />
         <main className="flex-1">{children}</main>
         <Footer />
