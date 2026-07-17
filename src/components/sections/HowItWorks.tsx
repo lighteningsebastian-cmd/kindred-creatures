@@ -1,24 +1,16 @@
+import type { Icon } from "@phosphor-icons/react";
 import { UploadSimple, PencilSimple, Package } from "@phosphor-icons/react/dist/ssr";
 import { Container } from "@/components/ui/Container";
 import { Reveal } from "@/components/motion/Reveal";
+import { HOW_IT_WORKS_STEPS, type HowItWorksStepKey } from "@/lib/content";
 
-const steps = [
-  {
-    icon: UploadSimple,
-    title: "Upload",
-    body: "Pick the photo that captures them best. Clear light and a good look at their face is all we need.",
-  },
-  {
-    icon: PencilSimple,
-    title: "Approve",
-    body: "We send back portrait artwork for your yes before anything is printed.",
-  },
-  {
-    icon: Package,
-    title: "Unbox",
-    body: "Your apparel arrives couriered to your door, ready to wear and hard to take off.",
-  },
-];
+// The words live in lib/content because the HowTo JSON-LD describes these exact
+// steps; only the icon is this component's business.
+const stepIcon: Record<HowItWorksStepKey, Icon> = {
+  upload: UploadSimple,
+  approve: PencilSimple,
+  unbox: Package,
+};
 
 /**
  * Three verb-led steps in an asymmetric 2fr/1fr/1fr grid, each rising into view
@@ -34,11 +26,11 @@ export function HowItWorks() {
           </h2>
         </Reveal>
         <div className="mt-12 grid gap-6 md:grid-cols-[2fr_1fr_1fr]">
-          {steps.map((step, index) => {
-            const Icon = step.icon;
+          {HOW_IT_WORKS_STEPS.map((step, index) => {
+            const Icon = stepIcon[step.key];
             return (
               <Reveal
-                key={step.title}
+                key={step.key}
                 delay={index * 0.1}
                 className="flex flex-col gap-4 rounded-lg border border-line bg-base p-7"
               >

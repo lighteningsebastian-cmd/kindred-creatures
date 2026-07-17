@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Your order | Kindred Creatures",
+  title: "Your order",
   // One person's order, reachable by anyone holding the link. Search engines
   // are exactly the sort of thing that follows a link it was never given.
   robots: { index: false, follow: false },

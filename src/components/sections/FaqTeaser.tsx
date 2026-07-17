@@ -2,21 +2,7 @@ import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { CatSwat } from "@/components/creatures/CatSwat";
 import { Reveal } from "@/components/motion/Reveal";
-
-const faqs = [
-  {
-    q: "How good does my photo need to be?",
-    a: "A clear, well-lit shot of their face is plenty. We will flag it if we need another.",
-  },
-  {
-    q: "What if I do not like the artwork?",
-    a: "You approve the portrait before we print, and we will rework it until you are happy.",
-  },
-  {
-    q: "How long until it arrives?",
-    a: "Five working days from approval, printed in Cape Town and couriered to your door.",
-  },
-];
+import { FAQS } from "@/lib/content";
 
 export function FaqTeaser() {
   return (
@@ -31,11 +17,13 @@ export function FaqTeaser() {
           </CatSwat>
         </Reveal>
         <dl className="mt-10 max-w-2xl">
-          {faqs.map((item, index) => (
-            <Reveal key={item.q} delay={index * 0.08}>
+          {FAQS.map((item, index) => (
+            <Reveal key={item.question} delay={index * 0.08}>
               <div className="flex flex-col gap-1 border-t border-line py-5 sm:flex-row sm:gap-8">
-                <dt className="font-medium text-ink sm:w-2/5">{item.q}</dt>
-                <dd className="text-muted sm:flex-1">{item.a}</dd>
+                <dt className="font-medium text-ink sm:w-2/5">
+                  {item.question}
+                </dt>
+                <dd className="text-muted sm:flex-1">{item.answer}</dd>
               </div>
             </Reveal>
           ))}

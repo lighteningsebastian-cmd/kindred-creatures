@@ -17,11 +17,18 @@ export async function generateMetadata({
   const { slug } = await params;
   const product = getProduct(slug);
   if (!product) {
-    return { title: "Not found | Kindred Creatures" };
+    return { title: "Not found", robots: { index: false, follow: false } };
   }
   return {
-    title: `Customise ${product.name} | Kindred Creatures`,
+    title: `Customise ${product.name}`,
     description: `Upload a photo of your pet and see their portrait on ${product.name} before you order.`,
+    // Not indexed, on purpose. This is a tool in the middle of a flow, not a
+    // landing page: it needs an upload before it says anything, and its content
+    // and keywords duplicate /products/[slug], which is the entry point we want
+    // people arriving on. `follow` stays true so the links out of here still
+    // count, and it is not disallowed in robots.txt because a crawler has to be
+    // allowed to fetch the page in order to read this noindex at all.
+    robots: { index: false, follow: true },
   };
 }
 

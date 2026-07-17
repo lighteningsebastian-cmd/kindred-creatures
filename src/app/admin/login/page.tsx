@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Sign in | Kindred Creatures",
+  title: "Sign in",
   // S9 owns robots.txt. This is the belt to its braces: the admin is not a
   // place a crawler has any business being, and saying so on the page itself
   // means a future robots.txt edit cannot quietly expose it.

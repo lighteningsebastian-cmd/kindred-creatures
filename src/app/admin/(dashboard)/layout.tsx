@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Admin | Kindred Creatures",
+  title: "Admin",
   // S9 owns robots.txt; this makes the admin non-indexable regardless of it.
   robots: { index: false, follow: false },
 };

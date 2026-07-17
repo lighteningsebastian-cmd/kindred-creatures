@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 
 export const metadata: Metadata = {
-  title: "Payment cancelled | Kindred Creatures",
+  title: "Payment cancelled",
   robots: { index: false, follow: false },
 };
 
