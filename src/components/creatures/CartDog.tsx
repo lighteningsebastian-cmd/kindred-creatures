@@ -26,12 +26,23 @@ const STROKE = {
 /** How long the celebratory pop holds before the dog ducks back down. */
 const POP_MS = 1200;
 
-/** Head vertical offset per state (viewBox units; 17 hides it behind the rim). */
+/**
+ * Head vertical offset per state (viewBox units). idle parks the (enlarged)
+ * head fully below the rim so the clip hides it; peeking and popped lift it
+ * further out than before so more of the face clears the basket and it reads
+ * as a dog.
+ */
 const HEAD_Y: Record<CartDogState, number> = {
-  idle: 17,
-  peeking: 4.5,
-  popped: -2,
+  idle: 19.5,
+  peeking: 3,
+  popped: -3,
 };
+
+/**
+ * The head artwork is drawn small (historical viewBox coords); scale it up
+ * about its own centre so the dog reads clearly without redrawing every path.
+ */
+const HEAD_SCALE = "translate(20 14) scale(1.32) translate(-20 -14)";
 
 const HEAD_SPRING: Record<CartDogState, object> = {
   idle: { type: "spring", stiffness: 220, damping: 26 },
@@ -87,11 +98,12 @@ export function CartDog({ count = 0, engaged = false, className }: CartDogProps)
         <g clipPath={`url(#${clipId})`}>
           <motion.g
             initial={false}
-            animate={{ y: reducedMotion ? 17 : HEAD_Y[state] }}
+            animate={{ y: reducedMotion ? HEAD_Y.idle : HEAD_Y[state] }}
             transition={
               reducedMotion ? { duration: 0 } : HEAD_SPRING[state]
             }
           >
+           <g transform={HEAD_SCALE}>
             {/* Ears perk when popped */}
             <Pivot
               px={14}
@@ -153,6 +165,7 @@ export function CartDog({ count = 0, engaged = false, className }: CartDogProps)
               d="M 18.4 16.2 C 18.9 15.5, 21.1 15.5, 21.6 16.2 C 21.4 17.6, 20.7 18.3, 20 18.3 C 19.3 18.3, 18.6 17.6, 18.4 16.2 Z"
               fill="var(--color-ink)"
             />
+           </g>
           </motion.g>
         </g>
         <g>
