@@ -9,12 +9,14 @@
 export const MIN_QTY = 1;
 export const MAX_QTY = 10;
 
-// PLACEHOLDER: flat national shipping rate, in whole rands. Standing in until
-// the Cape Town print partner confirms courier costing (and until the "free
-// over R750" promise in the utility bar is priced). Single source of truth:
-// the server reads this at checkout, the summary renders it, nothing else
-// hardcodes 99.
+// PLACEHOLDER RATES, in whole rands: standing in until the Cape Town print
+// partner confirms courier costing. Both numbers need owner sign-off before
+// launch, but the threshold is not arbitrary: the utility bar and the cart both
+// promise "free shipping over R750", so the charge has to honour it or the site
+// lies to the customer. Single source of truth: the server reads these at
+// checkout, the summary renders them, nothing else hardcodes the figures.
 export const SHIPPING_FLAT_ZAR = 99;
+export const FREE_SHIPPING_THRESHOLD_ZAR = 750;
 
 /** The nine South African provinces, in the order the select offers them. */
 export const SA_PROVINCES = [
@@ -182,12 +184,16 @@ export function isValidQty(qty: unknown): qty is number {
   );
 }
 
-/** Order maths in one place: shipping is flat, so the total is the sum. */
+/**
+ * Order maths in one place. Shipping is flat until the subtotal reaches the
+ * free-shipping threshold the site advertises, at which point it is free.
+ */
 export function orderTotals(subtotalZar: number): {
   subtotalZar: number;
   shippingZar: number;
   totalZar: number;
 } {
-  const shippingZar = SHIPPING_FLAT_ZAR;
+  const shippingZar =
+    subtotalZar >= FREE_SHIPPING_THRESHOLD_ZAR ? 0 : SHIPPING_FLAT_ZAR;
   return { subtotalZar, shippingZar, totalZar: subtotalZar + shippingZar };
 }

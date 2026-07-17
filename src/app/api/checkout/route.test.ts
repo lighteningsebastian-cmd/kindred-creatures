@@ -6,7 +6,7 @@ import { POST as generate } from "../generate/route";
 import { POST as upload } from "../upload/route";
 import { getDb } from "@/lib/db/client";
 import { orderItems, orders } from "@/lib/db/schema";
-import { SHIPPING_FLAT_ZAR } from "@/lib/checkout";
+import { orderTotals } from "@/lib/checkout";
 
 // The real offline mock provider and an in-memory database, end to end. No
 // network: artworks are made the same way a customer makes them.
@@ -89,7 +89,7 @@ describe("POST /api/checkout", () => {
     const { orderId, totalZar } = await res.json();
 
     // 2 x R 899 + R 99 shipping.
-    expect(totalZar).toBe(2 * 899 + SHIPPING_FLAT_ZAR);
+    expect(totalZar).toBe(orderTotals(2 * 899).totalZar);
 
     const db = await getDb();
     const [row] = await db.select().from(orders).where(eq(orders.id, orderId));
@@ -98,7 +98,7 @@ describe("POST /api/checkout", () => {
     expect(row.city).toBe("Cape Town");
     expect(row.payfastPaymentId).toBeNull();
     expect(row.subtotalZar).toBe(1798);
-    expect(row.shippingZar).toBe(SHIPPING_FLAT_ZAR);
+    expect(row.shippingZar).toBe(orderTotals(1798).shippingZar);
     // Totals math: subtotal + shipping is the total, on the row itself.
     expect(row.subtotalZar + row.shippingZar).toBe(row.totalZar);
 
@@ -121,11 +121,11 @@ describe("POST /api/checkout", () => {
 
     expect(res.status).toBe(201);
     const { orderId, totalZar } = await res.json();
-    expect(totalZar).toBe(899 + SHIPPING_FLAT_ZAR);
+    expect(totalZar).toBe(orderTotals(899).totalZar);
 
     const db = await getDb();
     const [row] = await db.select().from(orders).where(eq(orders.id, orderId));
-    expect(row.totalZar).toBe(899 + SHIPPING_FLAT_ZAR);
+    expect(row.totalZar).toBe(orderTotals(899).totalZar);
     expect(row.subtotalZar).toBe(899);
 
     const lines = await db
@@ -155,7 +155,7 @@ describe("POST /api/checkout", () => {
     expect(res.status).toBe(201);
     const { totalZar } = await res.json();
     // 899 + (3 x 349) + 99 shipping.
-    expect(totalZar).toBe(899 + 1047 + SHIPPING_FLAT_ZAR);
+    expect(totalZar).toBe(orderTotals(899 + 1047).totalZar);
   });
 
   it("rejects an empty cart", async () => {

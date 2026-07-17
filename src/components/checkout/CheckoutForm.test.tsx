@@ -72,10 +72,10 @@ describe("CheckoutForm", () => {
     expect(screen.getByText("The Kindred Hoodie")).toBeInTheDocument();
     expect(screen.getByText("Stone · Size M · Qty 2")).toBeInTheDocument();
 
-    // Subtotal R 1 798 (line total and subtotal), shipping R 99, total R 1 897.
-    expect(screen.getAllByText("R 1 798")).toHaveLength(2);
-    expect(screen.getAllByText("R 99").length).toBeGreaterThan(0);
-    expect(screen.getByText("R 1 897")).toBeInTheDocument();
+    // R 1 798 is over the R 750 free-shipping threshold the site advertises, so
+    // shipping reads Free and the figure repeats as line total, subtotal, total.
+    expect(screen.getAllByText("R 1 798")).toHaveLength(3);
+    expect(screen.getByText("Free")).toBeInTheDocument();
   });
 
   it("shows a warm empty state instead of a form when the cart is empty", async () => {

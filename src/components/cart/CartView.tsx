@@ -4,6 +4,7 @@ import { Minus, Plus, X } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { FREE_SHIPPING_THRESHOLD_ZAR } from "@/lib/checkout";
 import { formatZar, getProduct, type ProductSlug } from "@/lib/products";
 import {
   MAX_QTY,
@@ -190,9 +191,9 @@ export function CartView() {
                 </dl>
 
                 <p className="mt-4 text-xs leading-relaxed text-muted">
-                  Placeholder: shipping is not costed yet while we confirm rates
-                  with our print shop, so this total covers the garments only.
-                  Orders over R750 ship free.
+                  This total covers the garments. Shipping is added at checkout,
+                  and it is free once your order passes{" "}
+                  {formatZar(FREE_SHIPPING_THRESHOLD_ZAR)}.
                 </p>
 
                 <Button block href="/checkout" size="md" className="mt-6 w-full">

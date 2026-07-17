@@ -9,7 +9,9 @@ import { formatZar, getProduct, type ProductSlug } from "@/lib/products";
 import { subtotalZar, useCartHydrated, useCartItems } from "@/lib/cart-store";
 import {
   CUSTOMER_FIELDS,
+  FREE_SHIPPING_THRESHOLD_ZAR,
   SA_PROVINCES,
+  SHIPPING_FLAT_ZAR,
   orderTotals,
   validateCustomerDetails,
   type CustomerErrors,
@@ -416,7 +418,7 @@ export function CheckoutForm() {
                   <div className="flex items-baseline justify-between gap-4">
                     <dt className="text-muted">Shipping</dt>
                     <dd className="font-medium text-ink">
-                      {formatZar(shippingZar)}
+                      {shippingZar === 0 ? "Free" : formatZar(shippingZar)}
                     </dd>
                   </div>
                   <div className="mt-2 flex items-baseline justify-between gap-4 border-t border-line pt-4">
@@ -428,9 +430,9 @@ export function CheckoutForm() {
                 </dl>
 
                 <p className="mt-4 text-xs leading-relaxed text-muted">
-                  Placeholder: courier rates are still being confirmed with our
-                  print shop, so shipping is a flat {formatZar(shippingZar)} for
-                  now.
+                  {shippingZar === 0
+                    ? `Your order is over ${formatZar(FREE_SHIPPING_THRESHOLD_ZAR)}, so shipping is on us.`
+                    : `Courier rates are still being confirmed with our print shop, so shipping is ${formatZar(SHIPPING_FLAT_ZAR)} until your order passes ${formatZar(FREE_SHIPPING_THRESHOLD_ZAR)}.`}
                 </p>
               </aside>
             </div>
