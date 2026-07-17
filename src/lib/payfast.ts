@@ -14,6 +14,15 @@ import { createHash, timingSafeEqual } from "node:crypto";
 const SANDBOX_PROCESS_URL = "https://sandbox.payfast.co.za/eng/process";
 const LIVE_PROCESS_URL = "https://www.payfast.co.za/eng/process";
 
+/**
+ * Where an ITN gets posted back for PayFast to confirm it sent it. This is the
+ * source check the ITN webhook (S5) leans on, so it is deliberately built from
+ * the same PAYFAST_SANDBOX switch as the process URL: confirming a sandbox
+ * payment against the live host (or the reverse) answers INVALID every time.
+ */
+const SANDBOX_VALIDATE_URL = "https://sandbox.payfast.co.za/eng/query/validate";
+const LIVE_VALIDATE_URL = "https://www.payfast.co.za/eng/query/validate";
+
 /** What shows up on the customer's PayFast screen and bank statement. */
 export const ITEM_NAME = "Kindred Creatures order";
 
@@ -171,6 +180,13 @@ export function payfastProcessUrl(): string {
     : LIVE_PROCESS_URL;
 }
 
+/** Sandbox or live server-confirmation host, decided by PAYFAST_SANDBOX. */
+export function payfastValidateUrl(): string {
+  return process.env.PAYFAST_SANDBOX === "true"
+    ? SANDBOX_VALIDATE_URL
+    : LIVE_VALIDATE_URL;
+}
+
 /**
  * Everything a payment payload needs about the order. These come from the
  * orders row read back out of the database, never from the request body: the
@@ -182,6 +198,14 @@ export interface PaymentInput {
   lastName: string;
   email: string;
   totalZar: number;
+  /**
+   * The signed order-lookup token (see lib/order-token) that return_url is
+   * built around, so the customer PayFast sends back lands on their own order.
+   * Required rather than optional: a return_url with no order reference on it
+   * can only lead to a page that shrugs, and an unsigned one would be an
+   * order-lookup endpoint keyed by an id that is already in this very form.
+   */
+  returnToken: string;
   itemName?: string;
 }
 
@@ -202,7 +226,10 @@ export function buildPaymentFields(
   const fields: Record<string, string> = {
     merchant_id: config.merchantId,
     merchant_key: config.merchantKey,
-    return_url: `${site}/checkout/complete`,
+    // The customer comes back to their own order page. Both halves of the token
+    // are uuid/base64url, so there is nothing here to percent-encode; the value
+    // is ours and it goes into the base string exactly as it goes into the URL.
+    return_url: `${site}/order/${input.returnToken}`,
     cancel_url: `${site}/checkout/cancelled`,
     notify_url: `${site}/api/payfast/notify`,
     name_first: input.firstName,

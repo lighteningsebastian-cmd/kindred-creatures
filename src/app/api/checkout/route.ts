@@ -16,6 +16,7 @@ import {
   redactFields,
   usingMockPayfast,
 } from "@/lib/payfast";
+import { signOrderToken } from "@/lib/order-token";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -270,12 +271,18 @@ export async function POST(request: Request) {
     return bad("We could not open your order. Please try again.", 500);
   }
 
+  // The return URL carries a signed token for this order (S5). It is minted
+  // here, on the one request that has already proven the caller is entitled to
+  // this order, rather than handed out by a lookup endpoint later. The token
+  // unlocks a status page, never a payment: what comes back through the
+  // customer's browser is a request to look, not evidence of anything.
   const fields = buildPaymentFields({
     orderId: row.id,
     firstName: row.firstName,
     lastName: row.lastName,
     email: row.email,
     totalZar: row.totalZar,
+    returnToken: signOrderToken(row.id),
   });
 
   // With no credentials (or MOCK_SERVICES on) the shop still runs end to end:

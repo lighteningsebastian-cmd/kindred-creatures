@@ -28,12 +28,20 @@ const CONFIG: PayfastConfig = {
 
 const PASSPHRASE = "jt7NOE43FZPn";
 
+/**
+ * A fixed token rather than a real signOrderToken() one: the vectors below hash
+ * the return URL it is embedded in, so a fixture that changed with
+ * ORDER_TOKEN_SECRET would make them unreproducible.
+ */
+const RETURN_TOKEN = "11111111-1111-1111-1111-111111111111.dGVzdC10b2tlbg";
+
 const ORDER = {
   orderId: "11111111-1111-1111-1111-111111111111",
   firstName: "Thandi",
   lastName: "Mokoena",
   email: "thandi@example.co.za",
   totalZar: 899,
+  returnToken: RETURN_TOKEN,
 };
 
 /** The payload as it goes over the wire, minus the signature that covers it. */
@@ -59,21 +67,29 @@ describe("toAmountString", () => {
 describe("buildSignature", () => {
   it("matches a fixed vector with no passphrase", () => {
     // merchant_id=10000100&merchant_key=46f0cd694581a&return_url=https%3A%2F%2F
-    // kindredcreature.co.za%2Fcheckout%2Fcomplete&cancel_url=...%2Fcancelled&
-    // notify_url=...%2Fapi%2Fpayfast%2Fnotify&name_first=Thandi&name_last=
-    // Mokoena&email_address=thandi%40example.co.za&m_payment_id=1111...&
-    // amount=899.00&item_name=Kindred+Creatures+order
+    // kindredcreature.co.za%2Forder%2F11111111-1111-1111-1111-111111111111.
+    // dGVzdC10b2tlbg&cancel_url=...%2Fcheckout%2Fcancelled&notify_url=...%2Fapi
+    // %2Fpayfast%2Fnotify&name_first=Thandi&name_last=Mokoena&email_address=
+    // thandi%40example.co.za&m_payment_id=1111...&amount=899.00&item_name=
+    // Kindred+Creatures+order
+    //
+    // Note what the token does NOT do to the base string: its dots and dashes
+    // ride through unescaped, because PHP's urlencode() leaves - _ . alone.
+    // (Vector rolled once, in S5: return_url moved from /checkout/complete to
+    // the tokenised /order/<token> so PayFast returns the customer to their own
+    // order. The old vector was 589ddebdc5c8bfd40d105e39918bac1a.)
     const fields = buildPaymentFields(ORDER, CONFIG);
     const { signature, ...signed } = fields;
-    expect(buildSignature(signed)).toBe("589ddebdc5c8bfd40d105e39918bac1a");
-    expect(signature).toBe("589ddebdc5c8bfd40d105e39918bac1a");
+    expect(buildSignature(signed)).toBe("7ff5d7d775d62c4e1255a37df84a3f24");
+    expect(signature).toBe("7ff5d7d775d62c4e1255a37df84a3f24");
   });
 
   it("matches a fixed vector with a passphrase appended last", () => {
     // ...the same base string, then &passphrase=jt7NOE43FZPn
+    // (Old vector, pre-token return_url: 397522cc24819eee6789f490316c7acf.)
     const signed = withoutSignature(buildPaymentFields(ORDER, CONFIG));
     expect(buildSignature(signed, PASSPHRASE)).toBe(
-      "397522cc24819eee6789f490316c7acf",
+      "5a0b2f7bd58a4ad2e8a2efcb639d14e6",
     );
   });
 
@@ -172,8 +188,11 @@ describe("buildPaymentFields", () => {
 
   it("builds the callback URLs off the site URL", () => {
     const fields = buildPaymentFields(ORDER, CONFIG);
+    // The return URL carries the order's signed token, so PayFast hands the
+    // customer back to their own order rather than to a page that has to ask
+    // who they are. It is a status page, not a receipt: see order/[token].
     expect(fields.return_url).toBe(
-      "https://kindredcreature.co.za/checkout/complete",
+      `https://kindredcreature.co.za/order/${RETURN_TOKEN}`,
     );
     expect(fields.cancel_url).toBe(
       "https://kindredcreature.co.za/checkout/cancelled",
