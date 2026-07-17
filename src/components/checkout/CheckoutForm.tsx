@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Input } from "@/components/ui/Input";
@@ -100,35 +100,99 @@ function EmptyCheckout() {
   );
 }
 
-/**
- * Marks the end of what this step owns. The order exists and is priced; taking
- * the money is the next step's job, and this panel is the seam it replaces.
- */
-function PaymentPending({
-  orderId,
-  totalZar,
-}: {
+/** The signed payload the server hands back with a freshly opened order. */
+type Placed = {
   orderId: string;
   totalZar: number;
-}) {
+  mock: boolean;
+  processUrl: string;
+  fields: Record<string, string>;
+};
+
+/**
+ * The handover itself. PayFast takes a form POST, not a fetch, so the fields
+ * the server signed are rendered as hidden inputs and submitted on mount. The
+ * inputs carry the server's values verbatim: re-deriving anything here would
+ * change the string that was signed and the payment would bounce.
+ *
+ * The cart is deliberately left alone. Someone who takes one look at the
+ * gateway and backs out must come back to a cart that still holds their
+ * portraits; the cart clears when payment is confirmed, not when it is asked for.
+ */
+function PayfastHandoff({ placed }: { placed: Placed }) {
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    formRef.current?.submit();
+  }, []);
+
   return (
     <div
       className="flex flex-col items-start gap-4 rounded-lg border border-line bg-surface p-8"
       role="status"
     >
-      <p className="eyebrow text-xs text-accent">Order held</p>
+      <p className="eyebrow text-xs text-accent">Taking you to PayFast</p>
       <h2 className="font-display text-2xl leading-[1.2] text-ink">
-        Your order is saved and waiting for payment.
+        Handing you over to pay, safely.
       </h2>
       <p className="max-w-lg leading-relaxed text-muted">
-        We have put {formatZar(totalZar)} of portraits aside under reference{" "}
-        <span className="font-medium text-ink">{orderId}</span>. Nothing has been
-        charged yet.
+        Your order for {formatZar(placed.totalZar)} is saved. PayFast takes it
+        from here · if this page sits still for more than a moment, use the
+        button below.
       </p>
-      <p className="rounded-md border border-line bg-surface-alt px-4 py-3 text-sm text-muted">
-        Placeholder: the payment step is still being wired up. This panel is
-        where the card handover will appear.
+
+      <form ref={formRef} method="post" action={placed.processUrl}>
+        {Object.entries(placed.fields).map(([name, value]) => (
+          <input key={name} type="hidden" name={name} value={value} />
+        ))}
+        <Button size="md" type="submit">
+          Continue to PayFast
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+/**
+ * Mock mode: no credentials, so nobody is handed to a gateway. The payload is
+ * real and really signed, and it is laid out here to be read. The merchant key
+ * is redacted server-side and never reaches this component.
+ */
+function PayfastMock({ placed }: { placed: Placed }) {
+  return (
+    <div
+      className="flex flex-col items-start gap-4 rounded-lg border border-line bg-surface p-8"
+      role="status"
+    >
+      <p className="eyebrow text-xs text-accent">Payment is mocked</p>
+      <h2 className="font-display text-2xl leading-[1.2] text-ink">
+        Your order is saved. No money changed hands.
+      </h2>
+      <p className="max-w-lg leading-relaxed text-muted">
+        This shop is running without PayFast credentials, so we built and signed
+        the payment below instead of sending you to it. Your order for{" "}
+        {formatZar(placed.totalZar)} is held under reference{" "}
+        <span className="font-medium text-ink">{placed.orderId}</span>.
       </p>
+
+      <details className="w-full rounded-md border border-line bg-surface-alt px-4 py-3">
+        <summary className="cursor-pointer text-sm font-medium text-ink">
+          Inspect the signed payload
+        </summary>
+        <p className="mt-3 text-xs leading-relaxed text-muted">
+          POST target: <span className="text-ink">{placed.processUrl}</span>
+        </p>
+        <dl className="mt-3 flex flex-col gap-2">
+          {Object.entries(placed.fields).map(([name, value]) => (
+            <div key={name} className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+              <dt className="shrink-0 font-mono text-xs text-muted sm:w-40">
+                {name}
+              </dt>
+              <dd className="break-all font-mono text-xs text-ink">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </details>
     </div>
   );
 }
@@ -147,10 +211,7 @@ export function CheckoutForm() {
   const [errors, setErrors] = useState<CustomerErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [placed, setPlaced] = useState<{
-    orderId: string;
-    totalZar: number;
-  } | null>(null);
+  const [placed, setPlaced] = useState<Placed | null>(null);
 
   const subtotal = subtotalZar(items);
   const { shippingZar, totalZar } = orderTotals(subtotal);
@@ -222,12 +283,17 @@ export function CheckoutForm() {
         return;
       }
 
-      // TODO(S4): hand off to PayFast here. The order is open and priced;
-      // swap this panel for the redirect using json.orderId. The cart is
-      // deliberately left intact until payment is confirmed, so someone who
-      // abandons the gateway comes back to a cart that still holds their
-      // portraits.
-      setPlaced({ orderId: json.orderId, totalZar: json.totalZar });
+      // The order is open, priced and signed. Swapping this panel out mounts
+      // the handoff, which posts the server's fields straight to PayFast. The
+      // cart stays put until payment is confirmed (S5), so someone who
+      // abandons the gateway comes back to their portraits.
+      setPlaced({
+        orderId: json.orderId,
+        totalZar: json.totalZar,
+        mock: json.mock === true,
+        processUrl: json.processUrl,
+        fields: json.fields ?? {},
+      });
     } catch {
       setFormError(
         "We could not reach the shop. Please check your connection and try again.",
@@ -254,7 +320,11 @@ export function CheckoutForm() {
               <Skeleton className="h-64 w-full rounded-lg" />
             </div>
           ) : placed ? (
-            <PaymentPending orderId={placed.orderId} totalZar={placed.totalZar} />
+            placed.mock ? (
+              <PayfastMock placed={placed} />
+            ) : (
+              <PayfastHandoff placed={placed} />
+            )
           ) : items.length === 0 ? (
             <EmptyCheckout />
           ) : (

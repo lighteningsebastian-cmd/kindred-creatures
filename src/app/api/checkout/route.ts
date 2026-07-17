@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { artworks, orderItems, orders } from "@/lib/db/schema";
 import { getProduct } from "@/lib/products";
@@ -10,6 +10,12 @@ import {
   MAX_QTY,
   MIN_QTY,
 } from "@/lib/checkout";
+import {
+  buildPaymentFields,
+  payfastProcessUrl,
+  redactFields,
+  usingMockPayfast,
+} from "@/lib/payfast";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -96,15 +102,26 @@ function priceLine(
 }
 
 /**
- * Opens a pending order from a cart.
+ * Opens a pending order from a cart and hands back the signed PayFast payload
+ * that pays for it.
  *
  * Two things matter here. First, no price crosses the wire inwards: the cart is
  * persisted in the customer's own localStorage, so every rand is re-derived
  * from products.ts before anything is written. Second, an order can only be
  * placed for a portrait that actually exists and is ready to print.
  *
- * The order is written as "pending". Payment happens after this, so a pending
- * order is the expected end state of a successful call.
+ * The order is written as "pending" and stays that way: this route only asks
+ * for money, it never confirms it. The ITN webhook (S5) is what moves an order
+ * to "paid", because a customer's browser reaching a success page proves
+ * nothing about whether a payment cleared.
+ *
+ * The payment payload lives on this route rather than a separate
+ * POST /api/payfast/redirect for one reason: a standalone endpoint would take
+ * an orderId from the caller and hand back that order's name, email and total,
+ * which is an unauthenticated order-lookup endpoint wearing a payment hat.
+ * Guarding it would mean minting and checking ORDER_TOKEN_SECRET tokens. This
+ * route already holds the order it just created and already knows the caller
+ * is entitled to it, so the payload costs one extra query and no new surface.
  */
 export async function POST(request: Request) {
   let body: unknown;
@@ -232,9 +249,50 @@ export async function POST(request: Request) {
         })),
       );
     });
-
-    return Response.json({ orderId, totalZar }, { status: 201 });
   } catch {
     return bad("We could not open your order. Please try again.", 500);
   }
+
+  // Read the order back rather than signing the totals still sitting in memory.
+  // The row is the only thing the ITN webhook can later reconcile a payment
+  // against, so the row is what we ask the customer to pay. An amount that
+  // round-tripped through the browser, or one that drifted between this
+  // process and what actually landed in the table, is not the amount owed.
+  let row;
+  try {
+    [row] = await db.select().from(orders).where(eq(orders.id, orderId));
+  } catch {
+    row = undefined;
+  }
+  if (!row) {
+    // The order may well be sitting in the table; we just cannot prove what it
+    // costs, and a payment request we cannot stand behind is worse than none.
+    return bad("We could not open your order. Please try again.", 500);
+  }
+
+  const fields = buildPaymentFields({
+    orderId: row.id,
+    firstName: row.firstName,
+    lastName: row.lastName,
+    email: row.email,
+    totalZar: row.totalZar,
+  });
+
+  // With no credentials (or MOCK_SERVICES on) the shop still runs end to end:
+  // the payload is built and signed for real, but the browser is told to stay
+  // here and show it rather than hand off to a gateway we cannot reach. The
+  // merchant key is stripped on that path: a real form must carry it to
+  // PayFast, but a payload meant to be read on screen must not.
+  const mock = usingMockPayfast();
+
+  return Response.json(
+    {
+      orderId,
+      totalZar: row.totalZar,
+      mock,
+      processUrl: payfastProcessUrl(),
+      fields: mock ? redactFields(fields) : fields,
+    },
+    { status: 201 },
+  );
 }

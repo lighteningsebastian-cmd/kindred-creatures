@@ -38,6 +38,29 @@ const seed = (...lines: CartItem[]) => {
   for (const item of lines) useCartStore.getState().addItem(item);
 };
 
+/**
+ * A 201 as the checkout route now answers it: the order plus the signed PayFast
+ * payload that pays for it. Defaults to the mock path, which is what a
+ * developer with no PayFast credentials gets.
+ */
+function placedBody(overrides: Record<string, unknown> = {}) {
+  return {
+    orderId: "ord-7",
+    totalZar: 998,
+    mock: true,
+    processUrl: "https://sandbox.payfast.co.za/eng/process",
+    fields: {
+      merchant_id: "10000100",
+      merchant_key: "(hidden)",
+      m_payment_id: "ord-7",
+      amount: "998.00",
+      item_name: "Kindred Creatures order",
+      signature: "589ddebdc5c8bfd40d105e39918bac1a",
+    },
+    ...overrides,
+  };
+}
+
 /** Fills every field with something the validator is happy with. */
 async function fillForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("First name"), "Thandi");
@@ -161,7 +184,7 @@ describe("CheckoutForm", () => {
   it("posts identity and choices but never a price, then holds the order", async () => {
     const fetchSpy = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ orderId: "ord-7", totalZar: 998 }),
+      json: async () => placedBody(),
     });
     vi.stubGlobal("fetch", fetchSpy);
     const user = userEvent.setup();
@@ -191,11 +214,13 @@ describe("CheckoutForm", () => {
     // The price is the server's business.
     expect(body.items[0]).not.toHaveProperty("unitPriceZar");
 
-    // Payment is a later step: the order is held, not confirmed or charged.
+    // Nothing is charged on this step: the order is held, awaiting PayFast.
     expect(
-      await screen.findByText("Your order is saved and waiting for payment."),
+      await screen.findByText("Your order is saved. No money changed hands."),
     ).toBeInTheDocument();
-    expect(screen.getByText("ord-7")).toBeInTheDocument();
+    // The reference reads back to the customer, and again as m_payment_id in
+    // the payload below it.
+    expect(screen.getAllByText("ord-7").length).toBeGreaterThan(0);
 
     // The cart is deliberately left intact until payment is confirmed.
     expect(useCartStore.getState().items).toHaveLength(1);
@@ -270,11 +295,121 @@ describe("CheckoutForm", () => {
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute("aria-busy", "true");
 
-    release({ ok: true, json: async () => ({ orderId: "ord-8", totalZar: 998 }) });
+    release({ ok: true, json: async () => placedBody({ orderId: "ord-8" }) });
     await waitFor(() =>
       expect(
-        screen.getByText("Your order is saved and waiting for payment."),
+        screen.getByText("Your order is saved. No money changed hands."),
       ).toBeInTheDocument(),
     );
+  });
+});
+
+describe("CheckoutForm: the PayFast handover", () => {
+  /**
+   * jsdom has no navigation, so HTMLFormElement.submit() is unimplemented and
+   * noisy. Standing in for it is also the only way to prove the handover fires.
+   */
+  function spyOnFormSubmit() {
+    const submit = vi.fn();
+    vi.spyOn(HTMLFormElement.prototype, "submit").mockImplementation(submit);
+    return submit;
+  }
+
+  async function placeOrder(body: Record<string, unknown>) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: true, json: async () => body }),
+    );
+    const user = userEvent.setup();
+    seed(line());
+    render(<CheckoutForm />);
+    await screen.findByLabelText("First name");
+    await fillForm(user);
+    await user.click(
+      screen.getByRole("button", { name: /continue to payment/i }),
+    );
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("posts the server's signed fields straight to PayFast", async () => {
+    const submit = spyOnFormSubmit();
+    await placeOrder(
+      placedBody({
+        mock: false,
+        fields: {
+          merchant_id: "10000100",
+          merchant_key: "46f0cd694581a",
+          amount: "998.00",
+          signature: "589ddebdc5c8bfd40d105e39918bac1a",
+        },
+      }),
+    );
+
+    expect(
+      await screen.findByText("Handing you over to pay, safely."),
+    ).toBeInTheDocument();
+
+    // A real form POST, not a fetch: PayFast will not accept anything else.
+    await waitFor(() => expect(submit).toHaveBeenCalledOnce());
+
+    const form = document.querySelector("form[method='post']");
+    expect(form).toHaveAttribute(
+      "action",
+      "https://sandbox.payfast.co.za/eng/process",
+    );
+
+    // Every field goes over exactly as signed. Re-deriving any of them here
+    // would change the base string and PayFast would reject the payment.
+    const inputs = Object.fromEntries(
+      [...form!.querySelectorAll("input[type='hidden']")].map((node) => [
+        node.getAttribute("name"),
+        node.getAttribute("value"),
+      ]),
+    );
+    expect(inputs).toEqual({
+      merchant_id: "10000100",
+      merchant_key: "46f0cd694581a",
+      amount: "998.00",
+      signature: "589ddebdc5c8bfd40d105e39918bac1a",
+    });
+  });
+
+  it("leaves the cart alone when handing off, so an abandoned payment comes back", async () => {
+    spyOnFormSubmit();
+    await placeOrder(placedBody({ mock: false }));
+
+    await screen.findByText("Handing you over to pay, safely.");
+    // The portraits are still here. S5 clears the cart on confirmed payment.
+    expect(useCartStore.getState().items).toHaveLength(1);
+  });
+
+  it("stays on-site and never submits a form in mock mode", async () => {
+    const submit = spyOnFormSubmit();
+    await placeOrder(placedBody({ mock: true }));
+
+    expect(
+      await screen.findByText("Your order is saved. No money changed hands."),
+    ).toBeInTheDocument();
+    expect(submit).not.toHaveBeenCalled();
+    expect(document.querySelector("form[method='post']")).toBeNull();
+  });
+
+  it("lays the mock payload out to be read, with no merchant key in it", async () => {
+    spyOnFormSubmit();
+    await placeOrder(placedBody({ mock: true }));
+
+    await screen.findByText("Your order is saved. No money changed hands.");
+    expect(screen.getByText("Inspect the signed payload")).toBeInTheDocument();
+    expect(screen.getByText("amount")).toBeInTheDocument();
+    expect(screen.getByText("998.00")).toBeInTheDocument();
+    expect(
+      screen.getByText("https://sandbox.payfast.co.za/eng/process"),
+    ).toBeInTheDocument();
+    // Redacted server-side; the real key must never be in the document.
+    expect(screen.getByText("(hidden)")).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain("46f0cd694581a");
   });
 });

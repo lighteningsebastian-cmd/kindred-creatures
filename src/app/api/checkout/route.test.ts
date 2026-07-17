@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { POST as checkout } from "./route";
 import { POST as generate } from "../generate/route";
@@ -7,6 +7,7 @@ import { POST as upload } from "../upload/route";
 import { getDb } from "@/lib/db/client";
 import { orderItems, orders } from "@/lib/db/schema";
 import { orderTotals } from "@/lib/checkout";
+import { buildSignature, toAmountString, verifyItnSignature } from "@/lib/payfast";
 
 // The real offline mock provider and an in-memory database, end to end. No
 // network: artworks are made the same way a customer makes them.
@@ -288,5 +289,145 @@ describe("POST /api/checkout", () => {
       }),
     );
     expect(res.status).toBe(400);
+  });
+});
+
+describe("POST /api/checkout: the PayFast payload", () => {
+  /** Credentials the route will pick up, turning the mock path off. */
+  function withCredentials(passphrase?: string) {
+    vi.stubEnv("MOCK_SERVICES", "");
+    vi.stubEnv("PAYFAST_MERCHANT_ID", "10000100");
+    vi.stubEnv("PAYFAST_MERCHANT_KEY", "46f0cd694581a");
+    vi.stubEnv("PAYFAST_SANDBOX", "true");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://kindredcreature.co.za");
+    if (passphrase) vi.stubEnv("PAYFAST_PASSPHRASE", passphrase);
+  }
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("signs the amount on the order row, not the one in the request body", async () => {
+    withCredentials();
+    const artworkId = await readyArtwork();
+
+    // A hostile cart claiming the hoodie is R 1. The row says R 899 + R 99.
+    const res = await checkout(
+      order([hoodieLine(artworkId, { unitPriceZar: 1 })], {
+        totalZar: 1,
+        amount: "1.00",
+        subtotalZar: 1,
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    const { orderId, fields } = await res.json();
+
+    const db = await getDb();
+    const [row] = await db.select().from(orders).where(eq(orders.id, orderId));
+
+    // The number the customer is asked for is the number in the table.
+    // One R 899 hoodie clears the R 750 free-shipping threshold, so R 899 flat.
+    expect(row.totalZar).toBe(orderTotals(899).totalZar);
+    expect(fields.amount).toBe(toAmountString(row.totalZar));
+    expect(fields.amount).toBe("899.00");
+    expect(fields.amount).not.toBe("1.00");
+  });
+
+  it("signs a payload that verifies, and breaks if the amount is edited", async () => {
+    withCredentials("jt7NOE43FZPn");
+    const artworkId = await readyArtwork();
+    const res = await checkout(order([hoodieLine(artworkId)]));
+    const { fields } = await res.json();
+
+    // Proves the signature covers this exact field set under our passphrase.
+    expect(verifyItnSignature(fields, "jt7NOE43FZPn")).toBe(true);
+
+    // Someone editing the hidden input in devtools before submitting.
+    expect(
+      verifyItnSignature({ ...fields, amount: "1.00" }, "jt7NOE43FZPn"),
+    ).toBe(false);
+  });
+
+  it("ties the payload to the order via m_payment_id", async () => {
+    withCredentials();
+    const artworkId = await readyArtwork();
+    const res = await checkout(order([hoodieLine(artworkId)]));
+    const { orderId, fields } = await res.json();
+
+    // This is the thread S5 pulls to find the order an ITN belongs to.
+    expect(fields.m_payment_id).toBe(orderId);
+
+    const db = await getDb();
+    const [row] = await db.select().from(orders).where(eq(orders.id, orderId));
+    expect(row.id).toBe(fields.m_payment_id);
+    expect(fields.name_first).toBe(row.firstName);
+    expect(fields.email_address).toBe(row.email);
+  });
+
+  it("hands back the sandbox host and a real merchant key when configured", async () => {
+    withCredentials();
+    const artworkId = await readyArtwork();
+    const res = await checkout(order([hoodieLine(artworkId)]));
+    const json = await res.json();
+
+    expect(json.mock).toBe(false);
+    expect(json.processUrl).toBe("https://sandbox.payfast.co.za/eng/process");
+    // A live form has to carry the key to PayFast, so here it is present.
+    expect(json.fields.merchant_key).toBe("46f0cd694581a");
+    expect(json.fields.signature).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it("signs what it sends: the payload is internally consistent", async () => {
+    withCredentials("jt7NOE43FZPn");
+    const artworkId = await readyArtwork();
+    const res = await checkout(order([hoodieLine(artworkId)]));
+    const { fields } = await res.json();
+
+    // Rebuild the signature from the very fields the browser will post.
+    const { signature, ...posted } = fields;
+    expect(buildSignature(posted, "jt7NOE43FZPn")).toBe(signature);
+  });
+
+  it("mocks with no credentials and redacts the merchant key", async () => {
+    // No stubs: this is a developer with a clean checkout and no PayFast account.
+    const artworkId = await readyArtwork();
+    const res = await checkout(order([hoodieLine(artworkId)]));
+    const json = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(json.mock).toBe(true);
+    // The order is still real, still priced, still signed.
+    expect(json.fields.amount).toBe("899.00");
+    expect(json.fields.signature).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it("never sends a merchant key to the browser in mock mode", async () => {
+    // Credentials present but MOCK_SERVICES on: the one case where a real key
+    // exists and could leak into a panel meant for reading.
+    withCredentials();
+    vi.stubEnv("MOCK_SERVICES", "true");
+
+    const artworkId = await readyArtwork();
+    const res = await checkout(order([hoodieLine(artworkId)]));
+    const json = await res.json();
+
+    expect(json.mock).toBe(true);
+    expect(json.fields.merchant_key).toBe("(hidden)");
+    expect(JSON.stringify(json)).not.toContain("46f0cd694581a");
+  });
+
+  it("never sends the passphrase to the browser", async () => {
+    withCredentials("jt7NOE43FZPn");
+    const artworkId = await readyArtwork();
+
+    for (const mock of ["", "true"]) {
+      vi.stubEnv("MOCK_SERVICES", mock);
+      const res = await checkout(order([hoodieLine(await readyArtwork())]));
+      const body = await res.text();
+      expect(body).not.toContain("jt7NOE43FZPn");
+      expect(body).not.toContain("passphrase");
+    }
+    expect(artworkId).toBeTruthy();
   });
 });
