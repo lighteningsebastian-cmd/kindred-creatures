@@ -98,7 +98,7 @@ with ZAR offers, FAQPage, HowTo, BreadcrumbList); `sitemap.ts`, `robots.ts`, `ll
 route. Exclude `/dev/*` and `/admin/*` from indexing.
 **Commit:** `feat: seo metadata, structured data, and sitemap`
 
-## S10. Analytics + remaining pages  [status: pending]
+## S10. Analytics + remaining pages  [status: DONE def3c87, 3e03ccd]
 `src/lib/analytics.ts`: GA4 gtag (env-gated via `NEXT_PUBLIC_GA_MEASUREMENT_ID`) with
 `view_item`, `add_to_cart`, `begin_checkout`, `purchase` (fired on the server-confirmed
 order page), plus `photo_uploaded`, `art_generated`, `art_regenerated`. Build the
