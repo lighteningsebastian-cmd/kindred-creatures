@@ -92,7 +92,7 @@ with retry-generation. Tests for transition guards.
 **Commit:** `feat: admin dashboard and fulfillment controls`
 **Done when:** admin can move an order through the states and retry a flagged one.
 
-## S9. SEO foundations  [status: pending]
+## S9. SEO foundations  [status: DONE 247f028]
 Per-page metadata + canonicals; JSON-LD in `src/lib/seo/jsonld.ts` (Organization, Product
 with ZAR offers, FAQPage, HowTo, BreadcrumbList); `sitemap.ts`, `robots.ts`, `llms.txt`
 route. Exclude `/dev/*` and `/admin/*` from indexing.
