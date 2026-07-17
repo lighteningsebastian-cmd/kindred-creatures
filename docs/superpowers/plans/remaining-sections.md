@@ -83,7 +83,7 @@ status `flagged` and send NO job sheet. Retry entry point for admin.
 **Commit:** `feat: post-payment print file pipeline`
 **Done when:** paid order produces a print file and job sheet; a forced failure flags it.
 
-## S8. Admin auth + dashboard  [status: pending]
+## S8. Admin auth + dashboard  [status: DONE 75d8765, 651f72c]
 Auth.js credentials, single admin from `ADMIN_EMAIL`/`ADMIN_PASSWORD_HASH`, all `/admin`
 routes gated. `src/app/admin/`: order table (status, customer, items, artwork thumbnails),
 status transitions `paid → sent_to_printer → printed → shipped` with guards (no illegal
