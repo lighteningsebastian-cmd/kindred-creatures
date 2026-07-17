@@ -50,10 +50,10 @@ export function Footer() {
             </Link>
           ))}
           <a
-            href="mailto:hello@kindredcreature.co.za"
+            href="mailto:hello@kindredcreatures.co.za"
             className="text-sm text-muted transition-colors hover:text-ink"
           >
-            hello@kindredcreature.co.za
+            hello@kindredcreatures.co.za
           </a>
         </div>
       </Container>

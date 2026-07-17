@@ -27,6 +27,11 @@ kit's `:root` values rather than eyeballing.
 Footer shows `hello@kindredcreature.co.za` (singular) but the brand is Kindred Creatures.
 Settle the real address and domain, then make it consistent everywhere.
 
+> Done (2026-07-17): footer, `BRAND_EMAIL` and the email layer now all use the plural
+> `hello@kindredcreatures.co.za`. NOTE: the real domain (`kindredcreature.co.za` vs
+> `kindredcreatures.co.za`, and whether it is registered) still needs owner confirmation
+> before launch; `NEXT_PUBLIC_SITE_URL` in `.env.example` is left as-is pending that call.
+
 ## 5. Palette: go light for the shopping experience
 Owner viewed the site and restated that it is too dark. Important context: the Claude
 Design kit **ships light only** (it is an editorial paper brand). The dark theme was added

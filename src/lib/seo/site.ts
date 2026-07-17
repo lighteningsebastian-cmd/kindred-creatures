@@ -22,9 +22,9 @@ export const BRAND_NAME = "Kindred Creatures";
 /**
  * Where customer mail actually lands. This is the reply-to default in
  * .env.example, which is the operative address the transactional email system
- * uses. NOTE: the footer currently shows hello@kindredcreature.co.za (singular);
- * that inconsistency is item 4 in docs/design-tweaks.md and is not settled here.
- * When it is settled, this constant and the footer must agree.
+ * uses. The footer, this constant and the email layer now all use the plural
+ * brand spelling (hello@kindredcreatures.co.za). NOTE: the real domain still
+ * needs owner confirmation before launch (item 4 in docs/design-tweaks.md).
  */
 export const BRAND_EMAIL = "hello@kindredcreatures.co.za";
 
