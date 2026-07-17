@@ -135,6 +135,12 @@
     /* maroon inverse band stays; oxblood button lifts for AA on dark */
     --btn: var(--oxblood-400);
     --btn-hover: oklch(56% 0.115 25);
+    /*
+      Error TEXT needs a real lift on dark bark: the light-mode signal-error
+      (48%) sits at ~2.3:1 on --bg-surface, well under AA. 72% measures 5.8:1
+      on surface and 6.5:1 on page, keeping the earthy red hue.
+    */
+    --signal-error: oklch(72% 0.13 30);
   }
 }
 
@@ -160,6 +166,10 @@
   --color-on-accent: var(--on-accent);
   --color-btn: var(--btn);
   --color-btn-hover: var(--btn-hover);
+  /* semantic status, exposed for inline error/validation copy */
+  --color-signal-error: var(--signal-error);
+  --color-signal-success: var(--signal-success);
+  --color-signal-hold: var(--signal-hold);
 
   /* font families (next/font supplies the raw family vars in layout.tsx) */
   --font-display: var(--font-display-serif), "Iowan Old Style", Georgia, serif;

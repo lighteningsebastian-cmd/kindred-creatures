@@ -13,9 +13,12 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
     "@phosphor-icons/react": "^2.1.10",
+    "@vercel/blob": "^2.6.1",
     "drizzle-orm": "^0.45.2",
     "motion": "^12.42.2",
     "next": "16.2.10",
+    "openai": "^6.48.0",
+    "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -25,6 +28,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.3",
