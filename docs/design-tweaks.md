@@ -3,19 +3,26 @@
 Owner feedback, 2026-07-17. Do not action these until the build is functionally complete;
 batch them into one pass.
 
-## 1. CatSwat: the cat is not visible
+**Status (2026-07-17): items 1, 2, 4, 5 DONE (commits 19f8424, f01b85f, c457e2b, c6223b6).**
+Item 3 is the same concern as item 5 (palette), resolved by making the storefront
+light-only. Remaining: item 6 (merge product + customizer flow, a design decision + build),
+item 7 (embroidery, blocked on print partner), item 8 (sayings, needs exploration), plus
+real photography. Motion smoothness of the revised cat and cart dog still wants one eyeball
+on a real browser (the preview pane throttles animation frames).
+
+## 1. CatSwat: the cat is not visible  [DONE f01b85f]
 Currently you only see the FAQ heading word wobble. The swat reads as a wobble, not as a
 cat. Fix: make the cat actually visible and legible as a cat. Options: bring more of the
 cat in from the edge (head + shoulder + foreleg, not just a paw), enlarge it, slow the
 retreat so the eye catches it, and/or have it linger before withdrawing. The swing is
 nice and should stay; the cat needs to be seen doing it.
 
-## 2. CartDog: too small to read as a dog
+## 2. CartDog: too small to read as a dog  [DONE c457e2b]
 The head that rises above the cart basket is too small to recognise. Fix: have it emerge
 further above the rim (more of the head/neck), and enlarge the head relative to the
 basket, while keeping the nav button box fixed (no layout shift, overflow visible).
 
-## 3. Palette is too dark; lighten toward the Claude Design kit
+## 3. Palette is too dark; lighten toward the Claude Design kit  [DONE 19f8424, same as item 5]
 The rendered site reads darker than the handed-over kit. Re-check against
 `design/DESIGN-SYSTEM.md` and the kit itself (`design/kindred-creatures-ui-kit.html`),
 and lighten so it matches. Suspects: bark ink on parchment feels heavy; the maroon utility
@@ -23,7 +30,7 @@ bar and oxblood may be rendering darker than intended; dark-theme inversion may 
 bleeding into perception of the light theme. Verify actual computed colors against the
 kit's `:root` values rather than eyeballing.
 
-## 4. Footer email does not match the brand name
+## 4. Footer email does not match the brand name  [DONE c6223b6]
 Footer shows `hello@kindredcreature.co.za` (singular) but the brand is Kindred Creatures.
 Settle the real address and domain, then make it consistent everywhere.
 
@@ -32,7 +39,7 @@ Settle the real address and domain, then make it consistent everywhere.
 > `kindredcreatures.co.za`, and whether it is registered) still needs owner confirmation
 > before launch; `NEXT_PUBLIC_SITE_URL` in `.env.example` is left as-is pending that call.
 
-## 5. Palette: go light for the shopping experience
+## 5. Palette: go light for the shopping experience  [DONE 19f8424 - storefront now light-only]
 Owner viewed the site and restated that it is too dark. Important context: the Claude
 Design kit **ships light only** (it is an editorial paper brand). The dark theme was added
 by the earlier Taste-skill pass, which mandates dual-mode by default; it is not in the kit.
