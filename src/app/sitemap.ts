@@ -54,6 +54,11 @@ interface StaticRoute {
  */
 export const STATIC_ROUTES: StaticRoute[] = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
+  // S10 content pages. Each has a real page file on disk (asserted by
+  // sitemap.test.ts) before earning its place here.
+  { path: "/about", changeFrequency: "yearly", priority: 0.5 },
+  { path: "/faq", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/journal", changeFrequency: "weekly", priority: 0.5 },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

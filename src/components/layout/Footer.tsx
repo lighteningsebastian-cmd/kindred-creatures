@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 
+// Shop and How it works resolve to the landing sections that hold that content,
+// matching the header nav; Our story and FAQ are their own pages.
 const shopLinks = [
-  { href: "/shop", label: "Shop" },
-  { href: "/how-it-works", label: "How it works" },
+  { href: "/#range", label: "Shop" },
+  { href: "/#how-it-works", label: "How it works" },
   { href: "/about", label: "Our story" },
   { href: "/faq", label: "FAQ" },
 ];

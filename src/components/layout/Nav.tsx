@@ -3,9 +3,12 @@ import { Container } from "@/components/ui/Container";
 import { CartButton } from "@/components/layout/CartButton";
 import { MobileMenu, type NavLink } from "@/components/layout/MobileMenu";
 
+// Shop and How it works point at the landing sections that actually hold that
+// content (the product range and the three steps), rather than at /shop and
+// /how-it-works, which are not pages. Our story and FAQ are their own pages.
 const links: NavLink[] = [
-  { href: "/shop", label: "Shop" },
-  { href: "/how-it-works", label: "How it works" },
+  { href: "/#range", label: "Shop" },
+  { href: "/#how-it-works", label: "How it works" },
   { href: "/about", label: "Our story" },
   { href: "/faq", label: "FAQ" },
 ];
@@ -44,12 +47,10 @@ export function Nav() {
           </nav>
 
           <div className="flex items-center gap-3">
-            <Link
-              href="/track"
-              className="hidden text-sm text-muted transition-colors hover:text-ink md:inline"
-            >
-              Track order
-            </Link>
+            {/* "Track order" is intentionally absent: order status lives behind
+                the token link we email, and there is no self-service lookup page
+                to point at yet. A dead /track link is worse than none. Add it
+                back the day an order-lookup page exists. */}
             <CartButton />
             <MobileMenu links={links} />
           </div>

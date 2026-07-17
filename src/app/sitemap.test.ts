@@ -28,9 +28,21 @@ describe("sitemap", () => {
     }
   });
 
-  it("lists nothing but the homepage and the products today", () => {
+  it("lists the S10 content pages", () => {
+    for (const path of ["/about", "/faq", "/journal"]) {
+      expect(urls()).toContain(`${BASE}${path}`);
+    }
+  });
+
+  it("lists nothing but the homepage, content pages and the products", () => {
     expect(urls().sort()).toEqual(
-      [BASE, ...PRODUCTS.map((p) => `${BASE}/products/${p.slug}`)].sort(),
+      [
+        BASE,
+        `${BASE}/about`,
+        `${BASE}/faq`,
+        `${BASE}/journal`,
+        ...PRODUCTS.map((p) => `${BASE}/products/${p.slug}`),
+      ].sort(),
     );
   });
 

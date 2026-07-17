@@ -23,7 +23,7 @@ const photoFilled: ProductSlug[] = ["hoodie", "tee"];
 
 export function ProductRange() {
   return (
-    <section className="bg-base py-20 md:py-28">
+    <section id="range" className="scroll-mt-24 bg-base py-20 md:py-28">
       <Container>
         <Reveal>
           <div className="flex flex-col gap-3">

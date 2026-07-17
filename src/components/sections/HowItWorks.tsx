@@ -18,7 +18,7 @@ const stepIcon: Record<HowItWorksStepKey, Icon> = {
  */
 export function HowItWorks() {
   return (
-    <section className="bg-surface py-20 md:py-28">
+    <section id="how-it-works" className="scroll-mt-24 bg-surface py-20 md:py-28">
       <Container>
         <Reveal>
           <h2 className="max-w-xl font-display text-3xl leading-[1.16] text-ink md:text-4xl">
