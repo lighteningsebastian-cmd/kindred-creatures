@@ -22,16 +22,22 @@ const STROKE = {
   fill: "none",
 } as const;
 
-/** Paw x offsets inside the svg (viewBox units). */
-const PAW_PARKED = 115;
-const PAW_CONTACT = -16;
-const PAW_PEEK = 55;
+/**
+ * Cat x offsets inside the svg (viewBox units). The whole cat (head, shoulder
+ * and reaching foreleg) slides in from the right edge; only the paw crosses the
+ * word.
+ */
+const CAT_PARKED = 152; // fully off the right edge, hidden
+const CAT_CONTACT = -24; // paw crosses onto the word
+const CAT_PEEK = 0; // static reduced-motion rest: whole cat visible
 
 /**
- * Heading whose final word hangs like a tag toy: a cat paw sneaks in from the
- * right, bats it, and the word swings on a springy pendulum until it settles.
- * Swats once on viewport entry and again on hover. Under reduced motion the
- * word sits still and the paw peeks in statically.
+ * Heading whose final word hangs like a tag toy: a cat leans in from the right,
+ * head and shoulder clearing the edge, and bats the word with a reaching paw;
+ * the word swings on a springy pendulum. The cat lingers at full stretch so the
+ * eye catches it doing the swatting, then slinks back out. Swats once on
+ * viewport entry and again on hover. Under reduced motion the cat sits still,
+ * fully visible, paw resting by the word.
  */
 export function CatSwat({ word, children, className, as = "h2" }: CatSwatProps) {
   const Tag = as;
@@ -46,14 +52,14 @@ export function CatSwat({ word, children, className, as = "h2" }: CatSwatProps) 
     if (running.current || reducedMotion || !scope.current) return;
     running.current = true;
     try {
-      // Paw darts in from the right edge...
+      // Cat leans in from the right, reaching...
       await animate(
         "[data-paw]",
-        { opacity: 1, x: [PAW_PARKED, PAW_CONTACT] },
+        { opacity: 1, x: [CAT_PARKED, CAT_CONTACT] },
         {
-          duration: 0.3,
+          duration: 0.45,
           ease: [0.16, 1, 0.3, 1],
-          opacity: { duration: 0.05 },
+          opacity: { duration: 0.06 },
         },
       );
       // ...knocks the word off its hook...
@@ -62,15 +68,15 @@ export function CatSwat({ word, children, className, as = "h2" }: CatSwatProps) 
         { rotate: -13 },
         { duration: 0.13, ease: "easeOut" },
       );
-      // ...and slinks away while the word swings.
+      // ...lingers at full stretch, then slinks back out while the word swings.
       const retreat = animate(
         "[data-paw]",
-        { x: PAW_PARKED, opacity: 0 },
+        { x: CAT_PARKED, opacity: 0 },
         {
-          duration: 0.45,
+          duration: 0.7,
           ease: "easeIn",
-          delay: 0.1,
-          opacity: { delay: 0.35, duration: 0.15 },
+          delay: 0.85,
+          opacity: { delay: 1.2, duration: 0.25 },
         },
       );
       await knock;
@@ -108,38 +114,60 @@ export function CatSwat({ word, children, className, as = "h2" }: CatSwatProps) 
         </span>
         <svg
           aria-hidden="true"
-          viewBox="0 0 120 60"
+          viewBox="0 0 152 96"
           className="pointer-events-none absolute"
           style={{
-            left: "calc(100% - 0.5em)",
+            left: "calc(100% - 0.6em)",
             top: "50%",
-            width: "3.5em",
-            height: "1.75em",
-            transform: "translateY(-54%)",
+            width: "6.5em",
+            height: "4.1em",
+            transform: "translateY(-60%)",
             overflow: "visible",
           }}
         >
           <g
             data-paw
             style={{
-              transform: `translateX(${reducedMotion ? PAW_PEEK : PAW_PARKED}px)`,
+              transform: `translateX(${reducedMotion ? CAT_PEEK : CAT_PARKED}px)`,
               opacity: reducedMotion ? 1 : 0,
             }}
           >
-            {/* Oxblood pads on the underside */}
+            {/* Ears (outer outline + oxblood inner) */}
+            <path d="M 88 27 L 90 6 L 105 25" {...STROKE} />
+            <path d="M 92 23 L 93 12 L 101 23 Z" fill="var(--color-accent)" />
+            <path d="M 112 25 L 127 6 L 129 27" {...STROKE} />
+            <path d="M 116 23 L 124 12 L 125 23 Z" fill="var(--color-accent)" />
+            {/* Head / face outline */}
             <path
-              d="M 22.5 33 C 26 30, 31.5 31.2, 33 35 C 34.2 38.2, 31 41.4, 26.8 40.6 C 22.8 39.8, 20.5 35.4, 22.5 33 Z"
-              fill="var(--color-accent)"
-            />
-            <circle cx={19.5} cy={39} r={2} fill="var(--color-accent)" />
-            <circle cx={30} cy={42.5} r={2} fill="var(--color-accent)" />
-            <circle cx={40} cy={42} r={2} fill="var(--color-accent)" />
-            {/* Foreleg: toes, toe bumps, fur notches, elbow-down droop */}
-            <path
-              d="M 120 10 C 102 9, 86 10, 72 12.5 C 58 15, 46 18, 38 19.5 C 32 20.6, 27 21, 23.5 23.5 C 15 29, 11.5 35, 14 40.5 C 16.2 45, 22 46.5, 26 43 C 28 46.5, 34 47.3, 37.5 43.6 C 40 46.6, 45.5 46.6, 48.5 43 C 53 45, 58 44.8, 62 42.5 L 68 48.5 L 73 41 L 78.5 47.5 L 83 41.5 C 92 46.5, 100 48.8, 108 47 C 112 46, 116 44.5, 120 44"
+              d="M 84 46 C 82 33, 88 24, 98 22 C 104 21, 112 21, 118 22 C 128 24, 134 33, 132 46 C 131 59, 123 69, 108 71 C 92 69, 85 59, 84 46 Z"
               {...STROKE}
-              strokeWidth={3}
             />
+            {/* Eyes */}
+            <ellipse cx={99} cy={44} rx={3.2} ry={4.2} fill="var(--color-ink)" />
+            <ellipse cx={117} cy={44} rx={3.2} ry={4.2} fill="var(--color-ink)" />
+            {/* Nose (oxblood) + mouth */}
+            <path d="M 104.5 53 L 111.5 53 L 108 57.5 Z" fill="var(--color-accent)" />
+            <path
+              d="M 108 57.5 C 108 61, 105 62, 102.5 61 M 108 57.5 C 108 61, 111 62, 113.5 61"
+              {...STROKE}
+              strokeWidth={2}
+            />
+            {/* Whiskers on the edge side */}
+            <path
+              d="M 132 50 C 140 49, 146 49, 150 51 M 132 55 C 140 55, 146 56, 150 58"
+              {...STROKE}
+              strokeWidth={1.4}
+            />
+            {/* Foreleg + reaching paw (single silhouette) */}
+            <path
+              d="M 96 56 C 72 58, 48 61, 34 66 C 26 69, 18 71, 16 76 C 15 79.5, 17 82.5, 21 82.5 C 23 83.5, 25 82.5, 26.5 80.5 C 28.5 82.5, 31 82.5, 32.5 80.5 C 34.5 82, 37.5 81, 38.5 79 C 43 80, 49 79, 55 77 C 73 72, 88 68, 96 62"
+              {...STROKE}
+            />
+            {/* Oxblood paw pads, facing the word */}
+            <ellipse cx={24} cy={76} rx={4} ry={3.2} fill="var(--color-accent)" />
+            <circle cx={19} cy={80.5} r={1.8} fill="var(--color-accent)" />
+            <circle cx={26} cy={81} r={1.8} fill="var(--color-accent)" />
+            <circle cx={33} cy={79} r={1.8} fill="var(--color-accent)" />
           </g>
         </svg>
       </span>
