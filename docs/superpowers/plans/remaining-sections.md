@@ -16,7 +16,7 @@ sections.
 
 ---
 
-## S1. Finish customizer UI  [status: pending]
+## S1. Finish customizer UI  [status: DONE 50d2e70]
 Components exist and are uncommitted: `src/components/customizer/{Customizer,UploadDropzone,
 StylePicker,PreviewStage,GarmentMockup,downscale}.tsx`, `src/lib/pending-cart.ts`.
 Missing: `src/app/customize/[slug]/page.tsx` (server shell: validate slug via `getProduct`,
@@ -26,7 +26,7 @@ then verify + commit.
 **Commit:** `feat: customizer flow ui`
 **Done when:** `/customize/hoodie?color=Stone&size=M` runs the full mock flow end to end.
 
-## S2. Cart store + cart page  [status: pending]
+## S2. Cart store + cart page  [status: DONE 572328e]
 `src/lib/cart-store.ts` (Zustand + localStorage persist). Item shape:
 `{ productSlug, color, size, qty, artworkId, unitPriceZar }`. Replace the
 `src/lib/pending-cart.ts` stub (delete it; migrate its call site in `Customizer.tsx`).
@@ -36,7 +36,7 @@ count so `CartDog` pops on add.
 **Commit:** `feat: cart store and cart page`
 **Done when:** add from customizer → badge increments and dog pops → cart shows the line.
 
-## S3. Orders schema + checkout form  [status: pending]
+## S3. Orders schema + checkout form  [status: DONE 632a8c3]
 Extend `src/lib/db/schema.ts`: `orders` (id, status enum
 `pending|paid|sent_to_printer|printed|shipped|flagged`, email, shipping fields, subtotalZar,
 shippingZar, totalZar, payfastPaymentId nullable, trackingNumber nullable, createdAt),
@@ -48,7 +48,7 @@ provinces), `POST /api/checkout` creates a `pending` order with **server-compute
 **Commit:** `feat: orders schema and checkout`
 **Done when:** submitting checkout creates a pending order with correct server-side totals.
 
-## S4. PayFast signature + redirect  [status: pending]
+## S4. PayFast signature + redirect  [status: DONE 077da2a]
 `src/lib/payfast.ts`: signature generation (URL-encoded, sorted per PayFast spec, optional
 passphrase), redirect payload builder, sandbox vs live host by env, ITN signature +
 merchant-id + amount verification helpers. Unit tests with fixed vectors (build a known
@@ -57,7 +57,7 @@ tests. `POST /api/checkout` returns the signed redirect payload.
 **Commit:** `feat: payfast signature and redirect payload`
 **Done when:** signature vectors pass and tampering is rejected.
 
-## S5. ITN webhook + confirmation  [status: pending]
+## S5. ITN webhook + confirmation  [status: DONE 4cd5020]
 `src/app/api/payfast/itn/route.ts`: verify signature, merchant id, and amount against the
 order; idempotent via `webhook_events.payfastPaymentId` unique (same ITN twice → one
 transition); `pending → paid` only from a verified ITN, never from the browser return URL.
