@@ -23,6 +23,10 @@ bar and oxblood may be rendering darker than intended; dark-theme inversion may 
 bleeding into perception of the light theme. Verify actual computed colors against the
 kit's `:root` values rather than eyeballing.
 
+## 4. Footer email does not match the brand name
+Footer shows `hello@kindredcreature.co.za` (singular) but the brand is Kindred Creatures.
+Settle the real address and domain, then make it consistent everywhere.
+
 ## Also outstanding (not owner-raised, known)
 - All photography is placeholder (picsum stock). Real product + lifestyle shots needed.
 - Animation smoothness unverified: the preview pane throttles animation frames, so the
