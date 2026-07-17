@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { formatZar, type Product, type Variant } from "@/lib/products";
 import type { ArtStyle } from "@/lib/images/provider";
-import { setPendingCartItem } from "@/lib/pending-cart";
+import { useCartStore } from "@/lib/cart-store";
 import { downscaleImage } from "./downscale";
 import { UploadDropzone } from "./UploadDropzone";
 import { StylePicker } from "./StylePicker";
@@ -50,6 +50,7 @@ export function Customizer({
   initialSize,
 }: CustomizerProps) {
   const router = useRouter();
+  const addItem = useCartStore((state) => state.addItem);
 
   const [color, setColor] = useState<Variant>(() =>
     resolveInitialColor(product, initialColor),
@@ -180,11 +181,14 @@ export function Customizer({
 
   const handleAddToCart = () => {
     if (!canAddToCart || !artworkId || !size) return;
-    setPendingCartItem({
+    addItem({
       productSlug: product.slug,
       color: color.color,
       size,
+      qty: 1,
       artworkId,
+      // Priced at add time so a later price change cannot re-price this line.
+      unitPriceZar: color.priceZar,
     });
     router.push("/cart");
   };
