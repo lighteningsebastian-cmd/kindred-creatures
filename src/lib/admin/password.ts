@@ -52,8 +52,27 @@ function maxmem(N: number, r: number): number {
 }
 
 /**
- * `scrypt$<N>$<r>$<p>$<salt-b64>$<key-b64>`. Self-describing on purpose: see the
- * header. The $ separator cannot collide with base64.
+ * The field separator, and why it is not the conventional `$`.
+ *
+ * This string's whole job is to survive a round trip through .env.local. Next
+ * loads that file with dotenv-expand, which treats `$N` as a variable reference
+ * and substitutes it away: a `scrypt$16384$8$1$...` hash arrives at the process
+ * as `scrypt6384...`, silently 25 characters shorter, and every correct password
+ * is then rejected with "those details do not match". Quoting does not save it,
+ * and escaping (`\$`) only works in a .env file, so it breaks the moment the
+ * same hash is pasted into a real environment variable at deploy time, which is
+ * the worst possible moment to discover it.
+ *
+ * A colon is not in the base64 alphabet, so it separates the fields just as
+ * unambiguously as `$` did, and it means nothing to dotenv. One hash string now
+ * works verbatim in .env.local and in a hosting provider's env var box alike.
+ */
+const SEPARATOR = ":";
+
+/**
+ * `scrypt:<N>:<r>:<p>:<salt-b64>:<key-b64>`. Self-describing on purpose: see the
+ * header. The separator cannot collide with base64. See SEPARATOR for why it is
+ * a colon rather than the `$` this format usually uses.
  */
 function encode(
   N: number,
@@ -69,14 +88,14 @@ function encode(
     p,
     salt.toString("base64"),
     key.toString("base64"),
-  ].join("$");
+  ].join(SEPARATOR);
 }
 
 type Parsed = { N: number; r: number; p: number; salt: Buffer; key: Buffer };
 
 /** Strict parse. Anything unexpected is null, never a throw and never a log. */
 function parse(stored: string): Parsed | null {
-  const parts = stored.trim().split("$");
+  const parts = stored.trim().split(SEPARATOR);
   if (parts.length !== 6) return null;
   const [scheme, rawN, rawR, rawP, rawSalt, rawKey] = parts;
   if (scheme !== "scrypt") return null;

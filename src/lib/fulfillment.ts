@@ -385,6 +385,76 @@ export async function fulfillPaidOrder(
   return { status: "sent_to_printer", orderId, printKeys, jobSheet, confirmation };
 }
 
+/** What a re-send did. Same shape of honesty as FulfillmentResult. */
+export type JobSheetResendResult =
+  | { status: "sent"; orderId: string; jobSheet: EmailResult }
+  | { status: "refused"; orderId: string; reason: string };
+
+/**
+ * Sends the job sheet again for an order that already has print files.
+ *
+ * WHY THIS IS HERE and not in S8's admin action. The admin could hold sendJobSheet
+ * itself; the reason it does not is that every other thing that mails the print
+ * shop leaves a fulfillment_events row behind, and an order's timeline is the
+ * only answer to "was Cape Town ever told about this one?". A re-send that
+ * reached past this module would be the one job sheet in the shop's history with
+ * no breadcrumb, which is precisely the job sheet someone will later need to
+ * find.
+ *
+ * It sends NOTHING when there are no print files. There is nothing to print, so
+ * a sheet would send the shop a job it cannot do, and the fix for that order is
+ * a retry, not a re-send.
+ *
+ * It does not change the order's status. A re-send is a message about an order,
+ * not a step in it: an order at `printed` whose sheet went astray is still
+ * printed, and dragging it backwards to sent_to_printer would lose that.
+ *
+ * @param orderId the order whose sheet should go again.
+ * @returns the send result, or a refusal. Never throws for an expected failure.
+ */
+export async function resendJobSheet(
+  orderId: string,
+): Promise<JobSheetResendResult> {
+  const db = await getDb();
+  const order = await loadOrder(db, orderId);
+
+  if (!order) return { status: "refused", orderId, reason: "order-not-found" };
+
+  const items = await db
+    .select()
+    .from(orderItems)
+    .where(eq(orderItems.orderId, orderId));
+
+  if (items.length === 0) {
+    return { status: "refused", orderId, reason: "no-lines" };
+  }
+
+  const art = await artworksFor(db, items);
+  // Every line needs its file: a sheet that links three garments and two files
+  // is a sheet the shop has to ring us about.
+  const missing = art.filter((artwork) => !artwork.printKey).length;
+  if (art.length < items.length || missing > 0) {
+    return { status: "refused", orderId, reason: "no-print-files" };
+  }
+
+  const jobSheet = await sendJobSheet(order, items, art);
+  await record(
+    db,
+    orderId,
+    "job-sheet",
+    jobSheet.ok ? "ok" : "failed",
+    jobSheet.ok ? `re-sent: ${jobSheet.id}` : `re-send failed: ${jobSheet.error.message}`,
+  );
+
+  if (!jobSheet.ok) {
+    console.error(
+      `[fulfillment] order ${orderRef(orderId)}: job sheet re-send failed. The print shop has still NOT been told.`,
+    );
+  }
+
+  return { status: "sent", orderId, jobSheet };
+}
+
 /**
  * The admin retry entry point. S8's flagged queue calls this; the UI is S8's.
  *

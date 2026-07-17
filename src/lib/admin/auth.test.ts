@@ -62,21 +62,42 @@ describe("password hashing", () => {
 
   it("carries its cost parameters, so raising the cost cannot lock the owner out", async () => {
     // A hash generated at a lower cost keeps verifying at ITS cost.
-    const [scheme, N, r, p] = HASH.split("$");
+    const [scheme, N, r, p] = HASH.split(":");
     expect(scheme).toBe("scrypt");
     expect(Number(N)).toBeGreaterThanOrEqual(16384);
     expect(Number(r)).toBe(8);
     expect(Number(p)).toBe(1);
   });
 
+  it("survives .env.local, which is the only way it is ever delivered", async () => {
+    // THIS IS NOT A STYLE RULE. Next loads .env.local through dotenv-expand,
+    // which substitutes `$N` as a variable reference. The conventional
+    // `scrypt$16384$8$1$...` encoding therefore arrives at the process as
+    // `scrypt6384...`, and every correct password is rejected with "those
+    // details do not match" while the file on disk looks perfectly right.
+    //
+    // A `$` here reintroduces a bug that costs an afternoon to find, so it is
+    // asserted rather than left to a comment. See SEPARATOR in password.ts.
+    expect(HASH).not.toContain("$");
+
+    // The same reasoning, one layer up: whatever a user pastes must round-trip
+    // through dotenv byte for byte.
+    const expanded = HASH.replace(/\$\w+/g, "");
+    expect(expanded).toBe(HASH);
+  });
+
   it("fails closed on a missing or malformed hash rather than throwing", async () => {
     await expect(verifyPassword(PASSWORD, undefined)).resolves.toBe(false);
     await expect(verifyPassword(PASSWORD, "")).resolves.toBe(false);
     await expect(verifyPassword(PASSWORD, "not-a-hash")).resolves.toBe(false);
-    await expect(verifyPassword(PASSWORD, "scrypt$1$1$1$$")).resolves.toBe(false);
+    await expect(verifyPassword(PASSWORD, "scrypt:1:1:1::")).resolves.toBe(false);
     // A cost that would blow the heap is refused, not attempted.
     await expect(
-      verifyPassword(PASSWORD, "scrypt$99999999$8$1$AAAA$AAAA"),
+      verifyPassword(PASSWORD, "scrypt:99999999:8:1:AAAA:AAAA"),
+    ).resolves.toBe(false);
+    // A hash that dotenv-expand has eaten must fail closed, not half-parse.
+    await expect(
+      verifyPassword(PASSWORD, "scrypt6384AAAA"),
     ).resolves.toBe(false);
   });
 });

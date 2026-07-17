@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import {
   fulfillPaidOrder,
   generatePrintFilesForOrder,
+  resendJobSheet,
   retryFulfillment,
 } from "./fulfillment";
 import { getDb } from "@/lib/db/client";
@@ -468,5 +469,113 @@ describe("retryFulfillment", () => {
       reason: "not-retryable:pending",
     });
     expect(generatePrintFileMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("resendJobSheet", () => {
+  it("sends the sheet again for an order that already has print files", async () => {
+    const { orderId } = await orderWith(["hoodie"]);
+    await fulfillPaidOrder(orderId);
+    sendJobSheetMock.mockClear();
+
+    const result = await resendJobSheet(orderId);
+
+    expect(result.status).toBe("sent");
+    expect(sendJobSheetMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("costs nothing: a re-send never regenerates a print file", async () => {
+    const { orderId } = await orderWith(["hoodie"]);
+    await fulfillPaidOrder(orderId);
+    generatePrintFileMock.mockClear();
+
+    await resendJobSheet(orderId);
+
+    expect(generatePrintFileMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves a breadcrumb, which is the whole reason it lives here", async () => {
+    // Every other thing that mails the print shop writes a fulfillment_events
+    // row. A re-send that reached past this module would be the one job sheet in
+    // the shop's history with no trace, which is the one someone will need.
+    const { orderId } = await orderWith(["hoodie"]);
+    await fulfillPaidOrder(orderId);
+
+    await resendJobSheet(orderId);
+
+    const events = await eventsFor(orderId);
+    const resends = events.filter(
+      (event) => event.step === "job-sheet" && event.detail?.startsWith("re-sent"),
+    );
+    expect(resends).toHaveLength(1);
+    expect(resends[0].outcome).toBe("ok");
+  });
+
+  it("does not move the order: a re-send is a message about it, not a step in it", async () => {
+    const { orderId } = await orderWith(["hoodie"]);
+    await fulfillPaidOrder(orderId);
+    const db = await getDb();
+    await db.update(orders).set({ status: "printed" }).where(eq(orders.id, orderId));
+
+    await resendJobSheet(orderId);
+
+    // An order at printed whose sheet went astray is still printed. Dragging it
+    // back to sent_to_printer to explain the re-send would lose that.
+    expect((await readOrder(orderId)).status).toBe("printed");
+  });
+
+  it("refuses an order with no print files, and sends nothing", async () => {
+    // There is nothing to print, so a sheet would send the shop a job it cannot
+    // do. The fix for that order is a retry, not a re-send.
+    const { orderId } = await orderWith(["hoodie"]);
+
+    const result = await resendJobSheet(orderId);
+
+    expect(result).toMatchObject({ status: "refused", reason: "no-print-files" });
+    expect(sendJobSheetMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses when only some lines have print files", async () => {
+    // A sheet that links three garments and two files is a sheet the shop has to
+    // ring us about.
+    const { orderId } = await orderWith(["hoodie", "tote"]);
+    generatePrintFileMock
+      .mockResolvedValueOnce({ printBytes: PNG_BYTES })
+      .mockRejectedValueOnce(new Error("the second one failed"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await fulfillPaidOrder(orderId);
+    sendJobSheetMock.mockClear();
+
+    const result = await resendJobSheet(orderId);
+
+    expect(result).toMatchObject({ status: "refused", reason: "no-print-files" });
+    expect(sendJobSheetMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses an order that does not exist", async () => {
+    await expect(resendJobSheet(randomUUID())).resolves.toMatchObject({
+      status: "refused",
+      reason: "order-not-found",
+    });
+  });
+
+  it("reports a failed send loudly, and records it as failed", async () => {
+    const { orderId } = await orderWith(["hoodie"]);
+    await fulfillPaidOrder(orderId);
+    sendJobSheetMock.mockResolvedValue({ ok: false, error: new Error("smtp down") });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await resendJobSheet(orderId);
+
+    expect(result).toMatchObject({ status: "sent" });
+    expect(result.status === "sent" && result.jobSheet.ok).toBe(false);
+    expect(consoleError).toHaveBeenCalled();
+
+    const events = await eventsFor(orderId);
+    expect(
+      events.some(
+        (event) => event.step === "job-sheet" && event.outcome === "failed",
+      ),
+    ).toBe(true);
   });
 });

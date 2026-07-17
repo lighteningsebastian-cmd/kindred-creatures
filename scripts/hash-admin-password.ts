@@ -19,6 +19,12 @@
  * The hash is not a password. It cannot be replayed at the login form and it is
  * not worth hiding from yourself. It IS worth keeping out of the repository:
  * .env.local is gitignored, and it should stay that way.
+ *
+ * PASTE IT VERBATIM, in .env.local and in your host's environment variable box
+ * alike: no quotes, no escaping, no trailing spaces. The hash is colon-separated
+ * rather than the conventional `$`-separated precisely so that it can be pasted
+ * as-is into both. See SEPARATOR in src/lib/admin/password.ts for what a `$`
+ * costs here.
  */
 
 import { createInterface } from "node:readline/promises";
