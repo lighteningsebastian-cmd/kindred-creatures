@@ -1,6 +1,8 @@
+import { after } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { getDb, type Db } from "@/lib/db/client";
 import { orders, webhookEvents } from "@/lib/db/schema";
+import { fulfillPaidOrder } from "@/lib/fulfillment";
 import {
   payfastConfig,
   payfastValidateUrl,
@@ -202,6 +204,54 @@ async function recordOutcome(
     .where(eq(webhookEvents.payfastPaymentId, paymentId));
 }
 
+/**
+ * Hands fulfilment to next/server's after(), which runs the callback once this
+ * response has been flushed.
+ *
+ * WHY AFTER THE RESPONSE, AND NOT INSIDE IT. Fulfilment generates a print file
+ * per line, and that is a call to an image provider measured in tens of seconds.
+ * PayFast waits for a 200 and retries when it does not get one, so doing this
+ * work inline means the ITN either times out at their end or at the platform's,
+ * and a payment that actually cleared turns into a retry storm against a
+ * webhook that is already busy generating the same print files. after() breaks
+ * that loop at the only place it can be broken: the 200 goes out on the
+ * payment, not on the printing.
+ *
+ * WHY THIS DOES NOT WEAKEN ANYTHING. The order is durably `paid` and the
+ * webhook event is on record before this is scheduled, so the callback is not
+ * part of the money path at all: it can crash, hang or never run, and the
+ * payment still stands, the unique key on pf_payment_id still makes the retry a
+ * no-op, and the order simply waits at `paid`. That is a recoverable state with
+ * a name and a queue: retryFulfillment() picks it up, and S8's admin screen is
+ * the button. The one thing this must never do is throw into the caller, hence
+ * both catches. A fulfilment problem is not PayFast's problem to retry.
+ */
+function scheduleFulfillment(orderId: string): void {
+  try {
+    after(async () => {
+      try {
+        await fulfillPaidOrder(orderId);
+      } catch (error) {
+        // fulfillPaidOrder types its expected failures and flags the order
+        // itself, so reaching here means a genuine crash. The order stays paid
+        // and retryable; say so loudly rather than losing it silently.
+        console.error(
+          `[payfast] fulfilment crashed for order ${orderId}; it is still paid and can be retried:`,
+          error,
+        );
+      }
+    });
+  } catch (error) {
+    // after() throws when there is no request scope to be after: a direct call
+    // from a script or a unit test, never a real ITN. The order is paid and the
+    // retry path exists, so this is a note, not a failure.
+    console.error(
+      `[payfast] could not schedule fulfilment for order ${orderId}; it is still paid and can be retried:`,
+      error,
+    );
+  }
+}
+
 export async function POST(request: Request) {
   let body: string;
   try {
@@ -323,12 +373,20 @@ export async function POST(request: Request) {
     .where(and(eq(orders.id, row.id), eq(orders.status, "pending")))
     .returning();
 
+  const paid = transitioned.length === 1;
+
   await recordOutcome(
     db,
     paymentId,
     body,
-    transitioned.length === 1 ? "paid" : `not-pending:${row.status}`,
+    paid ? "paid" : `not-pending:${row.status}`,
   );
+
+  // Only the notification that actually paid the order fulfils it. A duplicate
+  // never gets here (the unique key stops it) and a second, different
+  // notification for an already-paid order loses the guarded transition above,
+  // so neither can put a second job sheet in the print shop's inbox.
+  if (paid) scheduleFulfillment(row.id);
 
   return ok();
 }

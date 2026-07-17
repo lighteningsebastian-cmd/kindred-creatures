@@ -120,6 +120,44 @@ export const webhookEvents = pgTable("webhook_events", {
   raw: text("raw").notNull(),
 });
 
+/** The steps fulfilment takes, named so a log line reads as a sentence. */
+export type FulfillmentStep =
+  | "generate-print-file"
+  | "job-sheet"
+  | "order-confirmation"
+  | "fulfil";
+
+/** How a step went. "skipped" is for work a previous run had already done. */
+export type FulfillmentOutcome = "ok" | "failed" | "skipped";
+
+/**
+ * The breadcrumb trail behind a fulfilled or flagged order (Task S7).
+ *
+ * A flagged order is a question a human asks days later ("why is this one
+ * sitting here?"), and the answer has to survive the process that knew it. One
+ * row per step, so the story of an order reads in `created_at` order: which
+ * artwork, which step, and the error text in `detail`. Nothing secret reaches
+ * this table: `detail` carries provider error messages and storage keys, never
+ * a key or a signed URL.
+ */
+export const fulfillmentEvents = pgTable("fulfillment_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderId: uuid("order_id")
+    .notNull()
+    .references(() => orders.id),
+  // Null for steps that are about the whole order rather than one portrait.
+  artworkId: uuid("artwork_id").references(() => artworks.id),
+  step: text("step").$type<FulfillmentStep>().notNull(),
+  outcome: text("outcome").$type<FulfillmentOutcome>().notNull(),
+  detail: text("detail"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type FulfillmentEvent = typeof fulfillmentEvents.$inferSelect;
+export type NewFulfillmentEvent = typeof fulfillmentEvents.$inferInsert;
+
 export type Order = typeof orders.$inferSelect;
 export type NewOrder = typeof orders.$inferInsert;
 export type OrderItem = typeof orderItems.$inferSelect;
@@ -183,4 +221,17 @@ CREATE TABLE IF NOT EXISTS webhook_events (
   received_at timestamptz NOT NULL DEFAULT now(),
   raw text NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS fulfillment_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id uuid NOT NULL REFERENCES orders(id),
+  artwork_id uuid REFERENCES artworks(id),
+  step text NOT NULL,
+  outcome text NOT NULL,
+  detail text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS fulfillment_events_order_id_idx
+  ON fulfillment_events (order_id, created_at);
 `;

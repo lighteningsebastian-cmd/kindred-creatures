@@ -17,11 +17,29 @@ import { buildSignature } from "@/lib/payfast";
  * tests that do exercise the check stub fetch and assert on what it was handed.
  */
 
+/**
+ * The route now hands fulfilment to next/server's after(), which needs a live
+ * request scope that a direct call to POST does not have. Fulfilment is queued
+ * here and never run: these tests are about what the webhook does to the order
+ * and the event log, and route.fulfillment.test.ts covers what happens once the
+ * response is out the door.
+ */
+const { afterTasks } = vi.hoisted(() => ({
+  afterTasks: [] as (() => unknown)[],
+}));
+
+vi.mock("next/server", () => ({
+  after: (task: () => unknown) => {
+    afterTasks.push(task);
+  },
+}));
+
 const MERCHANT_ID = "10000100";
 const PASSPHRASE = "jt7NOE43FZPn";
 const TOTAL_ZAR = 998;
 
 beforeEach(() => {
+  afterTasks.length = 0;
   vi.stubEnv("MOCK_SERVICES", "true");
   vi.stubEnv("PAYFAST_MERCHANT_ID", MERCHANT_ID);
   vi.stubEnv("PAYFAST_MERCHANT_KEY", "46f0cd694581a");
@@ -166,6 +184,9 @@ describe("POST /api/payfast/notify: replays and repeats", () => {
 
     // One notification, one row. The unique key is the whole mechanism.
     expect(await eventsFor(fields.pf_payment_id)).toHaveLength(1);
+
+    // And one fulfilment. Three ITNs must not mean three print files.
+    expect(afterTasks).toHaveLength(1);
   });
 
   it("does not re-process an order that is already paid", async () => {
@@ -186,6 +207,10 @@ describe("POST /api/payfast/notify: replays and repeats", () => {
     // The payment id of whichever one actually paid for it, not the last to arrive.
     expect(row.payfastPaymentId).toBe(first.pf_payment_id);
     expect(await outcomeOf(second.pf_payment_id)).toBe("not-pending:paid");
+
+    // The second notification lost the guarded transition, so it fulfils
+    // nothing: one job sheet, not two.
+    expect(afterTasks).toHaveLength(1);
   });
 
   it.each<OrderStatus>(["sent_to_printer", "printed", "shipped"])(
@@ -275,6 +300,15 @@ describe("POST /api/payfast/notify: payments that did not happen", () => {
       expect(row.payfastPaymentId).toBeNull();
     },
   );
+
+  it("generates no print file for a payment that did not happen", async () => {
+    const orderId = await pendingOrder();
+    await notify(post(itn(orderId, { payment_status: "FAILED" })));
+
+    // The cost principle, at the only place it can be enforced: a print file is
+    // real money, so nothing schedules one until an order is genuinely paid.
+    expect(afterTasks).toHaveLength(0);
+  });
 
   it("records why it ignored a failed payment", async () => {
     const orderId = await pendingOrder();
