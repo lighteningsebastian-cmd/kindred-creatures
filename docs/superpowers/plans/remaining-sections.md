@@ -66,7 +66,7 @@ using `ORDER_TOKEN_SECRET`). `scripts/simulate-itn.ts` to exercise it locally.
 **Commit:** `feat: payfast itn webhook and order confirmation`
 **Done when:** simulated ITN flips the order to paid; replaying it changes nothing.
 
-## S6. Email layer  [status: pending]
+## S6. Email layer  [status: DONE dd4eef5]
 `src/lib/email/send.ts` (Resend in prod, console-logging mock when `MOCK_SERVICES`),
 templates in `src/lib/email/templates/`: customer order confirmation, shipping
 notification, and the print-shop **job sheet** (order number, product/size/colour/qty,
@@ -107,6 +107,16 @@ and `/journal` scaffold pages that the nav already links to.
 **Commit:** `feat: analytics and remaining pages`
 
 ---
+
+## Known issues (not blocking, fix when convenient)
+
+**Test DB isolation.** The suite has twice failed 5 files on the first run immediately
+after a subagent finished, then passed 265/265 on every subsequent run, including with a
+cleared vite cache. No stray processes remain at that point. The likely cause is that tests
+share the dev PGlite data directory (`.data/pgdata`) rather than using an isolated or
+in-memory database, so they contend when a dev server holds it open. It is a test-isolation
+smell, not a product defect, but it makes the suite untrustworthy exactly when it matters
+(the money path). Fix: give tests their own ephemeral PGlite instance per run.
 
 ## After S10
 Design-tweaks pass (`docs/design-tweaks.md`), real photography, then launch checklist:
