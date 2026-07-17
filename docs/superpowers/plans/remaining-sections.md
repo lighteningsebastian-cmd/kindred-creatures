@@ -75,7 +75,7 @@ with order data.
 **Commit:** `feat: transactional email layer`
 **Done when:** mock transport logs a correct job sheet for an order.
 
-## S7. Print-file pipeline + flagged queue  [status: pending]
+## S7. Print-file pipeline + flagged queue  [status: DONE f1bd76e]
 On `paid`: generate the high-res print file via `provider.generatePrintFile` at
 `printPixels(product)` (300 DPI), store it, set `artworks.printKey`; on success send the
 job sheet + customer confirmation and move to `sent_to_printer`; on failure set order
