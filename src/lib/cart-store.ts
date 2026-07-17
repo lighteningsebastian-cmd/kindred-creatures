@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { MAX_QTY, MIN_QTY } from "@/lib/checkout";
 import type { ProductSlug } from "@/lib/products";
 
 /**
@@ -24,8 +25,10 @@ export interface CartItem {
   unitPriceZar: number;
 }
 
-export const MIN_QTY = 1;
-export const MAX_QTY = 10;
+// Re-exported so cart consumers keep importing their bounds from the cart. The
+// definition lives in checkout.ts, which the server can import without dragging
+// this "use client" module across the boundary.
+export { MIN_QTY, MAX_QTY };
 
 /** Quantities live in 1..10; anything outside is pulled back to the edge. */
 export function clampQty(qty: number): number {
