@@ -23,13 +23,13 @@ const STROKE = {
 } as const;
 
 /**
- * Cat x offsets inside the svg (viewBox units). The whole cat (head, shoulder
- * and reaching foreleg) slides in from the right edge; only the paw crosses the
- * word.
+ * Cat x offsets inside the svg (viewBox units). The cat sits visibly at REST
+ * (peek) with its paw just past the word, and reaches in to bat the word on a
+ * swat, then settles back to the same visible resting pose. It is never hidden:
+ * the whole point is that the reader sees a cat doing the swatting.
  */
-const CAT_PARKED = 152; // fully off the right edge, hidden
 const CAT_CONTACT = -24; // paw crosses onto the word
-const CAT_PEEK = 0; // static reduced-motion rest: whole cat visible
+const CAT_PEEK = 0; // resting pose: whole cat visible, paw beside the word
 
 /**
  * Heading whose final word hangs like a tag toy: a cat leans in from the right,
@@ -52,15 +52,11 @@ export function CatSwat({ word, children, className, as = "h2" }: CatSwatProps) 
     if (running.current || reducedMotion || !scope.current) return;
     running.current = true;
     try {
-      // Cat leans in from the right, reaching...
+      // From its resting pose beside the word, the cat reaches its paw across...
       await animate(
         "[data-paw]",
-        { opacity: 1, x: [CAT_PARKED, CAT_CONTACT] },
-        {
-          duration: 0.45,
-          ease: [0.16, 1, 0.3, 1],
-          opacity: { duration: 0.06 },
-        },
+        { x: CAT_CONTACT },
+        { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
       );
       // ...knocks the word off its hook...
       const knock = animate(
@@ -68,16 +64,12 @@ export function CatSwat({ word, children, className, as = "h2" }: CatSwatProps) 
         { rotate: -13 },
         { duration: 0.13, ease: "easeOut" },
       );
-      // ...lingers at full stretch, then slinks back out while the word swings.
+      // ...lingers at full stretch, then draws the paw back to its resting pose
+      // (still fully visible) while the word swings itself out.
       const retreat = animate(
         "[data-paw]",
-        { x: CAT_PARKED, opacity: 0 },
-        {
-          duration: 0.7,
-          ease: "easeIn",
-          delay: 0.85,
-          opacity: { delay: 1.2, duration: 0.25 },
-        },
+        { x: CAT_PEEK },
+        { duration: 0.55, ease: "easeInOut", delay: 0.7 },
       );
       await knock;
       await animate(
@@ -128,8 +120,8 @@ export function CatSwat({ word, children, className, as = "h2" }: CatSwatProps) 
           <g
             data-paw
             style={{
-              transform: `translateX(${reducedMotion ? CAT_PEEK : CAT_PARKED}px)`,
-              opacity: reducedMotion ? 1 : 0,
+              transform: `translateX(${CAT_PEEK}px)`,
+              opacity: 1,
             }}
           >
             {/* Ears (outer outline + oxblood inner) */}
