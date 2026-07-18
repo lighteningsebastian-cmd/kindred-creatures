@@ -1,6 +1,5 @@
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
-import { CatSwat } from "@/components/creatures/CatSwat";
 import { Reveal } from "@/components/motion/Reveal";
 import { FAQS } from "@/lib/content";
 
@@ -9,12 +8,10 @@ export function FaqTeaser() {
     <section className="bg-surface py-20 md:py-28">
       <Container>
         <Reveal>
-          <CatSwat
-            word="questions"
-            className="text-3xl md:text-4xl"
-          >
-            Frequently asked
-          </CatSwat>
+          <p className="eyebrow text-accent">Questions, answered</p>
+          <h2 className="mt-4 font-display text-3xl leading-[1.16] text-ink md:text-4xl">
+            Frequently asked questions
+          </h2>
         </Reveal>
         <dl className="mt-10 max-w-2xl">
           {FAQS.map((item, index) => (

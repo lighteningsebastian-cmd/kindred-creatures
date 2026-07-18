@@ -3,19 +3,20 @@
 Owner feedback, 2026-07-17. Do not action these until the build is functionally complete;
 batch them into one pass.
 
-**Status (2026-07-17): items 1, 2, 4, 5 DONE (commits 19f8424, f01b85f, c457e2b, c6223b6).**
+**Status (2026-07-17): items 2, 4, 5 DONE (commits c457e2b, c6223b6, 19f8424).**
 Item 3 is the same concern as item 5 (palette), resolved by making the storefront
 light-only. Remaining: item 6 (merge product + customizer flow, a design decision + build),
 item 7 (embroidery, blocked on print partner), item 8 (sayings, needs exploration), plus
-real photography. Motion smoothness of the revised cat and cart dog still wants one eyeball
-on a real browser (the preview pane throttles animation frames).
+real photography. Cart-dog motion smoothness still wants one eyeball on a real browser
+(the preview pane throttles animation frames).
 
-## 1. CatSwat: the cat is not visible  [DONE f01b85f]
-Currently you only see the FAQ heading word wobble. The swat reads as a wobble, not as a
-cat. Fix: make the cat actually visible and legible as a cat. Options: bring more of the
-cat in from the edge (head + shoulder + foreleg, not just a paw), enlarge it, slow the
-retreat so the eye catches it, and/or have it linger before withdrawing. The swing is
-nice and should stay; the cat needs to be seen doing it.
+## 1. Cat swat animation: REMOVED (owner decision, 2026-07-17)
+The swatting-cat idea by the FAQ heading was tried several times (paw-only, then a
+side-profile reaching cat, then a chibi cat peeking over the heading) and never looked
+good enough for a premium brand. The owner decided to delete it entirely rather than keep
+iterating. The `CatSwat` component, its test, and all usages were removed; the FAQ teaser
+now uses a plain eyebrow + heading. Do NOT rebuild a cat animation unless the owner
+explicitly revisits it with a new approach in mind. The delivery dog and cart dog stay.
 
 ## 2. CartDog: too small to read as a dog  [DONE c457e2b]
 The head that rises above the cart basket is too small to recognise. Fix: have it emerge

@@ -5,11 +5,10 @@ import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { DeliveryDog } from "@/components/creatures/DeliveryDog";
-import { CatSwat } from "@/components/creatures/CatSwat";
 import { CartButton } from "@/components/layout/CartButton";
 
 /**
- * Interactive preview of the three signature creature animations at realistic
+ * Interactive preview of the signature creature animations at realistic
  * sizes, on alternating section backgrounds. Dev-only, not indexed.
  */
 export function CreaturesDemo() {
@@ -66,18 +65,6 @@ export function CreaturesDemo() {
               Remove one
             </Button>
           </div>
-        </Container>
-      </section>
-
-      {/* Cat swat: FAQ heading context */}
-      <section className="bg-base py-24">
-        <Container>
-          <CatSwat word="questions" className="text-3xl md:text-4xl">
-            Frequently asked
-          </CatSwat>
-          <p className="mt-4 max-w-md text-muted">
-            Hover the heading and the paw comes back for another go.
-          </p>
         </Container>
       </section>
     </div>
