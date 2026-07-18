@@ -37,7 +37,8 @@ export function LoveWall() {
     <section className="bg-base py-20 md:py-28">
       <Container>
         <Reveal>
-          <h2 className="max-w-xl font-display text-3xl leading-[1.16] text-ink md:text-4xl">
+          <p className="eyebrow text-[11px] text-accent">In their words</p>
+          <h2 className="mt-4 max-w-xl font-display text-3xl leading-[1.16] text-ink md:text-4xl">
             People and the pets they love
           </h2>
         </Reveal>

@@ -21,7 +21,8 @@ export function HowItWorks() {
     <section id="how-it-works" className="scroll-mt-24 bg-surface py-20 md:py-28">
       <Container>
         <Reveal>
-          <h2 className="max-w-xl font-display text-3xl leading-[1.16] text-ink md:text-4xl">
+          <p className="eyebrow text-[11px] text-accent">How it works</p>
+          <h2 className="mt-4 max-w-xl font-display text-3xl leading-[1.16] text-ink md:text-4xl">
             From your camera roll to your wardrobe
           </h2>
         </Reveal>
