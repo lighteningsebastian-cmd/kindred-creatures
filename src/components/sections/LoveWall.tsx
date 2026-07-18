@@ -1,4 +1,5 @@
 import { Container } from "@/components/ui/Container";
+import { AccentRule } from "@/components/ui/AccentRule";
 import { Reveal } from "@/components/motion/Reveal";
 
 const quotes = [
@@ -36,9 +37,9 @@ export function LoveWall() {
   return (
     <section className="bg-base py-20 md:py-28">
       <Container>
-        <Reveal>
-          <p className="eyebrow text-[11px] text-accent">In their words</p>
-          <h2 className="mt-4 max-w-xl font-display text-3xl leading-[1.16] text-ink md:text-4xl">
+        <Reveal className="flex flex-col items-center text-center">
+          <AccentRule />
+          <h2 className="mt-6 max-w-xl font-display text-3xl leading-[1.16] text-ink md:text-4xl">
             People and the pets they love
           </h2>
         </Reveal>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
+import { AccentRule } from "@/components/ui/AccentRule";
 
 // Shop and How it works resolve to the landing sections that hold that content,
 // matching the header nav; Our story and FAQ are their own pages.
@@ -18,7 +19,10 @@ const policyLinks = [
 export function Footer() {
   return (
     <footer className="border-t border-line bg-surface">
-      <Container className="grid grid-cols-1 gap-10 py-12 md:grid-cols-3">
+      <Container className="pt-12">
+        <AccentRule />
+      </Container>
+      <Container className="grid grid-cols-1 gap-10 pb-12 pt-10 md:grid-cols-3">
         <div className="max-w-xs">
           <p className="font-display text-lg text-ink">Kindred Creatures</p>
           <p className="mt-3 text-sm text-muted">
