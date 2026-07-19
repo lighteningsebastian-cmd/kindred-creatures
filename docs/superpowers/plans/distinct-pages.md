@@ -26,7 +26,7 @@ Build as sections, one agent each, commit per section (interruptions are common)
 
 ---
 
-## P1. Wire the new routes into navigation + home teasers  [pending]
+## P1. Wire the new routes into navigation + home teasers  [DONE 7c38aa4]
 Prep so the pages have somewhere to be linked from. Small.
 - **Nav** (`src/components/layout/Nav.tsx`): repoint "Shop" -> `/shop`,
   "How it works" -> `/how-it-works` (both currently `/#...`). Keep "Our story"
@@ -46,7 +46,7 @@ Prep so the pages have somewhere to be linked from. Small.
 - **Done when:** nav and footer Shop / How it works go to real routes; home range
   and how-it-works sections each link out; no nav item 404s.
 
-## P2. Shop page — merchandised catalogue  [pending]
+## P2. Shop page — merchandised catalogue  [DONE 459e06c]
 `src/app/shop/page.tsx` (server component) + section components in
 `src/components/shop/`. Layout must NOT reuse the home ProductRange tile layout
 wholesale; it is a larger, catalogue-first composition.
@@ -72,7 +72,7 @@ wholesale; it is a larger, catalogue-first composition.
   the home range section, each product links to its product page, and it is in the
   sitemap with valid structured data.
 
-## P3. How it works page — full trust page  [pending]
+## P3. How it works page — full trust page  [DONE 86cbf99]
 `src/app/how-it-works/page.tsx` (server) + components in
 `src/components/how-it-works/`. Long-form, step-driven; distinct from both others.
 - **Header:** eyebrow "How it works" + heading + short intro.
