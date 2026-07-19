@@ -67,8 +67,9 @@ describe("Customizer state machine", () => {
       }),
     );
 
+    const stone = hoodie.variants[0];
     const { container } = render(
-      <Customizer product={hoodie} initialColor="Stone" initialSize="M" />,
+      <Customizer product={hoodie} color={stone} size="M" active />,
     );
 
     // idle: nothing uploaded, so styles and the CTA are both locked.
@@ -133,8 +134,9 @@ describe("Customizer state machine", () => {
       }),
     );
 
+    const stone = hoodie.variants[0];
     const { container } = render(
-      <Customizer product={hoodie} initialColor="Stone" initialSize="M" />,
+      <Customizer product={hoodie} color={stone} size="M" active />,
     );
 
     await user.upload(fileInput(container), photo());

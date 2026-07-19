@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
-import { Customizer } from "@/components/customizer/Customizer";
+import { ProductFlow } from "@/components/products/ProductFlow";
 import { getProduct } from "@/lib/products";
 
 type CustomizePageProps = {
@@ -45,7 +45,9 @@ export default async function CustomizePage({
   return (
     <div className="bg-base py-14 md:py-20">
       <Container>
-        <Customizer product={product} initialColor={color} initialSize={size} />
+        {/* Interim: this route becomes a redirect into /products/[slug] in the
+            next commit. */}
+        <ProductFlow product={product} initialColor={color} initialSize={size} />
 
         <div className="mt-16 border-t border-line pt-12">
           <h2 className="font-display text-2xl leading-[1.2] text-ink">

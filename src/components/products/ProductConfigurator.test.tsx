@@ -1,49 +1,88 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProductConfigurator } from "./ProductConfigurator";
-import { getProduct } from "@/lib/products";
+import { getProduct, type Product, type Variant } from "@/lib/products";
+
+/**
+ * A stateful harness that owns colour/size the way {@link ProductFlow} does, so
+ * the controlled panel can be driven in isolation. `onSizeChange` is spied so a
+ * test can assert the panel reports selections up rather than holding them.
+ */
+function Harness({
+  product,
+  onSizeChange,
+}: {
+  product: Product;
+  onSizeChange?: (size: string) => void;
+}) {
+  const [color, setColor] = useState<Variant>(product.variants[0]);
+  const [size, setSize] = useState<string | null>(
+    product.variants[0].sizes.length === 1
+      ? product.variants[0].sizes[0]
+      : null,
+  );
+  return (
+    <ProductConfigurator
+      product={product}
+      color={color}
+      size={size}
+      onColorChange={(name) => {
+        const next =
+          product.variants.find((v) => v.color === name) ?? product.variants[0];
+        setColor(next);
+        if (next.sizes.length === 1) setSize(next.sizes[0]);
+        else if (size !== null && !next.sizes.includes(size)) setSize(null);
+      }}
+      onSizeChange={(s) => {
+        onSizeChange?.(s);
+        setSize(s);
+      }}
+    />
+  );
+}
 
 describe("ProductConfigurator", () => {
-  it("keeps the CTA disabled until a size is chosen, then links with selections", async () => {
+  it("prompts for a size until one is chosen, then reports the selection up", async () => {
     const user = userEvent.setup();
+    const onSizeChange = vi.fn();
     const hoodie = getProduct("hoodie")!;
-    render(<ProductConfigurator product={hoodie} />);
+    render(<Harness product={hoodie} onSizeChange={onSizeChange} />);
 
-    // Before a size is picked, the CTA is a disabled button (no link).
+    // Before a size is picked the panel says so; it holds no CTA of its own.
+    expect(
+      screen.getByText("Choose a size to start their portrait."),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Start your portrait" }),
     ).toBeNull();
-    const disabled = screen.getByRole("button", { name: "Start your portrait" });
-    expect(disabled).toBeDisabled();
-    expect(screen.getByText("Choose a size to continue.")).toBeInTheDocument();
 
-    // Pick a size -> CTA becomes an enabled link carrying colour + size.
     await user.click(screen.getByRole("button", { name: "M" }));
-    const cta = screen.getByRole("link", { name: "Start your portrait" });
-    const href = cta.getAttribute("href") ?? "";
-    expect(href).toContain("/customize/hoodie");
-    expect(href).toContain("color=Stone");
-    expect(href).toContain("size=M");
+    expect(onSizeChange).toHaveBeenCalledWith("M");
+    expect(
+      screen.queryByText("Choose a size to start their portrait."),
+    ).toBeNull();
   });
 
-  it("auto-selects the only size for a one-size product", () => {
+  it("shows the only size as settled for a one-size product", () => {
     const tote = getProduct("tote")!;
-    render(<ProductConfigurator product={tote} />);
+    render(<Harness product={tote} />);
 
-    const cta = screen.getByRole("link", { name: "Start your portrait" });
-    const href = cta.getAttribute("href") ?? "";
-    expect(href).toContain("/customize/tote");
-    expect(href).toContain("color=Natural");
-    expect(href).toContain(`size=${encodeURIComponent("One size")}`);
+    // One-size settles from the start, so the prompt never appears.
+    expect(
+      screen.queryByText("Choose a size to start their portrait."),
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: "One size" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
-  it("resets an incompatible size when switching colours", async () => {
-    // All hoodie colours share sizes, so use the flow where switching keeps a
-    // valid size; here we verify colour change updates the label.
+  it("updates the colour label when a swatch is chosen", async () => {
     const user = userEvent.setup();
     const hoodie = getProduct("hoodie")!;
-    render(<ProductConfigurator product={hoodie} />);
+    render(<Harness product={hoodie} />);
 
     await user.click(screen.getByRole("button", { name: "Charcoal" }));
     expect(screen.getByText("Charcoal")).toBeInTheDocument();

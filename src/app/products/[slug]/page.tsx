@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
-import { ProductConfigurator } from "@/components/products/ProductConfigurator";
+import { ProductFlow } from "@/components/products/ProductFlow";
 import { TrackProductView } from "@/components/analytics/TrackProductView";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
@@ -17,6 +17,11 @@ import { BRAND_NAME, siteUrl } from "@/lib/seo/site";
 
 type ProductPageProps = {
   params: Promise<{ slug: string }>;
+  // Colour and size can ride in on the URL (`?color=&size=`): the retired
+  // /customize deep links redirect here preserving them, and both preselect
+  // the flow. When both are present the portrait step is active on load. The
+  // canonical URL carries no params, so indexing and metadata are unaffected.
+  searchParams: Promise<{ color?: string; size?: string }>;
 };
 
 export function generateStaticParams() {
@@ -89,10 +94,21 @@ const portraitSteps = [
   "Once you say yes, we print and courier it, ready in 5 working days.",
 ];
 
-export default async function ProductPage({ params }: ProductPageProps) {
+const goodToKnow = [
+  "The preview carries a watermark. The print file we make after you order does not.",
+  "You get three portrait tries per photo, so take your time picking the one that looks most like them.",
+  "A clear, well-lit photo where their face is easy to see gives the best portrait every time.",
+];
+
+export default async function ProductPage({
+  params,
+  searchParams,
+}: ProductPageProps) {
   const { slug } = await params;
   const product = getProduct(slug);
   if (!product) notFound();
+
+  const { color, size } = await searchParams;
 
   // The Offer quotes the cheapest variant, which is what the page's own
   // "from R x" label means. No rating or review markup: we have no reviews.
@@ -113,7 +129,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
       <Container>
         <JsonLd data={structuredData} />
         <TrackProductView slug={product.slug} priceZar={fromPriceZar(product)} />
-        <ProductConfigurator product={product} />
+        <ProductFlow
+          product={product}
+          initialColor={color}
+          initialSize={size}
+        />
 
         <div className="mt-16 grid gap-10 border-t border-line pt-12 md:grid-cols-2 md:gap-16">
           <div className="flex flex-col gap-4">
@@ -142,6 +162,19 @@ export default async function ProductPage({ params }: ProductPageProps) {
               working days, tracked the whole way, for a flat R 99.
             </p>
           </div>
+        </div>
+
+        <div className="mt-16 border-t border-line pt-12">
+          <h2 className="font-display text-2xl leading-[1.2] text-ink">
+            Good to know
+          </h2>
+          <ul className="mt-4 grid gap-3 md:grid-cols-3 md:gap-8">
+            {goodToKnow.map((note, index) => (
+              <li key={index} className="max-w-md leading-relaxed text-muted">
+                {note}
+              </li>
+            ))}
+          </ul>
         </div>
       </Container>
     </div>

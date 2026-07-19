@@ -1,45 +1,36 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
-import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
-import { productPhoto, formatZar, type Product } from "@/lib/products";
+import { productPhoto, formatZar, type Product, type Variant } from "@/lib/products";
 
 export type ProductConfiguratorProps = {
   product: Product;
+  /** The selected colourway. Owned by the parent flow. */
+  color: Variant;
+  /** The selected size, or null until one is picked. Owned by the parent. */
+  size: string | null;
+  /** Asks the parent to switch colourway (by colour name). */
+  onColorChange: (colorName: string) => void;
+  /** Asks the parent to set the size. */
+  onSizeChange: (size: string) => void;
 };
 
 /**
- * Client island owning colour and size selection for a product. Swaps the
- * photo to match the chosen colour and builds the customise CTA href from the
- * current selection. The CTA stays disabled until a size is picked.
+ * The top of the product flow: the garment shot keyed to the chosen colour, the
+ * name/price/blurb, and the colour + size pickers. Selection state is owned by
+ * the parent {@link ProductFlow} so the portrait step below reads the same
+ * colour and size; this component only renders them and reports changes. There
+ * is no CTA any more: choosing a size activates the portrait step in place.
  */
-export function ProductConfigurator({ product }: ProductConfiguratorProps) {
-  const [color, setColor] = useState(product.variants[0]);
-  const [size, setSize] = useState<string | null>(
-    color.sizes.length === 1 ? color.sizes[0] : null,
-  );
-
+export function ProductConfigurator({
+  product,
+  color,
+  size,
+  onColorChange,
+  onSizeChange,
+}: ProductConfiguratorProps) {
   const sizeChosen = size !== null;
-  const href = sizeChosen
-    ? `/customize/${product.slug}?color=${encodeURIComponent(
-        color.color,
-      )}&size=${encodeURIComponent(size)}`
-    : "#";
-
-  const handleColorChange = (nextColorName: string) => {
-    const nextColor =
-      product.variants.find((variant) => variant.color === nextColorName) ??
-      product.variants[0];
-    setColor(nextColor);
-    // Preserve a compatible size, otherwise reset (or auto-pick one-size).
-    if (nextColor.sizes.length === 1) {
-      setSize(nextColor.sizes[0]);
-    } else if (size !== null && !nextColor.sizes.includes(size)) {
-      setSize(null);
-    }
-  };
 
   return (
     <div className="grid gap-10 md:grid-cols-2 md:gap-14">
@@ -80,7 +71,7 @@ export function ProductConfigurator({ product }: ProductConfiguratorProps) {
                 <button
                   key={variant.color}
                   type="button"
-                  onClick={() => handleColorChange(variant.color)}
+                  onClick={() => onColorChange(variant.color)}
                   aria-pressed={selected}
                   aria-label={variant.color}
                   title={variant.color}
@@ -106,7 +97,7 @@ export function ProductConfigurator({ product }: ProductConfiguratorProps) {
                 <button
                   key={option}
                   type="button"
-                  onClick={() => setSize(option)}
+                  onClick={() => onSizeChange(option)}
                   aria-pressed={selected}
                   className={cn(
                     "rounded-md border px-4 py-2 text-sm font-medium transition-colors",
@@ -122,26 +113,11 @@ export function ProductConfigurator({ product }: ProductConfiguratorProps) {
             })}
           </div>
           {!sizeChosen && (
-            <p className="text-sm text-muted">Choose a size to continue.</p>
+            <p className="text-sm text-muted">
+              Choose a size to start their portrait.
+            </p>
           )}
         </div>
-
-        {/* CTA */}
-        {sizeChosen ? (
-          <Button href={href} size="md" block className="mt-2 w-full sm:w-auto">
-            Start your portrait
-          </Button>
-        ) : (
-          <Button
-            disabled
-            size="md"
-            block
-            className="mt-2 w-full sm:w-auto"
-            aria-disabled="true"
-          >
-            Start your portrait
-          </Button>
-        )}
       </div>
     </div>
   );

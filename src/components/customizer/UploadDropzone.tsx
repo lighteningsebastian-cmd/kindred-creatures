@@ -11,6 +11,8 @@ export type UploadDropzoneProps = {
   busy: boolean;
   /** Friendly moderation-reject reason to show inline, if any. */
   rejectReason: string | null;
+  /** True before a colour and size are chosen: the zone reads quiet and inert. */
+  disabled?: boolean;
   onFile: (file: File) => void;
 };
 
@@ -25,16 +27,21 @@ export function UploadDropzone({
   photoPreview,
   busy,
   rejectReason,
+  disabled = false,
   onFile,
 }: UploadDropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
-  const pick = () => inputRef.current?.click();
+  const pick = () => {
+    if (disabled) return;
+    inputRef.current?.click();
+  };
 
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragging(false);
+    if (disabled) return;
     const file = e.dataTransfer.files?.[0];
     if (file) onFile(file);
   };
@@ -46,6 +53,7 @@ export function UploadDropzone({
         type="file"
         accept={ACCEPT}
         className="sr-only"
+        disabled={disabled}
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) onFile(file);
@@ -55,26 +63,34 @@ export function UploadDropzone({
 
       <div
         role="button"
-        tabIndex={0}
+        tabIndex={disabled ? -1 : 0}
         aria-label="Upload a photo of your pet"
         aria-busy={busy}
+        aria-disabled={disabled}
         onClick={pick}
         onKeyDown={(e) => {
+          if (disabled) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             pick();
           }
         }}
         onDragOver={(e) => {
+          if (disabled) return;
           e.preventDefault();
           setDragging(true);
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
         className={cn(
-          "relative flex min-h-[280px] cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center transition-colors",
+          "relative flex min-h-[280px] flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center transition-colors",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base",
-          dragging ? "border-accent bg-accent-tint" : "border-line-strong bg-surface",
+          disabled
+            ? "cursor-not-allowed border-line bg-surface opacity-60"
+            : "cursor-pointer",
+          !disabled && dragging
+            ? "border-accent bg-accent-tint"
+            : !disabled && "border-line-strong bg-surface",
         )}
       >
         {photoPreview ? (

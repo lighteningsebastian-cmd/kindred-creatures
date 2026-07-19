@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
-import { formatZar, type Product, type Variant } from "@/lib/products";
+import { type Product, type Variant } from "@/lib/products";
 import type { ArtStyle } from "@/lib/images/provider";
 import { useCartStore } from "@/lib/cart-store";
 import {
@@ -20,10 +20,15 @@ import { PreviewStage } from "./PreviewStage";
 
 export type CustomizerProps = {
   product: Product;
-  /** Colour carried from the product page, if present and valid. */
-  initialColor?: string;
-  /** Size carried from the product page, if present and valid. */
-  initialSize?: string;
+  /** The colourway chosen at the top of the flow. */
+  color: Variant;
+  /** The size chosen at the top of the flow, or null until one is picked. */
+  size: string | null;
+  /**
+   * True once a colour and size are both chosen. Until then the portrait step
+   * is shown but disabled, so the page does not jump when it activates.
+   */
+  active: boolean;
 };
 
 type Phase =
@@ -34,36 +39,17 @@ type Phase =
   | "ready" // preview ready
   | "failed"; // generation failed
 
-function resolveInitialColor(product: Product, name?: string): Variant {
-  return (
-    product.variants.find((v) => v.color === name) ?? product.variants[0]
-  );
-}
-
-function resolveInitialSize(color: Variant, size?: string): string | null {
-  if (color.sizes.length === 1) return color.sizes[0];
-  return size && color.sizes.includes(size) ? size : null;
-}
-
 /**
- * Client island owning the whole customizer flow: photo upload and moderation,
- * style selection and preview generation (capped at three tries), and the
- * hand-off to the cart. Runs entirely against the mock provider with no keys.
+ * The portrait half of the product flow: photo upload and moderation, style
+ * selection and preview generation (capped at three tries), and the hand-off to
+ * the cart. Colour and size are owned by the parent {@link ProductFlow} and
+ * arrive as props, so switching them never disturbs an artwork already made
+ * (the art is garment-agnostic) and the cart line is always built from the
+ * CURRENT selection. Runs entirely against the mock provider with no keys.
  */
-export function Customizer({
-  product,
-  initialColor,
-  initialSize,
-}: CustomizerProps) {
+export function Customizer({ product, color, size, active }: CustomizerProps) {
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
-
-  const [color, setColor] = useState<Variant>(() =>
-    resolveInitialColor(product, initialColor),
-  );
-  const [size, setSize] = useState<string | null>(() =>
-    resolveInitialSize(resolveInitialColor(product, initialColor), initialSize),
-  );
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -76,14 +62,6 @@ export function Customizer({
   const [remaining, setRemaining] = useState<number | null>(null);
 
   const objectUrlRef = useRef<string | null>(null);
-
-  const changeColor = (name: string) => {
-    const next =
-      product.variants.find((v) => v.color === name) ?? product.variants[0];
-    setColor(next);
-    if (next.sizes.length === 1) setSize(next.sizes[0]);
-    else if (size && !next.sizes.includes(size)) setSize(null);
-  };
 
   const generate = useCallback(
     async (id: string, chosen: ArtStyle, kind: "generate" | "regenerate") => {
@@ -197,6 +175,7 @@ export function Customizer({
     if (!canAddToCart || !artworkId || !size) return;
     addItem({
       productSlug: product.slug,
+      // Built from the CURRENT selection, not the one in force at upload time.
       color: color.color,
       size,
       qty: 1,
@@ -209,7 +188,11 @@ export function Customizer({
   };
 
   const styleDisabled =
-    !artworkId || phase === "uploading" || phase === "generating" || atCap;
+    !active ||
+    !artworkId ||
+    phase === "uploading" ||
+    phase === "generating" ||
+    atCap;
 
   return (
     <div className="grid gap-10 md:grid-cols-2 md:gap-14">
@@ -230,69 +213,14 @@ export function Customizer({
       <div className="order-1 flex flex-col gap-8 md:order-2">
         <div className="flex flex-col gap-2">
           <p className="eyebrow text-xs text-accent">Make it theirs</p>
-          <h1 className="font-display text-3xl leading-[1.1] text-ink md:text-4xl">
-            {product.name}
-          </h1>
-          <p className="text-lg font-medium text-ink">
-            {formatZar(color.priceZar)}
+          <h2 className="font-display text-3xl leading-[1.1] text-ink md:text-4xl">
+            Their portrait
+          </h2>
+          <p className="max-w-md leading-relaxed text-muted">
+            {active
+              ? "Upload a favourite photo, pick a style, and see it on the piece before you order."
+              : "Choose a colour and size above to start their portrait."}
           </p>
-        </div>
-
-        {/* Garment / colour / size context (editable inline). */}
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-3">
-            <p className="text-sm font-medium text-ink">
-              Colour: <span className="text-muted">{color.color}</span>
-            </p>
-            <div className="flex flex-wrap gap-3">
-              {product.variants.map((variant) => {
-                const selected = variant.color === color.color;
-                return (
-                  <button
-                    key={variant.color}
-                    type="button"
-                    onClick={() => changeColor(variant.color)}
-                    aria-pressed={selected}
-                    aria-label={variant.color}
-                    title={variant.color}
-                    className={cn(
-                      "h-9 w-9 rounded-md border border-line transition-[box-shadow,transform] active:scale-95",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base",
-                      selected &&
-                        "ring-2 ring-accent ring-offset-2 ring-offset-base",
-                    )}
-                    style={{ backgroundColor: variant.colorHex }}
-                  />
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <p className="text-sm font-medium text-ink">Size</p>
-            <div className="flex flex-wrap gap-2">
-              {color.sizes.map((option) => {
-                const selected = option === size;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => setSize(option)}
-                    aria-pressed={selected}
-                    className={cn(
-                      "rounded-md border px-4 py-2 text-sm font-medium transition-colors",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base",
-                      selected
-                        ? "border-ink bg-ink text-base"
-                        : "border-line text-ink hover:bg-surface",
-                    )}
-                  >
-                    {option}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
 
         {/* Step 1: upload */}
@@ -302,6 +230,7 @@ export function Customizer({
             photoPreview={photoPreview}
             busy={phase === "uploading"}
             rejectReason={rejectReason}
+            disabled={!active}
             onFile={handleFile}
           />
           {uploadError ? (
