@@ -14,8 +14,9 @@ const stepIcon: Record<HowItWorksStepKey, Icon> = {
 };
 
 /**
- * Three verb-led steps in an asymmetric 2fr/1fr/1fr grid, each rising into view
- * on a small staggered whileInView entrance.
+ * A light three-beat summary of the process: icon + verb title in a single row,
+ * pointing at /how-it-works for the full four-step telling. Deliberately a
+ * teaser, not a duplicate of that page, so the step bodies stay over there.
  */
 export function HowItWorks() {
   return (
@@ -27,22 +28,21 @@ export function HowItWorks() {
             From your camera roll to your wardrobe
           </h2>
         </Reveal>
-        <div className="mt-12 grid gap-6 md:grid-cols-[2fr_1fr_1fr]">
+        <div className="mt-10 grid gap-4 sm:grid-cols-3">
           {HOW_IT_WORKS_STEPS.map((step, index) => {
             const Icon = stepIcon[step.key];
             return (
               <Reveal
                 key={step.key}
                 delay={index * 0.1}
-                className="flex flex-col gap-4 rounded-lg border border-line bg-base p-7"
+                className="flex items-center gap-4 border-t border-line pt-5"
               >
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-md bg-accent-tint text-accent">
-                  <Icon size={24} />
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-tint text-accent">
+                  <Icon size={22} />
                 </span>
-                <h3 className="font-display text-xl leading-[1.2] text-ink">
+                <h3 className="font-display text-lg leading-[1.2] text-ink">
                   {step.title}
                 </h3>
-                <p className="text-muted">{step.body}</p>
               </Reveal>
             );
           })}
