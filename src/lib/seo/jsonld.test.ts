@@ -5,11 +5,13 @@ import {
   buildBreadcrumbList,
   buildFaqPage,
   buildHowTo,
+  buildItemList,
   buildOrganization,
   buildProduct,
   buildWebSite,
   organizationId,
 } from "./jsonld";
+import { fromPriceZar } from "@/lib/products";
 
 const BASE = "https://kindredcreatures.co.za";
 
@@ -210,6 +212,83 @@ describe("buildProduct", () => {
         product: { ...hoodie, variants: [{ ...hoodie.variants[0], priceZar: 0 }] },
         images: [`${BASE}/hoodie.jpg`],
       }),
+    ).toThrow(/price/);
+  });
+});
+
+describe("buildItemList", () => {
+  it("lists every catalogue product as a ListItem, numbered from one", () => {
+    const node = buildItemList({ baseUrl: BASE, products: PRODUCTS });
+    const items = node.itemListElement as Array<Record<string, unknown>>;
+
+    expect(node["@context"]).toBe("https://schema.org");
+    expect(node["@type"]).toBe("ItemList");
+    expect(node.numberOfItems).toBe(4);
+    expect(items).toHaveLength(4);
+    expect(items.map((item) => item.position)).toEqual([1, 2, 3, 4]);
+  });
+
+  it("prices each product from its cheapest variant in ZAR", () => {
+    const node = buildItemList({ baseUrl: BASE, products: PRODUCTS });
+    const items = node.itemListElement as Array<Record<string, unknown>>;
+
+    items.forEach((item, index) => {
+      const product = PRODUCTS[index];
+      const embedded = item.item as Record<string, unknown>;
+      const offer = embedded.offers as Record<string, unknown>;
+
+      expect(embedded["@type"]).toBe("Product");
+      expect(embedded.name).toBe(product.name);
+      expect(embedded.url).toBe(`${BASE}/products/${product.slug}`);
+      expect(offer.priceCurrency).toBe("ZAR");
+      expect(offer.price).toBe(fromPriceZar(product));
+      expect(Number.isInteger(offer.price)).toBe(true);
+    });
+  });
+
+  it("points each product's brand at the organization node", () => {
+    const node = buildItemList({ baseUrl: BASE, products: PRODUCTS });
+    const items = node.itemListElement as Array<Record<string, unknown>>;
+    const first = (items[0].item as Record<string, unknown>).brand;
+    expect(first).toEqual({ "@id": `${BASE}/#organization` });
+  });
+
+  it("carries an optional collection name when given one", () => {
+    const named = buildItemList({
+      baseUrl: BASE,
+      products: PRODUCTS,
+      name: "The Kindred Creatures range",
+    });
+    expect(named.name).toBe("The Kindred Creatures range");
+
+    const unnamed = buildItemList({ baseUrl: BASE, products: PRODUCTS });
+    expect(unnamed).not.toHaveProperty("name");
+  });
+
+  it("never fabricates ratings or reviews", () => {
+    const node = buildItemList({ baseUrl: BASE, products: PRODUCTS });
+    const serialised = JSON.stringify(node);
+    expect(serialised).not.toContain("aggregateRating");
+    expect(serialised).not.toContain("Review");
+    expect(serialised).not.toContain("ratingValue");
+  });
+
+  it("refuses an empty product list and a relative base URL", () => {
+    expect(() => buildItemList({ baseUrl: BASE, products: [] })).toThrow(
+      /products/,
+    );
+    expect(() =>
+      buildItemList({ baseUrl: "/shop", products: PRODUCTS }),
+    ).toThrow(/absolute URL/);
+  });
+
+  it("refuses a non-positive price", () => {
+    const broken = {
+      ...hoodie,
+      variants: [{ ...hoodie.variants[0], priceZar: 0 }],
+    };
+    expect(() =>
+      buildItemList({ baseUrl: BASE, products: [broken] }),
     ).toThrow(/price/);
   });
 });

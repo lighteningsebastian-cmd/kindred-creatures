@@ -54,6 +54,11 @@ interface StaticRoute {
  */
 export const STATIC_ROUTES: StaticRoute[] = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
+  // The shop is the catalogue hub: a real page (asserted by sitemap.test.ts),
+  // ranked just under the homepage and above the individual product pages.
+  // /how-it-works is deliberately still absent: its full page lands in P3, and
+  // its interim placeholder is not worth indexing yet.
+  { path: "/shop", changeFrequency: "weekly", priority: 0.9 },
   // S10 content pages. Each has a real page file on disk (asserted by
   // sitemap.test.ts) before earning its place here.
   { path: "/about", changeFrequency: "yearly", priority: 0.5 },

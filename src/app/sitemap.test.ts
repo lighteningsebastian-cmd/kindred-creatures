@@ -28,16 +28,26 @@ describe("sitemap", () => {
     }
   });
 
+  it("lists the shop catalogue page", () => {
+    expect(urls()).toContain(`${BASE}/shop`);
+  });
+
+  it("does not yet list the interim how-it-works page", () => {
+    // Its full page (and sitemap entry) land in P3.
+    expect(urls()).not.toContain(`${BASE}/how-it-works`);
+  });
+
   it("lists the S10 content pages", () => {
     for (const path of ["/about", "/faq", "/journal"]) {
       expect(urls()).toContain(`${BASE}${path}`);
     }
   });
 
-  it("lists nothing but the homepage, content pages and the products", () => {
+  it("lists nothing but the homepage, shop, content pages and the products", () => {
     expect(urls().sort()).toEqual(
       [
         BASE,
+        `${BASE}/shop`,
         `${BASE}/about`,
         `${BASE}/faq`,
         `${BASE}/journal`,

@@ -14,6 +14,7 @@
 import type { FaqEntry, HowItWorksStep } from "@/lib/content";
 import { DELIVERY_DAYS } from "@/lib/content";
 import type { Product, Variant } from "@/lib/products";
+import { fromPriceZar } from "@/lib/products";
 
 const SCHEMA_CONTEXT = "https://schema.org";
 
@@ -215,6 +216,67 @@ export function buildProduct(input: ProductJsonLdInput): JsonLd {
       },
     },
   };
+}
+
+export interface ItemListInput {
+  baseUrl: string;
+  /** The catalogue, in the order the page renders it. */
+  products: Product[];
+  /** Optional collection name, e.g. "The Kindred Creatures range". */
+  name?: string;
+}
+
+/**
+ * ItemList of the catalogue for the /shop page: one ListItem per product, each
+ * carrying a Product with its name, canonical URL and a single "from" Offer in
+ * ZAR (the cheapest variant, matching the "from R x" label the card renders).
+ *
+ * No aggregateRating, no review: see the note at the top of this file. The price
+ * is the same fromPriceZar the page shows, so the markup and the page agree.
+ */
+export function buildItemList(input: ItemListInput): JsonLd {
+  const baseUrl = requiredHttpUrl(input.baseUrl, "baseUrl").replace(/\/+$/, "");
+  const products = required(input.products, "products");
+
+  const node: JsonLd = {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "ItemList",
+    numberOfItems: products.length,
+    itemListElement: products.map((product, index) => {
+      const slug = required(product.slug, `products[${index}].slug`);
+      const url = `${baseUrl}/products/${slug}`;
+      const price = fromPriceZar(product);
+      if (!Number.isFinite(price) || price <= 0) {
+        throw new Error(
+          `JSON-LD: product "${slug}" has a non-positive price: ${price}`,
+        );
+      }
+      return {
+        "@type": "ListItem",
+        position: index + 1,
+        item: {
+          "@type": "Product",
+          "@id": `${url}#product`,
+          name: required(product.name, `products[${index}].name`),
+          url,
+          brand: { "@id": organizationId(baseUrl) },
+          offers: {
+            "@type": "Offer",
+            url,
+            priceCurrency: "ZAR",
+            price,
+            availability: "https://schema.org/InStock",
+          },
+        },
+      };
+    }),
+  };
+
+  if (input.name) {
+    node.name = input.name;
+  }
+
+  return node;
 }
 
 /**
