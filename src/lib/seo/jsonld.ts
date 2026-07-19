@@ -11,7 +11,7 @@
  * dishonest and something Google penalises. If real reviews ever exist, add a
  * builder that reads them from wherever they actually live.
  */
-import type { FaqEntry, HowItWorksStep } from "@/lib/content";
+import type { FaqEntry } from "@/lib/content";
 import { DELIVERY_DAYS } from "@/lib/content";
 import type { Product, Variant } from "@/lib/products";
 import { fromPriceZar } from "@/lib/products";
@@ -299,10 +299,22 @@ export function buildFaqPage(faqs: FaqEntry[]): JsonLd {
   };
 }
 
+/**
+ * The only shape buildHowTo consumes: a step with a title and a body. Declared
+ * structurally rather than tied to one content constant so both the home
+ * teaser's HOW_IT_WORKS_STEPS and the /how-it-works page's four-step
+ * HOW_IT_WORKS_PAGE_STEPS (each of which carries an extra `key`) can be passed
+ * straight in, and the markup stays whatever the caller's page renders.
+ */
+export interface HowToStepInput {
+  title: string;
+  body: string;
+}
+
 export interface HowToInput {
   name: string;
   description: string;
-  steps: HowItWorksStep[];
+  steps: HowToStepInput[];
 }
 
 /** HowTo for the customization process, from the real how-it-works steps. */

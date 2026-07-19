@@ -32,9 +32,9 @@ describe("sitemap", () => {
     expect(urls()).toContain(`${BASE}/shop`);
   });
 
-  it("does not yet list the interim how-it-works page", () => {
-    // Its full page (and sitemap entry) land in P3.
-    expect(urls()).not.toContain(`${BASE}/how-it-works`);
+  it("lists the how-it-works trust page", () => {
+    // Its full page (P3) carries HowTo + FAQ structured data and earns a place.
+    expect(urls()).toContain(`${BASE}/how-it-works`);
   });
 
   it("lists the S10 content pages", () => {
@@ -43,11 +43,12 @@ describe("sitemap", () => {
     }
   });
 
-  it("lists nothing but the homepage, shop, content pages and the products", () => {
+  it("lists nothing but the homepage, shop, how-it-works, content pages and the products", () => {
     expect(urls().sort()).toEqual(
       [
         BASE,
         `${BASE}/shop`,
+        `${BASE}/how-it-works`,
         `${BASE}/about`,
         `${BASE}/faq`,
         `${BASE}/journal`,

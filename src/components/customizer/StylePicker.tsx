@@ -2,17 +2,12 @@
 
 import { cn } from "@/lib/cn";
 import { ART_STYLES, ART_STYLE_LABELS, type ArtStyle } from "@/lib/images/provider";
+import { ART_STYLE_DESCRIPTIONS } from "@/lib/content";
 
 export type StylePickerProps = {
   value: ArtStyle | null;
   onSelect: (style: ArtStyle) => void;
   disabled?: boolean;
-};
-
-const BLURB: Record<ArtStyle, string> = {
-  "classic-portrait": "Warm, painterly, framed like a keepsake.",
-  "line-sketch": "Clean single-line ink, quiet and modern.",
-  watercolor: "Soft washes with a hand-painted feel.",
 };
 
 // Tiny decorative sample per style (a paw in the style's accent over a wash).
@@ -73,7 +68,9 @@ export function StylePicker({ value, onSelect, disabled }: StylePickerProps) {
               <span className="font-display text-lg text-ink">
                 {ART_STYLE_LABELS[style]}
               </span>
-              <span className="text-sm text-muted">{BLURB[style]}</span>
+              <span className="text-sm text-muted">
+                {ART_STYLE_DESCRIPTIONS[style]}
+              </span>
             </button>
           );
         })}
