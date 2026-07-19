@@ -3,12 +3,12 @@
 Owner feedback, 2026-07-17. Do not action these until the build is functionally complete;
 batch them into one pass.
 
-**Status (2026-07-17): items 2, 4, 5 DONE (commits c457e2b, c6223b6, 19f8424).**
+**Status (2026-07-19): items 2, 4, 5 DONE (commits c457e2b, c6223b6, 19f8424); item 6
+DONE (commit 59ef6d6 for the merged flow, plus this commit for the redirect + cleanup).**
 Item 3 is the same concern as item 5 (palette), resolved by making the storefront
-light-only. Remaining: item 6 (merge product + customizer flow, a design decision + build),
-item 7 (embroidery, blocked on print partner), item 8 (sayings, needs exploration), plus
-real photography. Cart-dog motion smoothness still wants one eyeball on a real browser
-(the preview pane throttles animation frames).
+light-only. Remaining: item 7 (embroidery, blocked on print partner), item 8 (sayings,
+needs exploration), plus real photography. Cart-dog motion smoothness still wants one
+eyeball on a real browser (the preview pane throttles animation frames).
 
 ## 1. Cat swat animation: REMOVED (owner decision, 2026-07-17)
 The swatting-cat idea by the FAQ heading was tried several times (paw-only, then a
@@ -53,19 +53,31 @@ Also re-verify the light theme's computed values against the kit's `:root` token
 owner has now called it dark twice, so check the actual rendered hexes rather than trusting
 the token names.
 
-## 6. Product page should flow straight into the portrait
+## 6. Product page should flow straight into the portrait  [DONE 59ef6d6 + this commit]
 Owner: clicking the hoodie should automatically surface "choose the colour" and "choose the
 size", and then the portrait step should come up automatically so they upload their photo.
 
-Today: `/products/[slug]` has colour + size + a CTA that navigates to `/customize/[slug]`.
-The customizer then repeats the colour/size context. That is one click and one page too
-many, and the repetition reads as a false start.
+Was: `/products/[slug]` had colour + size + a CTA that navigated to `/customize/[slug]`.
+The customizer then repeated the colour/size context. That was one click and one page too
+many, and the repetition read as a false start.
 
-Fix direction (needs a design decision, not a blind merge): collapse product and customizer
-into one continuous flow so choosing colour and size reveals the upload step in place.
-Watch out for: the product page is the SEO landing page and must stay server-rendered and
-indexable, while the customizer is a client island; and `/customize/[slug]?color=&size=`
-is currently a real entry point. Keep an indexable product URL.
+Done: product and customizer are now one continuous flow on `/products/[slug]`. A
+`ProductFlow` client island lifts colour/size state and feeds both a controlled
+`ProductConfigurator` (top) and the portrait `Customizer` (below). Choosing a colour and
+size activates the portrait step in place and smooth-scrolls it into view (reduced-motion:
+enable, no scroll); before that the step is present but disabled, so the page never jumps.
+The artwork lives in the Customizer, so switching colour/size after a portrait exists keeps
+the art and updates the mockup live, and the cart line is built from the current selection.
+`/customize/[slug]` is now a permanent (308) redirect into `/products/[slug]` preserving
+`?color=&size=` (bad slug still 404s); the shop band and how-it-works CTA point at
+`/products/hoodie`. All customizer behaviour (moderation copy, server-enforced 3-regen cap
+with a UI counter, skeleton loading, watermarked preview, add-to-cart gating, cart-dog pop,
+routing to /cart) and every analytics event are preserved; the API contracts are untouched.
+
+Note: reading `?color=&size=` on the server makes `/products/[slug]` render on demand
+rather than at build time. It stays a server component, fully server-rendered and indexable
+(canonical URL carries no params), with its metadata, JSON-LD and generateStaticParams
+intact.
 
 ## 7. Embroidery upsell (+R150) — NOT a tweak, a feature
 Owner wants an option to have the portrait **embroidered instead of printed**, for an extra

@@ -13,14 +13,14 @@ import { absoluteUrl } from "@/lib/seo/site";
  *   /cart, /checkout                       per-visitor state, nothing to index
  *   /dev/*                                 internal component demos
  *   /api/*                                 not pages
- *   /customize/[slug]                      a step in a flow, not a landing page;
- *                                          the product page is the canonical
- *                                          entry point and carries the same
- *                                          keywords. It is noindex,follow via
- *                                          its own metadata rather than blocked
- *                                          in robots.txt, because a crawler has
- *                                          to be allowed to fetch the page to
- *                                          see the noindex.
+ *   /customize/[slug]                      no longer a page: it permanently
+ *                                          redirects (308) into /products/[slug],
+ *                                          which is the canonical entry point.
+ *                                          A redirect target belongs in no
+ *                                          sitemap, and it stays crawlable (not
+ *                                          disallowed in robots.txt) so a crawler
+ *                                          can follow the 308 and update its
+ *                                          index to the product page.
  *
  * lastModified is the build timestamp. It is honest for this codebase: the copy
  * is compiled in, so the only moment any of these pages can change is a deploy.

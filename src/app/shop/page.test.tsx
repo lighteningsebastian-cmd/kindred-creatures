@@ -65,10 +65,10 @@ describe("shop page catalogue", () => {
     }
   });
 
-  it("offers a start-from-a-photo route into the customizer", () => {
+  it("offers a start-from-a-photo route into the product flow", () => {
     render(<ShopPage />);
     const upload = screen.getByRole("link", { name: "Upload a photo" });
-    expect(upload).toHaveAttribute("href", "/customize/hoodie");
+    expect(upload).toHaveAttribute("href", "/products/hoodie");
   });
 
   it("emits ItemList structured data for the four products in ZAR", () => {

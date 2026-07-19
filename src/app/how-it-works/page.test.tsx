@@ -69,10 +69,10 @@ describe("how-it-works trust page", () => {
     }
   });
 
-  it("sends the primary CTA into the customizer", () => {
+  it("sends the primary CTA into the product flow", () => {
     render(<HowItWorksPage />);
     const cta = screen.getByRole("link", { name: "Start your portrait" });
-    expect(cta).toHaveAttribute("href", "/customize/hoodie");
+    expect(cta).toHaveAttribute("href", "/products/hoodie");
   });
 
   it("emits HowTo structured data from the four page steps", () => {

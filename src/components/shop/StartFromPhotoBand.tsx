@@ -7,8 +7,9 @@ import { DELIVERY_DAYS } from "@/lib/content";
 /**
  * Centered "start from a photo" band for people who have not decided on a piece
  * yet. A centered moment, so it carries the two-line AccentRule rather than a
- * left-aligned eyebrow. Sends them into the customizer on the hoodie, a sensible
- * default, and repeats the delivery promise.
+ * left-aligned eyebrow. Sends them into the hoodie's product flow, a sensible
+ * default, where colour, size and the portrait step all live, and repeats the
+ * delivery promise.
  */
 export function StartFromPhotoBand() {
   return (
@@ -23,7 +24,7 @@ export function StartFromPhotoBand() {
             Upload a photo and see it on the piece first. Nothing prints until
             you love the portrait.
           </p>
-          <Button href="/customize/hoodie" block>
+          <Button href="/products/hoodie" block>
             Upload a photo
           </Button>
           <p className="eyebrow text-[11px] text-muted">

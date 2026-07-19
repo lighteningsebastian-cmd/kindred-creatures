@@ -49,9 +49,10 @@ describe("robots", () => {
     }
   });
 
-  it("leaves /customize crawlable so its noindex can be read", () => {
-    // Blocking it in robots.txt would stop a crawler fetching the page, and a
-    // page that is never fetched never has its noindex seen.
+  it("leaves /customize crawlable so its redirect can be followed", () => {
+    // /customize now 308-redirects into /products/[slug]. Blocking it in
+    // robots.txt would stop a crawler fetching it, and a redirect that is never
+    // fetched is never followed, so the index never moves to the product page.
     expect(rules().disallow as string[]).not.toContain("/customize/");
   });
 

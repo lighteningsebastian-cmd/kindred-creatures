@@ -232,7 +232,7 @@ export default function HowItWorksPage() {
               Upload a favourite photo and see them drawn before you part with
               anything.
             </p>
-            <Button href="/customize/hoodie" block>
+            <Button href="/products/hoodie" block>
               Start your portrait
             </Button>
             <p className="eyebrow text-[11px] text-muted">
