@@ -3,12 +3,13 @@ import { Container } from "@/components/ui/Container";
 import { CartButton } from "@/components/layout/CartButton";
 import { MobileMenu, type NavLink } from "@/components/layout/MobileMenu";
 
-// Shop and How it works point at the landing sections that actually hold that
-// content (the product range and the three steps), rather than at /shop and
-// /how-it-works, which are not pages. Our story and FAQ are their own pages.
+// Shop and How it works are now real, distinct pages: /shop is the merchandised
+// catalogue, /how-it-works the process/trust page. The home page still carries
+// teaser sections under #range and #how-it-works, but the nav sends people to
+// the full pages. Our story and FAQ are their own pages.
 const links: NavLink[] = [
-  { href: "/#range", label: "Shop" },
-  { href: "/#how-it-works", label: "How it works" },
+  { href: "/shop", label: "Shop" },
+  { href: "/how-it-works", label: "How it works" },
   { href: "/about", label: "Our story" },
   { href: "/faq", label: "FAQ" },
 ];

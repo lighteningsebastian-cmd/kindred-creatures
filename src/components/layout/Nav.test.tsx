@@ -5,8 +5,12 @@ import { render, screen } from "@testing-library/react";
 import { Nav } from "./Nav";
 import { Footer } from "./Footer";
 
-/** Routes that used to be linked but were never pages. None may reappear. */
-const DEAD_ROUTES = ["/shop", "/how-it-works", "/track"];
+/**
+ * Routes that must never be linked because no page backs them. /shop and
+ * /how-it-works are now real pages (P1), so only /track remains dead: order
+ * status lives behind an emailed token link, with no self-service lookup page.
+ */
+const DEAD_ROUTES = ["/track"];
 
 const appDir = resolve(process.cwd(), "src/app");
 
@@ -54,15 +58,15 @@ describe("nav links resolve", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("sends Shop and How it works to the landing sections", () => {
+  it("sends Shop and How it works to their own pages", () => {
     render(<Nav />);
     expect(screen.getByRole("link", { name: "Shop" })).toHaveAttribute(
       "href",
-      "/#range",
+      "/shop",
     );
     expect(
       screen.getByRole("link", { name: "How it works" }),
-    ).toHaveAttribute("href", "/#how-it-works");
+    ).toHaveAttribute("href", "/how-it-works");
   });
 });
 

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
+import { Button } from "@/components/ui/Button";
 import { Reveal } from "@/components/motion/Reveal";
 import {
   PRODUCTS,
@@ -106,6 +107,12 @@ export function ProductRange() {
             );
           })}
         </div>
+
+        <Reveal className="mt-8">
+          <Button href="/shop" variant="ghost">
+            See the whole range
+          </Button>
+        </Reveal>
       </Container>
     </section>
   );

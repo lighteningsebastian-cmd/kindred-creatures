@@ -2,11 +2,11 @@ import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { AccentRule } from "@/components/ui/AccentRule";
 
-// Shop and How it works resolve to the landing sections that hold that content,
-// matching the header nav; Our story and FAQ are their own pages.
+// Shop and How it works resolve to the full pages, matching the header nav;
+// Our story and FAQ are their own pages.
 const shopLinks = [
-  { href: "/#range", label: "Shop" },
-  { href: "/#how-it-works", label: "How it works" },
+  { href: "/shop", label: "Shop" },
+  { href: "/how-it-works", label: "How it works" },
   { href: "/about", label: "Our story" },
   { href: "/faq", label: "FAQ" },
 ];

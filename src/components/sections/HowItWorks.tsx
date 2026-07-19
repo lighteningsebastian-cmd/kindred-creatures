@@ -1,6 +1,7 @@
 import type { Icon } from "@phosphor-icons/react";
 import { UploadSimple, PencilSimple, Package } from "@phosphor-icons/react/dist/ssr";
 import { Container } from "@/components/ui/Container";
+import { Button } from "@/components/ui/Button";
 import { Reveal } from "@/components/motion/Reveal";
 import { HOW_IT_WORKS_STEPS, type HowItWorksStepKey } from "@/lib/content";
 
@@ -46,6 +47,12 @@ export function HowItWorks() {
             );
           })}
         </div>
+
+        <Reveal className="mt-10">
+          <Button href="/how-it-works" variant="ghost">
+            See how it works
+          </Button>
+        </Reveal>
       </Container>
     </section>
   );
