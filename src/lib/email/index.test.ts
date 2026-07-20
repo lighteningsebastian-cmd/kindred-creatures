@@ -12,6 +12,7 @@ import {
   sendJobSheet,
   sendOrderConfirmation,
   sendShippingNotification,
+  sendWelcome,
 } from ".";
 
 const ORDER_ID = "4f2a1c0d-1111-2222-3333-444455556666";
@@ -222,6 +223,35 @@ describe("email helpers", () => {
       expect(summary).toContain("press@printshop.test");
       expect(summary).toContain("4F2A1C0D");
       expect(summary).toContain("Thandi Mokoena");
+    });
+  });
+
+  describe("sendWelcome", () => {
+    it("sends a welcome carrying a signed unsubscribe link", async () => {
+      const sent = captureSends();
+
+      const result = await sendWelcome("New.Subscriber@Example.co.za");
+
+      expect(result.ok).toBe(true);
+      expect(sent).toHaveLength(1);
+      // The visible link and the List-Unsubscribe header point at the same URL.
+      expect(sent[0].text).toContain("/api/newsletter/unsubscribe?token=");
+      expect(sent[0].headers?.["List-Unsubscribe"]).toContain(
+        "/api/newsletter/unsubscribe?token=",
+      );
+    });
+
+    it("returns ok:false instead of throwing when the token cannot be signed", async () => {
+      // Production with no signing secret makes unsubscribeUrl throw. sendWelcome
+      // must swallow that (the subscribe request already saved the subscriber and
+      // must not 500), not let it escape.
+      vi.stubEnv("NODE_ENV", "production");
+      vi.stubEnv("ORDER_TOKEN_SECRET", "");
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const result = await sendWelcome("someone@example.co.za");
+
+      expect(result.ok).toBe(false);
     });
   });
 });

@@ -175,27 +175,42 @@ export async function sendOrderConfirmation(
  * exactly like the order-confirmation path.
  */
 export async function sendWelcome(email: string): Promise<EmailResult> {
-  const link = unsubscribeUrl(email);
-  const rendered = welcomeEmail({
-    shopUrl: `${siteUrl()}/shop`,
-    unsubscribeUrl: link,
-    senderIdentity: senderIdentity(),
-  });
+  // The docstring promise ("never throws") has to cover more than the transport
+  // that deliver() guards: building the unsubscribe link signs a token, which
+  // throws if ORDER_TOKEN_SECRET is missing in production, and rendering could
+  // throw too. A welcome that cannot be built must not take down the subscribe
+  // request that already saved the subscriber, so the whole body is guarded.
+  try {
+    const link = unsubscribeUrl(email);
+    const rendered = welcomeEmail({
+      shopUrl: `${siteUrl()}/shop`,
+      unsubscribeUrl: link,
+      senderIdentity: senderIdentity(),
+    });
 
-  return deliver({
-    to: email,
-    subject: rendered.subject,
-    html: rendered.html,
-    text: rendered.text,
-    replyTo: emailReplyTo(),
-    headers: {
-      // RFC 8058: the URL form plus the One-Click post lets the mail client
-      // unsubscribe without opening a browser. The route is a plain GET, so a
-      // one-click POST from the client hits the same handler and is idempotent.
-      "List-Unsubscribe": `<${link}>`,
-      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-    },
-  });
+    return await deliver({
+      to: email,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      replyTo: emailReplyTo(),
+      headers: {
+        // RFC 8058: the URL form plus the One-Click post lets the mail client
+        // unsubscribe without opening a browser. The route is a plain GET, so a
+        // one-click POST from the client hits the same handler and is idempotent.
+        "List-Unsubscribe": `<${link}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
+    });
+  } catch (cause) {
+    // No message/subject to attribute, and the likely cause is a missing signing
+    // secret, so keep the log generic and secret-free.
+    console.error("[email] welcome could not be prepared");
+    return {
+      ok: false,
+      error: cause instanceof Error ? cause : new Error("welcome send failed"),
+    };
+  }
 }
 
 /**
