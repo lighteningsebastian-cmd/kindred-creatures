@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Background-task worktrees (and any build output inside them) live under
+    // .claude/; without this, their .next output floods bare `npm run lint`.
+    ".claude/**",
   ]),
 ]);
 
