@@ -1,6 +1,16 @@
-import Image from "next/image";
+import { PhotoFrame } from "@/components/ui/PhotoFrame";
 import { Reveal } from "@/components/motion/Reveal";
-import type { HowItWorksPageStep } from "@/lib/content";
+import type { HowItWorksPageStep, HowItWorksPageStepKey } from "@/lib/content";
+
+/** The shot each process step reserves, art-directed per step. */
+const stepShot: Record<HowItWorksPageStepKey, string> = {
+  upload:
+    "candid: a hand holding a phone showing a favourite photo of a dog, warm indoor light over a kitchen table",
+  draw: "detail: an artist hand-finishing a pet portrait on a tablet, the reference photo pinned alongside, focused desk light",
+  approve:
+    "over-the-shoulder: someone smiling at the finished portrait on a laptop, an approval email open, soft window light",
+  ship: "detail: a printed kindred hoodie folded into kraft packaging with a courier label, Cape Town print studio, soft daylight",
+};
 
 /**
  * One block in the numbered vertical process: a big camel varsity-block numeral,
@@ -46,17 +56,7 @@ export function ProcessStep({
       </div>
 
       <div className={imageRight ? "" : "md:order-1"}>
-        {/* TODO: real photo */}
-        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg border border-line bg-surface">
-          <Image
-            src={`https://picsum.photos/seed/kindred-hiw-${step.key}/900/675`}
-            alt=""
-            aria-hidden="true"
-            fill
-            sizes="(max-width: 768px) 92vw, 46vw"
-            className="object-cover"
-          />
-        </div>
+        <PhotoFrame aspect="4 / 3" description={stepShot[step.key]} />
       </div>
     </Reveal>
   );

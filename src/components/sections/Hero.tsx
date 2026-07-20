@@ -1,6 +1,6 @@
-import Image from "next/image";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
+import { PhotoFrame } from "@/components/ui/PhotoFrame";
 
 /**
  * Asymmetric editorial split: varsity-block eyebrow, Young Serif display
@@ -35,16 +35,10 @@ export function Hero() {
         </div>
 
         <div className="relative mx-auto w-full max-w-md md:mx-0 md:ml-auto">
-          <div className="relative aspect-[9/11] w-full overflow-hidden rounded-lg border border-line bg-surface">
-            <Image
-              src="https://picsum.photos/seed/golden-retriever-owner-hug/900/1100"
-              alt="A person holding their golden retriever close, both looking calm and content"
-              fill
-              priority
-              sizes="(max-width: 768px) 90vw, 42vw"
-              className="object-cover"
-            />
-          </div>
+          <PhotoFrame
+            aspect="9 / 11"
+            description="lifestyle hero: a person outdoors hugging their golden retriever close, wearing the stone kindred hoodie with the dog's portrait print, soft warm morning light"
+          />
         </div>
       </Container>
     </section>

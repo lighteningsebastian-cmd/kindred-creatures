@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { cn } from "@/lib/cn";
-import { productPhoto, formatZar, type Product, type Variant } from "@/lib/products";
+import { PhotoFrame } from "@/components/ui/PhotoFrame";
+import { formatZar, type Product, type Variant } from "@/lib/products";
 
 export type ProductConfiguratorProps = {
   product: Product;
@@ -34,18 +34,11 @@ export function ProductConfigurator({
 
   return (
     <div className="grid gap-10 md:grid-cols-2 md:gap-14">
-      {/* Photo, keyed to selected colour */}
-      <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg border border-line bg-surface">
-        <Image
-          key={color.color}
-          src={productPhoto(product.slug, 900, 1125, color.color)}
-          alt={`${product.name} in ${color.color}, showing a pet portrait`}
-          fill
-          priority
-          sizes="(max-width: 768px) 90vw, 45vw"
-          className="object-cover"
-        />
-      </div>
+      {/* Photo, keyed to selected colour: the description tracks the swatch. */}
+      <PhotoFrame
+        aspect="4 / 5"
+        description={`flatlay: the ${product.name.replace(/^The /, "").toLowerCase()} in ${color.color}, pressed and folded, a pet portrait print centred, soft daylight`}
+      />
 
       {/* Selection panel */}
       <div className="flex flex-col gap-6">

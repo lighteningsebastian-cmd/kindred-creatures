@@ -1,6 +1,6 @@
-import Image from "next/image";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { productPhoto, type Product } from "@/lib/products";
+import { PhotoFrame } from "@/components/ui/PhotoFrame";
+import { type Product } from "@/lib/products";
 
 export type GarmentMockupProps = {
   product: Product;
@@ -36,14 +36,13 @@ export function GarmentMockup({
   };
 
   return (
-    <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg border border-line bg-surface">
-      <Image
-        key={color}
-        src={productPhoto(product.slug, 900, 1125, color)}
-        alt={`${product.name} in ${color}`}
-        fill
-        sizes="(max-width: 768px) 90vw, 45vw"
-        className="object-cover"
+    <div className="relative aspect-[4/5] w-full">
+      {/* Garment base: the hatched frame stands in for the real garment shot;
+          the portrait preview composites on top exactly as before. */}
+      <PhotoFrame
+        aspect="4 / 5"
+        description={`flatlay: the ${product.name.replace(/^The /, "").toLowerCase()} in ${color}, plain blank, ready for the portrait to be placed`}
+        className="absolute inset-0 h-full"
       />
 
       <div className="pointer-events-none absolute" style={boxStyle}>

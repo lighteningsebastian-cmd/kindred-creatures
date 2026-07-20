@@ -5,21 +5,9 @@ const nextConfig: NextConfig = {
   // either one breaks them at runtime (PGlite throws `instantiateWasm is not a
   // function`). Keep them as real node_modules requires on the server.
   serverExternalPackages: ["@electric-sql/pglite", "pg"],
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "picsum.photos",
-        pathname: "/**",
-      },
-      // picsum.photos serves the optimized image via a redirect to fastly.
-      {
-        protocol: "https",
-        hostname: "fastly.picsum.photos",
-        pathname: "/**",
-      },
-    ],
-  },
+  // No image `remotePatterns`: the storefront renders no remote images. Every
+  // photo slot is a local hatched PhotoFrame placeholder pending real
+  // photography, so next/image has no external host to allow.
 };
 
 export default nextConfig;

@@ -29,16 +29,10 @@ export const BRAND_NAME = "Kindred Creatures";
 export const BRAND_EMAIL = "hello@kindredcreatures.co.za";
 
 /**
- * The share card image, and the one the site falls back on when a page has no
- * shot of its own. This is the hero photograph at OG proportions: the same
- * seeded image the landing page renders, so what a link preview shows is what
- * the page shows.
- *
- * It is placeholder stock, like every photograph on the site right now (see
- * docs/design-tweaks.md). When real photography lands, this points at it.
+ * Share-card imagery is intentionally absent for now. The storefront renders
+ * hatched PhotoFrame placeholders rather than photographs, so there is no honest
+ * image to hand a link preview: a fabricated stock shot would misrepresent the
+ * product. OG/twitter cards therefore carry the title and description only.
+ * When the real photography shoot lands, add an OG_IMAGE constant pointing at a
+ * real 1200x630 asset and restore `images` in layout.tsx and the product page.
  */
-export const OG_IMAGE =
-  "https://picsum.photos/seed/golden-retriever-owner-hug/1200/630";
-
-export const OG_IMAGE_ALT =
-  "A person holding their golden retriever close, both looking calm and content";

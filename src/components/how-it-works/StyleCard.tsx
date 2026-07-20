@@ -1,6 +1,16 @@
-import Image from "next/image";
+import { PhotoFrame } from "@/components/ui/PhotoFrame";
 import { ART_STYLE_DESCRIPTIONS } from "@/lib/content";
 import { ART_STYLE_LABELS, type ArtStyle } from "@/lib/images/provider";
+
+/** The sample shot each style card reserves, art-directed per style. */
+const styleShot: Record<ArtStyle, string> = {
+  "classic-portrait":
+    "sample portrait: a dog rendered as a classic painted pet portrait, rich warm tones, framed head-and-shoulders",
+  "line-sketch":
+    "sample portrait: a cat rendered as a fine line sketch, confident ink linework on a bare warm ground",
+  watercolor:
+    "sample portrait: a dog rendered in soft watercolour, loose washes and gentle edges, warm palette",
+};
 
 /**
  * One style in the showcase: a sample image, the style's label, and the same
@@ -13,16 +23,11 @@ export function StyleCard({ style }: { style: ArtStyle }) {
 
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-lg border border-line bg-surface">
-      {/* TODO: real photo */}
-      <div className="relative aspect-square w-full overflow-hidden">
-        <Image
-          src={`https://picsum.photos/seed/kindred-style-${style}/700/700`}
-          alt={`A pet portrait in the ${label.toLowerCase()} style`}
-          fill
-          sizes="(max-width: 768px) 92vw, 30vw"
-          className="object-cover"
-        />
-      </div>
+      <PhotoFrame
+        aspect="1 / 1"
+        description={styleShot[style]}
+        className="rounded-none border-0"
+      />
       <div className="flex flex-1 flex-col gap-2 p-6">
         <h3 className="font-display text-xl leading-[1.2] text-ink">{label}</h3>
         <p className="leading-relaxed text-muted">

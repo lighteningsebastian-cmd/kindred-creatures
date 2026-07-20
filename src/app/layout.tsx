@@ -6,13 +6,7 @@ import { Footer } from "@/components/layout/Footer";
 import { Analytics } from "@/components/analytics/Analytics";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { buildOrganization, buildWebSite } from "@/lib/seo/jsonld";
-import {
-  BRAND_EMAIL,
-  BRAND_NAME,
-  OG_IMAGE,
-  OG_IMAGE_ALT,
-  siteUrl,
-} from "@/lib/seo/site";
+import { BRAND_EMAIL, BRAND_NAME, siteUrl } from "@/lib/seo/site";
 
 // Young Serif (weight 400 only) drives display headlines, product names, quotes.
 const display = Young_Serif({
@@ -63,14 +57,15 @@ export const metadata: Metadata = {
     title: `${BRAND_NAME} · Custom pet portrait apparel, printed in South Africa`,
     description:
       "Upload a photo of your pet. We turn it into portrait artwork and print it on a hoodie, tee, crewneck or tote in Cape Town, couriered to you in 5 working days.",
-    images: [{ url: OG_IMAGE, width: 1200, height: 630, alt: OG_IMAGE_ALT }],
+    // No OG image: real brand photography does not exist yet (the site renders
+    // hatched PhotoFrame placeholders). A text share card is honest; restore the
+    // image here when the shoot lands.
   },
   twitter: {
     card: "summary_large_image",
     title: `${BRAND_NAME} · Custom pet portrait apparel, printed in South Africa`,
     description:
       "Upload a photo of your pet. We turn it into portrait artwork and print it on a hoodie, tee, crewneck or tote in Cape Town, couriered to you in 5 working days.",
-    images: [{ url: OG_IMAGE, alt: OG_IMAGE_ALT }],
   },
   robots: { index: true, follow: true },
 };

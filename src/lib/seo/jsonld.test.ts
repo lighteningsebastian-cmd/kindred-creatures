@@ -199,10 +199,19 @@ describe("buildProduct", () => {
     ).toThrow(/absolute URL/);
   });
 
-  it("refuses an empty image list", () => {
-    expect(() =>
-      buildProduct({ baseUrl: BASE, product: hoodie, images: [] }),
-    ).toThrow(/images/);
+  it("omits the image field when no photography is supplied", () => {
+    // Real product photography does not exist yet: the storefront renders
+    // hatched PhotoFrame placeholders, so an honest Product omits `image`
+    // rather than fabricating a URL. schema.org permits a Product with no image.
+    const omitted = buildProduct({ baseUrl: BASE, product: hoodie });
+    expect(omitted).not.toHaveProperty("image");
+
+    const empty = buildProduct({ baseUrl: BASE, product: hoodie, images: [] });
+    expect(empty).not.toHaveProperty("image");
+
+    // The other required fields still ship, so absence of image is not a broken node.
+    expect(omitted.name).toBe(hoodie.name);
+    expect(omitted.offers).toBeDefined();
   });
 
   it("refuses a non-positive price", () => {

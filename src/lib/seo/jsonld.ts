@@ -136,8 +136,16 @@ export function buildWebSite(input: WebSiteInput): JsonLd {
 export interface ProductJsonLdInput {
   baseUrl: string;
   product: Product;
-  /** Absolute URLs of the shots the product page actually renders. */
-  images: string[];
+  /**
+   * Absolute URLs of the shots the product page actually renders. Optional and
+   * omitted while no real product photography exists: the storefront renders
+   * hatched PhotoFrame placeholders, not photographs, so there is no honest URL
+   * to point `image` at. schema.org permits a Product with no image, and an
+   * honest absence beats a fabricated stock URL that misrepresents the product.
+   * When the real shoot lands, pass the shot URLs here and `image` returns.
+   * Any URL passed is still validated as absolute.
+   */
+  images?: string[];
   /**
    * The variant the offer quotes. Defaults to the cheapest, which is what the
    * "from R x" label on the page means.
@@ -154,7 +162,8 @@ export interface ProductJsonLdInput {
 export function buildProduct(input: ProductJsonLdInput): JsonLd {
   const baseUrl = requiredHttpUrl(input.baseUrl, "baseUrl").replace(/\/+$/, "");
   const product = required(input.product, "product");
-  const images = required(input.images, "images");
+  // Optional: validated only when present. See ProductJsonLdInput.images.
+  const images = input.images ?? [];
   const variant =
     input.variant ??
     product.variants.reduce((cheapest, candidate) =>
@@ -170,13 +179,12 @@ export function buildProduct(input: ProductJsonLdInput): JsonLd {
 
   const url = `${baseUrl}/products/${required(product.slug, "product.slug")}`;
 
-  return {
+  const node: JsonLd = {
     "@context": SCHEMA_CONTEXT,
     "@type": "Product",
     "@id": `${url}#product`,
     name: required(product.name, "product.name"),
     description: required(product.blurb, "product.blurb"),
-    image: images.map((image, index) => requiredHttpUrl(image, `images[${index}]`)),
     url,
     category: "Custom pet portrait apparel",
     brand: { "@id": organizationId(baseUrl) },
@@ -216,6 +224,16 @@ export function buildProduct(input: ProductJsonLdInput): JsonLd {
       },
     },
   };
+
+  // Only emit `image` when real shot URLs are supplied; each is validated as an
+  // absolute URL. Absent while the storefront uses PhotoFrame placeholders.
+  if (images.length > 0) {
+    node.image = images.map((image, index) =>
+      requiredHttpUrl(image, `images[${index}]`),
+    );
+  }
+
+  return node;
 }
 
 export interface ItemListInput {

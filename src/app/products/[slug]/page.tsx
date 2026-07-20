@@ -9,7 +9,6 @@ import {
   formatZar,
   fromPriceZar,
   getProduct,
-  productPhoto,
   type Product,
 } from "@/lib/products";
 import { buildBreadcrumbList, buildProduct } from "@/lib/seo/jsonld";
@@ -26,13 +25,6 @@ type ProductPageProps = {
 
 export function generateStaticParams() {
   return PRODUCTS.map((product) => ({ slug: product.slug }));
-}
-
-/** The shots this page renders: one per colourway, as the configurator shows them. */
-function productImages(product: Product): string[] {
-  return product.variants.map((variant) =>
-    productPhoto(product.slug, 900, 1125, variant.color),
-  );
 }
 
 /**
@@ -60,8 +52,10 @@ export async function generateMetadata({
 
   const path = `/products/${product.slug}`;
   const description = productDescription(product);
-  const image = productPhoto(product.slug, 1200, 630);
-  const alt = `${product.name} carrying a pet portrait`;
+  // No OG image: real product photography does not exist yet (the page renders
+  // hatched PhotoFrame placeholders), so a share card carries the title and
+  // description rather than a fabricated stock image. Restore `images` here when
+  // the shoot lands.
 
   return {
     title: product.name,
@@ -77,13 +71,11 @@ export async function generateMetadata({
       url: path,
       title: product.name,
       description,
-      images: [{ url: image, width: 1200, height: 630, alt }],
     },
     twitter: {
       card: "summary_large_image",
       title: product.name,
       description,
-      images: [{ url: image, alt }],
     },
   };
 }
@@ -116,7 +108,8 @@ export default async function ProductPage({
     buildProduct({
       baseUrl: siteUrl(),
       product,
-      images: productImages(product),
+      // No images: the page shows PhotoFrame placeholders, not photographs.
+      // schema.org allows Product without image; restore when the shoot lands.
     }),
     buildBreadcrumbList(siteUrl(), [
       { name: "Kindred Creatures", path: "/" },

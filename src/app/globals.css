@@ -118,13 +118,13 @@
 }
 
 /*
-  LIGHT ONLY — intentional. The Claude UI kit is an editorial paper brand that
+  LIGHT ONLY, intentional. The Claude UI kit is an editorial paper brand that
   ships light only (warm stone-greige parchment, brown-black bark ink, oxblood
   accent). An earlier pass added a dark inversion that is NOT in the kit and made
   the storefront read too dark. We removed the prefers-color-scheme: dark
   override so the light parchment palette ALWAYS applies, regardless of the
   visitor's system preference. Do not reintroduce a dark theme for the
-  storefront without a design decision — see docs/design-tweaks.md items 3 & 5.
+  storefront without a design decision. See docs/design-tweaks.md items 3 and 5.
 */
 
 @theme inline {

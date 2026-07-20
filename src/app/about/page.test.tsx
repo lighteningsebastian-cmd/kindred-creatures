@@ -1,16 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import AboutPage, { metadata } from "./page";
-
-// next/image needs a loader/config it does not have in jsdom; the page only
-// cares that an <img> with the right alt is present.
-vi.mock("next/image", () => ({
-  default: (props: Record<string, unknown>) => {
-    const { src, alt } = props as { src: string; alt: string };
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} />;
-  },
-}));
 
 describe("about page metadata", () => {
   it("has a title, description and its own canonical", () => {
@@ -35,9 +25,10 @@ describe("about page content", () => {
       screen.getByText(/couriered anywhere in South Africa in 5 working days/),
     ).toBeInTheDocument();
 
-    // At least one real image slot, with descriptive alt.
+    // The hero photo slot is a hatched PhotoFrame placeholder pending the real
+    // shoot; its caption is the visible shot description, by design.
     expect(
-      screen.getByAltText("A person sitting with their dog, both at ease"),
+      screen.getByText(/a person sitting on the floor with their dog/i),
     ).toBeInTheDocument();
   });
 

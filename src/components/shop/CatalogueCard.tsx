@@ -1,12 +1,17 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import {
-  fromPriceZar,
-  formatZar,
-  productPhoto,
-  type Product,
-} from "@/lib/products";
+import { PhotoFrame } from "@/components/ui/PhotoFrame";
+import { fromPriceZar, formatZar, type Product } from "@/lib/products";
+
+/** Art-directed flatlay per product, reserved until the real shoot. */
+const catalogueShot: Record<string, string> = {
+  hoodie:
+    "flatlay: the stone kindred hoodie pressed and squared to camera, a dog portrait print on the chest, soft daylight on a warm parchment backdrop",
+  tee: "flatlay: the ecru kindred tee pressed flat, a cat portrait print centred, gentle overhead light, warm parchment backdrop",
+  crewneck:
+    "flatlay: the charcoal kindred crewneck laid flat, a pet portrait print centred, soft daylight, warm parchment backdrop",
+  tote: "flatlay: the natural canvas kindred tote squared to camera, a pet portrait print centred, soft daylight, warm parchment backdrop",
+};
 
 /**
  * One large catalogue card for /shop: a generous flatlay, the name and "from"
@@ -22,17 +27,11 @@ export function CatalogueCard({ product }: { product: Product }) {
 
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-lg border border-line bg-surface">
-      {/* TODO: real photo */}
-      <Link
-        href={href}
-        className="group relative block aspect-[5/4] overflow-hidden"
-      >
-        <Image
-          src={productPhoto(product.slug, 900, 720)}
-          alt={`${product.name}, printed with a pet portrait`}
-          fill
-          sizes="(max-width: 768px) 92vw, 46vw"
-          className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+      <Link href={href} className="block">
+        <PhotoFrame
+          aspect="5 / 4"
+          description={catalogueShot[product.slug]}
+          className="rounded-none border-0"
         />
       </Link>
 
