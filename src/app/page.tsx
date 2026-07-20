@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { Hero } from "@/components/sections/Hero";
+import { TrustBand } from "@/components/sections/TrustBand";
 import { HowItWorks } from "@/components/sections/HowItWorks";
 import { ProductRange } from "@/components/sections/ProductRange";
 import { DeliveryPromise } from "@/components/sections/DeliveryPromise";
 import { LoveWall } from "@/components/sections/LoveWall";
 import { FaqTeaser } from "@/components/sections/FaqTeaser";
+import { ClosingCta } from "@/components/sections/ClosingCta";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { FAQS, HOW_IT_WORKS_STEPS } from "@/lib/content";
 import { buildFaqPage, buildHowTo } from "@/lib/seo/jsonld";
@@ -34,11 +36,13 @@ export default function Home() {
     <>
       <JsonLd data={structuredData} />
       <Hero />
-      <HowItWorks />
+      <TrustBand />
       <ProductRange />
+      <HowItWorks />
       <DeliveryPromise />
       <LoveWall />
       <FaqTeaser />
+      <ClosingCta />
     </>
   );
 }

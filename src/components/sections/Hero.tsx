@@ -4,9 +4,10 @@ import { PhotoFrame } from "@/components/ui/PhotoFrame";
 
 /**
  * Asymmetric editorial split: varsity-block eyebrow, Young Serif display
- * headline and body-lg subcopy on the left; a single lifestyle portrait with a
- * near-square radius on the right. Left-aligned, top-weighted (pt within
- * space-8), sized to sit within a single viewport.
+ * headline and a tight body-lg subcopy on the left; a lifestyle portrait with a
+ * small overlapping second frame on the right, both near-square. Left-aligned,
+ * top-weighted (pt within space-8), sized to sit within a single viewport. The
+ * two CTAs carry the two site-wide intents: start (oxblood) and browse (outline).
  */
 export function Hero() {
   return (
@@ -20,15 +21,14 @@ export function Hero() {
             Your best friend, worn like art.
           </h1>
           <p className="max-w-md text-lg leading-relaxed text-muted">
-            Upload a favourite photo. We turn it into a hand-finished portrait
-            and print it on a hoodie made in Cape Town, ready to wear and hard
-            to take off.
+            Upload a favourite photo. We draw a hand-finished portrait and print
+            it on a hoodie in Cape Town.
           </p>
           <div className="mt-2 flex flex-wrap gap-3">
             <Button href="/products/hoodie" block>
               Start your portrait
             </Button>
-            <Button href="/products/hoodie" variant="secondary" block>
+            <Button href="/shop" variant="secondary" block>
               Shop the range
             </Button>
           </div>
@@ -39,6 +39,17 @@ export function Hero() {
             aspect="9 / 11"
             description="lifestyle hero: a person outdoors hugging their golden retriever close, wearing the stone kindred hoodie with the dog's portrait print, soft warm morning light"
           />
+          {/* Small overlapping second frame, in the kit's stacked style. Purely
+              decorative composition; hidden on the narrowest screens so the hero
+              stays calm and within the viewport on mobile. */}
+          <div className="absolute -bottom-6 -left-6 hidden w-[42%] sm:block">
+            <div className="rounded-lg bg-base p-1.5">
+              <PhotoFrame
+                aspect="1 / 1"
+                description="close-up: a cat's face in the printed portrait, soft studio light"
+              />
+            </div>
+          </div>
         </div>
       </Container>
     </section>

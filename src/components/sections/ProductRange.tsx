@@ -82,7 +82,7 @@ export function ProductRange() {
 
         <Reveal className="mt-8">
           <Button href="/shop" variant="ghost">
-            See the whole range
+            Shop the range
           </Button>
         </Reveal>
       </Container>
