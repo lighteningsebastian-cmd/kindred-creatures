@@ -42,6 +42,11 @@ export interface AnalyticsEventMap {
   art_generated: { product: string; style: string };
   /** An existing portrait was redrawn (the Regenerate action). */
   art_regenerated: { product: string; style: string };
+  /**
+   * A new address joined the newsletter. source is the capture surface; no
+   * email or other PII travels with it (the list itself is the private record).
+   */
+  newsletter_signup: { source: "footer" | "checkout" };
 }
 
 export type AnalyticsEvent = keyof AnalyticsEventMap;
@@ -144,4 +149,14 @@ export function trackArtRegenerated(input: {
   style: string;
 }): void {
   track("art_regenerated", { product: input.slug, style: input.style });
+}
+
+/**
+ * A newsletter signup succeeded. source names the surface (footer form or the
+ * checkout opt-in); the address is never sent, only that a join happened.
+ */
+export function trackNewsletterSignup(input: {
+  source: "footer" | "checkout";
+}): void {
+  track("newsletter_signup", { source: input.source });
 }
