@@ -18,7 +18,8 @@
  */
 
 import type { Artwork, Order, OrderItem } from "@/lib/db/schema";
-import { signOrderToken } from "@/lib/order-token";
+import { signOrderToken, signToken } from "@/lib/order-token";
+import { normaliseEmail } from "@/lib/newsletter";
 import { getProduct, printPixels } from "@/lib/products";
 import { getStorage } from "@/lib/storage";
 import { addressLines, formatOrderDate, orderRef } from "./layout";
@@ -34,6 +35,7 @@ import {
 } from "./templates/order-confirmation";
 import { shippingNotificationEmail } from "./templates/shipping-notification";
 import { jobSheetEmail, type JobSheetLine } from "./templates/job-sheet";
+import { welcomeEmail } from "./templates/welcome";
 
 export * from "./send";
 export { orderRef } from "./layout";
@@ -65,6 +67,32 @@ function siteUrl(): string {
 /** The customer-facing status link for an order: signed, unguessable, plain. */
 export function orderStatusUrl(orderId: string): string {
   return `${siteUrl()}/order/${signOrderToken(orderId)}`;
+}
+
+/**
+ * The signed, one-click unsubscribe link for an address. The token is an HMAC of
+ * the NORMALISED email (the same value the subscribers table is keyed on), so a
+ * link stays valid however the address was cased when it was typed, and cannot
+ * be edited to unsubscribe someone else. Built here so both the visible link in
+ * the mail body and the List-Unsubscribe header point at exactly the same URL.
+ */
+export function unsubscribeUrl(email: string): string {
+  const token = signToken(normaliseEmail(email));
+  return `${siteUrl()}/api/newsletter/unsubscribe?token=${encodeURIComponent(token)}`;
+}
+
+/**
+ * The POPIA sender-identity line every marketing mail must carry: who sent it
+ * and how to reach a human. Configurable, because the owner supplies the real
+ * physical/contact line before launch (see the spec's owner-inputs section);
+ * the default names us and points at the reply address so the mock path reads
+ * sensibly before anyone has configured anything.
+ */
+export function senderIdentity(): string {
+  return (
+    process.env.NEWSLETTER_SENDER_IDENTITY?.trim() ||
+    `Kindred Creatures, Cape Town, South Africa. Reach a human at ${emailReplyTo()}.`
+  );
 }
 
 /** Storage may hand back a site-relative URL; an email needs an absolute one. */
@@ -129,6 +157,44 @@ export async function sendOrderConfirmation(
     html: rendered.html,
     text: rendered.text,
     replyTo: emailReplyTo(),
+  });
+}
+
+/**
+ * The newsletter welcome, sent when an address joins the list (a fresh sign-up
+ * or a returning unsubscriber). It is the one lifecycle mail the newsletter
+ * flow sends, and the only one that must carry unsubscribe machinery: a visible
+ * link in the body AND the `List-Unsubscribe` header, both pointing at the same
+ * signed URL, so Gmail and Apple Mail can offer one-click opt-out beside the
+ * sender.
+ *
+ * @param email the subscriber's address, already normalised by the caller. Used
+ * both as the recipient and, via unsubscribeUrl, as the signed token payload.
+ * @returns ok with the provider's id, or ok:false with the error. Never throws:
+ * a welcome that did not go must not fail the subscribe or lose the subscriber,
+ * exactly like the order-confirmation path.
+ */
+export async function sendWelcome(email: string): Promise<EmailResult> {
+  const link = unsubscribeUrl(email);
+  const rendered = welcomeEmail({
+    shopUrl: `${siteUrl()}/shop`,
+    unsubscribeUrl: link,
+    senderIdentity: senderIdentity(),
+  });
+
+  return deliver({
+    to: email,
+    subject: rendered.subject,
+    html: rendered.html,
+    text: rendered.text,
+    replyTo: emailReplyTo(),
+    headers: {
+      // RFC 8058: the URL form plus the One-Click post lets the mail client
+      // unsubscribe without opening a browser. The route is a plain GET, so a
+      // one-click POST from the client hits the same handler and is idempotent.
+      "List-Unsubscribe": `<${link}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
   });
 }
 

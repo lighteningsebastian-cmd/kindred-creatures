@@ -22,6 +22,14 @@ export interface EmailMessage {
   text: string;
   /** Where a human reply should land. The job sheet sets this to our address. */
   replyTo?: string;
+  /**
+   * Extra SMTP headers to set on the message. Marketing mail sets
+   * `List-Unsubscribe` (and `List-Unsubscribe-Post`) here so Gmail and Apple
+   * Mail can offer one-click unsubscribe next to the sender, which is both a
+   * deliverability signal and a POPIA-friendly courtesy. Never a place for a
+   * secret: everything here ships in the message headers.
+   */
+  headers?: Record<string, string>;
 }
 
 export interface EmailTransport {
@@ -90,12 +98,16 @@ export class MockEmailTransport implements EmailTransport {
   async send(message: EmailMessage): Promise<{ id: string }> {
     const id = `mock-email-${++mockCounter}`;
     const reply = message.replyTo ? `\nReply-To: ${message.replyTo}` : "";
+    const headerLines = message.headers
+      ? Object.entries(message.headers).map(([key, value]) => `${key}: ${value}`)
+      : [];
     const summary = [
       "",
       "=== email (mock transport, nothing was sent) ===",
       `From:    ${emailFrom()}`,
       `To:      ${message.to}`,
       `Subject: ${message.subject}${reply}`,
+      ...headerLines,
       `Id:      ${id}`,
       "---",
       message.text,
@@ -158,6 +170,7 @@ export class ResendEmailTransport implements EmailTransport {
         html: message.html,
         text: message.text,
         ...(message.replyTo ? { replyTo: message.replyTo } : {}),
+        ...(message.headers ? { headers: message.headers } : {}),
       });
     } catch (cause) {
       // Network, DNS, an SDK throw. Never let the raw error escape untyped:

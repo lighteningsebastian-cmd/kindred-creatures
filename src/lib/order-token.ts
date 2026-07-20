@@ -43,8 +43,39 @@ function secret(): string {
   return DEV_SECRET;
 }
 
-function signatureFor(orderId: string): string {
-  return createHmac("sha256", secret()).update(orderId).digest("base64url");
+function signatureFor(payload: string): string {
+  return createHmac("sha256", secret()).update(payload).digest("base64url");
+}
+
+/**
+ * The shared core: given `<payload>.<signature>`, returns the payload the
+ * signature vouches for, or null. Null covers every failure (malformed,
+ * truncated, wrong secret, edited payload) because callers must treat them
+ * identically. It is exported as neither: the two token families below wrap it,
+ * one keeping the payload legible (order ids) and one carrying an opaque
+ * base64url payload (arbitrary strings such as an email).
+ *
+ * The seam is the LAST dot. A base64url signature never contains a dot, so
+ * whatever sits before that final dot is the whole payload, dots and all. That
+ * is what lets an order id (no dots) and a base64url-encoded value (no dots)
+ * and, in principle, a raw payload that does contain dots all round-trip.
+ */
+function verifySigned(token: unknown): string | null {
+  if (typeof token !== "string" || token === "") return null;
+
+  const seam = token.lastIndexOf(".");
+  if (seam <= 0 || seam === token.length - 1) return null;
+
+  const payload = token.slice(0, seam);
+  const given = token.slice(seam + 1);
+  const expected = signatureFor(payload);
+
+  // timingSafeEqual throws on a length mismatch, and a hostile token can be any
+  // length at all. The length itself is not a secret.
+  if (given.length !== expected.length) return null;
+  if (!timingSafeEqual(Buffer.from(given), Buffer.from(expected))) return null;
+
+  return payload;
 }
 
 /**
@@ -62,20 +93,36 @@ export function signOrderToken(orderId: string): string {
  * them identically: a 404 that never says which of those it was.
  */
 export function verifyOrderToken(token: unknown): string | null {
-  if (typeof token !== "string" || token === "") return null;
+  return verifySigned(token);
+}
 
-  // Neither a uuid nor base64url contains a dot, so the last one is the seam.
-  const seam = token.lastIndexOf(".");
-  if (seam <= 0 || seam === token.length - 1) return null;
+/**
+ * Signs an arbitrary string with the same secret and timing-safe scheme as the
+ * order token, for links that carry a value which is not a uuid: the unsubscribe
+ * link signs a normalised email. The payload is base64url-encoded so the token
+ * is a clean two-part `<encoded>.<signature>` with no dots in either half, and
+ * so the raw value (an email address) is not sitting in plain sight in the URL.
+ * Encoding is not encryption: it hides nothing from anyone who base64-decodes
+ * it. The security is entirely in the HMAC, which is what stops the value being
+ * swapped for another.
+ */
+export function signToken(value: string): string {
+  const encoded = Buffer.from(value, "utf8").toString("base64url");
+  return `${encoded}.${signatureFor(encoded)}`;
+}
 
-  const orderId = token.slice(0, seam);
-  const given = token.slice(seam + 1);
-  const expected = signatureFor(orderId);
-
-  // timingSafeEqual throws on a length mismatch, and a hostile token can be any
-  // length at all. The length itself is not a secret.
-  if (given.length !== expected.length) return null;
-  if (!timingSafeEqual(Buffer.from(given), Buffer.from(expected))) return null;
-
-  return orderId;
+/**
+ * Returns the value a token minted by `signToken` vouches for, or null on any
+ * failure (malformed, truncated, wrong secret, tampered payload). Null and only
+ * null on the bad path: a caller must not be able to tell a forged token from a
+ * merely stale one, and must never be handed a half-decoded value.
+ */
+export function verifyToken(token: unknown): string | null {
+  const encoded = verifySigned(token);
+  if (encoded === null) return null;
+  try {
+    return Buffer.from(encoded, "base64url").toString("utf8");
+  } catch {
+    return null;
+  }
 }
