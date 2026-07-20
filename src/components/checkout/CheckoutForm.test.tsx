@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CheckoutForm } from "./CheckoutForm";
 import { useCartStore, type CartItem } from "@/lib/cart-store";
+import * as analytics from "@/lib/analytics";
 
 // Rendering flushes the rehydration effect, so by the time a test can assert,
 // the real store has already hydrated. This lets one test pin hydration to
@@ -301,6 +302,101 @@ describe("CheckoutForm", () => {
         screen.getByText("Your order is saved. No money changed hands."),
       ).toBeInTheDocument(),
     );
+  });
+});
+
+describe("CheckoutForm: the newsletter opt-in", () => {
+  const OPT_IN = /keep me posted on new styles/i;
+
+  /**
+   * Routes fetch by URL: the checkout call always resolves with a placed order;
+   * the subscribe call resolves (or rejects) per `subscribe`. Returns the spy
+   * so a test can inspect which URLs were hit.
+   */
+  function routedFetch(subscribe: { ok: boolean; reject?: boolean } = { ok: true }) {
+    const spy = vi.fn((url: string) => {
+      if (url === "/api/newsletter/subscribe") {
+        if (subscribe.reject) return Promise.reject(new Error("network"));
+        return Promise.resolve({
+          ok: subscribe.ok,
+          json: async () => ({ ok: subscribe.ok, alreadySubscribed: false }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => placedBody() });
+    });
+    vi.stubGlobal("fetch", spy);
+    return spy;
+  }
+
+  const subscribeCalls = (spy: ReturnType<typeof vi.fn>) =>
+    spy.mock.calls.filter(([url]) => url === "/api/newsletter/subscribe");
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("is unticked by default", async () => {
+    routedFetch();
+    seed(line());
+    render(<CheckoutForm />);
+    expect(await screen.findByRole("checkbox", { name: OPT_IN })).not.toBeChecked();
+  });
+
+  it("does NOT subscribe when the box is left unticked", async () => {
+    const spy = routedFetch();
+    const user = userEvent.setup();
+    seed(line());
+
+    render(<CheckoutForm />);
+    await screen.findByLabelText("First name");
+    await fillForm(user);
+    await user.click(screen.getByRole("button", { name: /continue to payment/i }));
+
+    await screen.findByText("Your order is saved. No money changed hands.");
+    expect(subscribeCalls(spy)).toHaveLength(0);
+  });
+
+  it("subscribes with source checkout on a successful order when ticked", async () => {
+    const spy = routedFetch();
+    const track = vi.spyOn(analytics, "trackNewsletterSignup");
+    const user = userEvent.setup();
+    seed(line());
+
+    render(<CheckoutForm />);
+    await screen.findByLabelText("First name");
+    await fillForm(user);
+    await user.click(screen.getByRole("checkbox", { name: OPT_IN }));
+    await user.click(screen.getByRole("button", { name: /continue to payment/i }));
+
+    await screen.findByText("Your order is saved. No money changed hands.");
+    await waitFor(() => expect(subscribeCalls(spy)).toHaveLength(1));
+    const [, init] = subscribeCalls(spy)[0];
+    expect(JSON.parse(init.body)).toEqual({
+      email: "thandi@example.co.za",
+      source: "checkout",
+    });
+    await waitFor(() =>
+      expect(track).toHaveBeenCalledWith({ source: "checkout" }),
+    );
+  });
+
+  it("still completes the order when the subscribe call fails", async () => {
+    const spy = routedFetch({ ok: false, reject: true });
+    const user = userEvent.setup();
+    seed(line());
+
+    render(<CheckoutForm />);
+    await screen.findByLabelText("First name");
+    await fillForm(user);
+    await user.click(screen.getByRole("checkbox", { name: OPT_IN }));
+    await user.click(screen.getByRole("button", { name: /continue to payment/i }));
+
+    // The order lands regardless: the rejected subscribe never touches it.
+    expect(
+      await screen.findByText("Your order is saved. No money changed hands."),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(subscribeCalls(spy)).toHaveLength(1));
+    expect(useCartStore.getState().items).toHaveLength(1);
   });
 });
 

@@ -12,7 +12,7 @@ import {
   useCartHydrated,
   useCartItems,
 } from "@/lib/cart-store";
-import { trackBeginCheckout } from "@/lib/analytics";
+import { trackBeginCheckout, trackNewsletterSignup } from "@/lib/analytics";
 import {
   CUSTOMER_FIELDS,
   FREE_SHIPPING_THRESHOLD_ZAR,
@@ -41,6 +41,34 @@ const EMPTY_FORM: FormValues = {
 
 function productName(slug: ProductSlug): string {
   return getProduct(slug)?.name ?? slug;
+}
+
+/**
+ * A best-effort newsletter subscribe fired from the checkout opt-in. It is
+ * deliberately fire-and-forget: the caller never awaits it, so a slow or failed
+ * subscribe can NEVER delay or fail the order or the PayFast handoff. The order
+ * is the priority; the list is a nice-to-have that rides along. The event fires
+ * only on a genuine new join (source only, never the address).
+ */
+function subscribeAtCheckout(email: string): void {
+  void fetch("/api/newsletter/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, source: "checkout" }),
+  })
+    .then(async (response) => {
+      if (!response.ok) return;
+      const json = (await response.json().catch(() => null)) as {
+        ok?: boolean;
+        alreadySubscribed?: boolean;
+      } | null;
+      if (json?.ok && !json.alreadySubscribed) {
+        trackNewsletterSignup({ source: "checkout" });
+      }
+    })
+    .catch(() => {
+      // Swallowed on purpose. A failed subscribe must not touch the order flow.
+    });
 }
 
 /** A province select styled to match Input: label above, error below. */
@@ -218,6 +246,8 @@ export function CheckoutForm() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [placed, setPlaced] = useState<Placed | null>(null);
+  // Newsletter opt-in. Unticked by default (POPIA: no pre-ticked consent).
+  const [newsletterOptIn, setNewsletterOptIn] = useState(false);
 
   const subtotal = subtotalZar(items);
   const { shippingZar, totalZar } = orderTotals(subtotal);
@@ -298,6 +328,13 @@ export function CheckoutForm() {
             : "We could not open your order. Please try again.",
         );
         return;
+      }
+
+      // The order succeeded. If they opted in, kick off the newsletter
+      // subscribe now, but do NOT await it: it is fire-and-forget, so a slow or
+      // failed subscribe cannot delay the handoff below or fail the order.
+      if (newsletterOptIn) {
+        subscribeAtCheckout(details.value.email);
       }
 
       // The order is open, priced and signed. Swapping this panel out mounts
@@ -455,6 +492,21 @@ export function CheckoutForm() {
                     {formError}
                   </p>
                 ) : null}
+
+                <label className="flex items-start gap-3 text-sm text-muted">
+                  <input
+                    type="checkbox"
+                    name="newsletterOptIn"
+                    checked={newsletterOptIn}
+                    disabled={submitting}
+                    onChange={(event) => setNewsletterOptIn(event.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded-sm border-line text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base"
+                  />
+                  <span className="leading-relaxed">
+                    Keep me posted on new styles and the occasional story. No
+                    spam, and you can leave any time.
+                  </span>
+                </label>
 
                 <div className="flex flex-col items-start gap-3">
                   <Button
