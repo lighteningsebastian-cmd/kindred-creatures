@@ -7,6 +7,7 @@ import {
   type OrderFilter,
   type OrderListRow,
 } from "@/lib/admin/orders";
+import { getSubscriberCounts } from "@/lib/admin/subscribers";
 import { formatZar } from "@/lib/products";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { cn } from "@/lib/cn";
@@ -144,11 +145,64 @@ function Empty({ filter }: { filter: OrderFilter }) {
   );
 }
 
+/**
+ * The newsletter list at a glance: how many are on it, how many have left, and
+ * the one action the admin has here (take the list away as a CSV). Read only by
+ * design; Resend owns sending, so there is no campaign UI to build. The download
+ * is a plain anchor, not a Link, because it navigates to an API route that
+ * answers with a file rather than a page.
+ */
+function SubscriberPanel({
+  active,
+  unsubscribed,
+}: {
+  active: number;
+  unsubscribed: number;
+}) {
+  return (
+    <section
+      aria-labelledby="subscribers-heading"
+      className="mt-6 rounded-md border border-line bg-base p-4 md:p-5"
+    >
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-1">
+          <span className="eyebrow text-[10px] text-accent">Newsletter</span>
+          <h2 id="subscribers-heading" className="font-display text-lg text-ink">
+            Subscribers
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-8">
+          <div>
+            <p className="font-display text-2xl text-ink">{active}</p>
+            <p className="text-xs text-muted">Active</p>
+          </div>
+          <div>
+            <p className="font-display text-2xl text-muted">{unsubscribed}</p>
+            <p className="text-xs text-muted">Unsubscribed</p>
+          </div>
+
+          <a
+            href="/api/admin/subscribers/export"
+            download="subscribers.csv"
+            className="eyebrow rounded-md border border-line-strong px-3 py-1.5 text-[11px] text-ink transition-colors hover:bg-surface-alt"
+          >
+            Export CSV
+          </a>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default async function AdminOrdersPage({ searchParams }: PageProps) {
   await requireAdmin();
 
   const filter = parseFilter((await searchParams).filter);
-  const rows = await listAdminOrders(filter);
+  const [rows, subscriberCounts] = await Promise.all([
+    listAdminOrders(filter),
+    getSubscriberCounts(),
+  ]);
   const urgent = rows.filter((row) => row.concern === "never-paid").length;
 
   return (
@@ -163,6 +217,11 @@ export default async function AdminOrdersPage({ searchParams }: PageProps) {
         </div>
         <FilterTabs active={filter} />
       </div>
+
+      <SubscriberPanel
+        active={subscriberCounts.active}
+        unsubscribed={subscriberCounts.unsubscribed}
+      />
 
       <div className="mt-6 rounded-md border border-line bg-base">
         {rows.length === 0 ? (
