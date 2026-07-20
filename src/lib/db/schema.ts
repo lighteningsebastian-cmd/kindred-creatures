@@ -158,6 +158,39 @@ export const fulfillmentEvents = pgTable("fulfillment_events", {
 export type FulfillmentEvent = typeof fulfillmentEvents.$inferSelect;
 export type NewFulfillmentEvent = typeof fulfillmentEvents.$inferInsert;
 
+/** Where a subscriber joined the list. Drives nothing yet but is worth keeping. */
+export type SubscriberSource = "footer" | "checkout";
+
+/** Whether a subscriber currently wants email. Reactivation flips it back. */
+export type SubscriberStatus = "active" | "unsubscribed";
+
+/**
+ * The newsletter list, owned in our own database (Resend Audiences mirror it but
+ * are not the source of truth). Email is stored lowercased and trimmed and is
+ * unique, so the list cannot hold the same address twice: re-subscribing an
+ * active address is a no-op, and re-subscribing an unsubscribed one flips it back
+ * to active with a fresh consentAt rather than inserting a second row. No account
+ * is required to be here, by design (subsystem A is deliberately account-free).
+ */
+export const subscribers = pgTable("subscribers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // Lowercased and trimmed before it ever reaches here; unique across the list.
+  email: text("email").notNull().unique(),
+  source: text("source").$type<SubscriberSource>().notNull(),
+  status: text("status")
+    .$type<SubscriberStatus>()
+    .notNull()
+    .default("active"),
+  // When consent was last given. Refreshed on reactivation (POPIA: prove intent).
+  consentAt: timestamp("consent_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type Subscriber = typeof subscribers.$inferSelect;
+export type NewSubscriber = typeof subscribers.$inferInsert;
+
 export type Order = typeof orders.$inferSelect;
 export type NewOrder = typeof orders.$inferInsert;
 export type OrderItem = typeof orderItems.$inferSelect;
@@ -234,4 +267,13 @@ CREATE TABLE IF NOT EXISTS fulfillment_events (
 
 CREATE INDEX IF NOT EXISTS fulfillment_events_order_id_idx
   ON fulfillment_events (order_id, created_at);
+
+CREATE TABLE IF NOT EXISTS subscribers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text NOT NULL UNIQUE,
+  source text NOT NULL,
+  status text NOT NULL DEFAULT 'active',
+  consent_at timestamptz NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 `;
