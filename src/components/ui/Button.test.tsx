@@ -28,7 +28,7 @@ describe("Button", () => {
   it("applies secondary variant classes", () => {
     render(<Button variant="secondary">Details</Button>);
     const el = screen.getByRole("button", { name: "Details" });
-    expect(el).toHaveClass("border-line-strong");
+    expect(el).toHaveClass("border-ink");
     expect(el).toHaveClass("text-ink");
   });
 

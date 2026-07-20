@@ -21,8 +21,11 @@ const base =
 const variants: Record<ButtonVariant, string> = {
   // Oxblood surface with parchment text; deepens on hover. AA in both themes.
   primary: "bg-btn text-base hover:bg-btn-hover",
-  // Outline: strong hairline border + ink text.
-  secondary: "border border-line-strong text-ink hover:bg-surface",
+  // Outline: a definite ink border so it reads as a button on parchment, then
+  // inverts to a solid ink fill on hover. (A faint greige hairline read as
+  // plain text.)
+  secondary:
+    "border border-ink text-ink hover:bg-ink hover:text-base",
   ghost: "text-ink hover:bg-surface",
 };
 
