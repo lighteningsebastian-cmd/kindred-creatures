@@ -10,7 +10,7 @@ Every section: read the spec + `design/DESIGN-SYSTEM.md` first; verify
 --include=*.ts` empty; commit trailer `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
 Known flake: cold test runs can fail DB-backed files (shared `.data/pgdata`); re-run.
 
-## A1. Data + provider seam  [pending]
+## A1. Data + provider seam  [DONE a48e28b]
 `subscribers` table + DDL in `CREATE_TABLES_SQL` (per spec, incl. idempotency/reactivation
 semantics). `src/lib/newsletter/{provider,mock,resend,index}.ts` with `getNewsletterProvider()`
 selecting mock vs Resend by env, matching `getImageProvider()`. `resend` client lazily
@@ -19,7 +19,7 @@ keys, construction only), and (if a small DB helper is added) subscriber upsert/
 **Commit:** `feat: subscribers table and newsletter provider seam`.
 **Done when:** provider selects correctly by env; schema + DDL in place; tests green.
 
-## A2. Subscribe/unsubscribe flow + welcome email  [pending]
+## A2. Subscribe/unsubscribe flow + welcome email  [DONE 3b78ecb, 7a0fee5]
 `POST /api/newsletter/subscribe` (validate, upsert subscriber, push to provider, fire
 welcome, never lose the subscriber on provider/email failure). `sendWelcome` composer in
 `src/lib/email/` (brand template, unsubscribe link, sender identity, List-Unsubscribe).
@@ -32,7 +32,7 @@ secrets. Commit the email composer separately from the routes if convenient.
 **Done when:** with no keys, subscribing logs a welcome via the mock transport and creates
 one active subscriber; a signed unsubscribe flips status; tampered token rejected.
 
-## A3. Capture surfaces + Google reviews link + analytics  [pending]
+## A3. Capture surfaces + Google reviews link + analytics  [DONE 457f8b2, 6788a2d]
 `NewsletterSignup` client island in the footer (label-above input, idle/submitting/success/
 error/already-subscribed states, AA, reduced-motion safe). Checkout opt-in checkbox
 (unticked; ticked subscribes with `source: checkout`; a failed subscribe never blocks the
@@ -44,7 +44,7 @@ unset), placed in the footer. Fire `newsletter_signup` (source only, no PII) via
 **Done when:** footer signup works end to end against the mock; checkout opt-in subscribes
 without blocking the order; reviews link appears only when its env URL is set.
 
-## A4. Admin subscriber panel  [pending]
+## A4. Admin subscriber panel  [DONE 2aa4919]
 Minimal admin addition (auth-gated like the rest of `/admin`): active/unsubscribed counts
 and a CSV export (email, source, status, consentAt). No campaign UI. Tests for the export
 shape + auth gate.
