@@ -1,17 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import ShopPage, { metadata } from "./page";
 import { PRODUCTS, fromPriceZar, formatZar } from "@/lib/products";
-
-// next/image needs a loader/config it does not have in jsdom; the page only
-// cares that an <img> with the right alt is present.
-vi.mock("next/image", () => ({
-  default: (props: Record<string, unknown>) => {
-    const { src, alt } = props as { src: string; alt: string };
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} />;
-  },
-}));
 
 describe("shop page metadata", () => {
   it("has a title, description and its own canonical", () => {
@@ -67,8 +57,13 @@ describe("shop page catalogue", () => {
 
   it("offers a start-from-a-photo route into the product flow", () => {
     render(<ShopPage />);
-    const upload = screen.getByRole("link", { name: "Upload a photo" });
-    expect(upload).toHaveAttribute("href", "/products/hoodie");
+    // One start-intent label site-wide: the start-from-photo band and the
+    // closing CTA both carry "Start your portrait" into the hoodie flow.
+    const starts = screen.getAllByRole("link", { name: "Start your portrait" });
+    expect(starts.length).toBeGreaterThan(0);
+    for (const start of starts) {
+      expect(start).toHaveAttribute("href", "/products/hoodie");
+    }
   });
 
   it("emits ItemList structured data for the four products in ZAR", () => {

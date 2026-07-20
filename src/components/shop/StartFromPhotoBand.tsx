@@ -6,14 +6,16 @@ import { DELIVERY_DAYS } from "@/lib/content";
 
 /**
  * Centered "start from a photo" band for people who have not decided on a piece
- * yet. A centered moment, so it carries the two-line AccentRule rather than a
- * left-aligned eyebrow. Sends them into the hoodie's product flow, a sensible
- * default, where colour, size and the portrait step all live, and repeats the
- * delivery promise.
+ * yet. It sits directly under the shop header, before the grid: it is the
+ * highest-intent path for someone unsure what to buy. A centered moment, so it
+ * carries the two-line AccentRule rather than a left-aligned eyebrow, and sends
+ * them into the hoodie's product flow (a sensible default) where colour, size
+ * and the portrait step all live. Carries the one start-intent label used
+ * site-wide and repeats the delivery promise.
  */
 export function StartFromPhotoBand() {
   return (
-    <section className="bg-surface py-20 md:py-28">
+    <section className="border-y border-line bg-surface py-16 md:py-20">
       <Container>
         <Reveal className="mx-auto flex max-w-xl flex-col items-center gap-6 text-center">
           <AccentRule />
@@ -25,7 +27,7 @@ export function StartFromPhotoBand() {
             you love the portrait.
           </p>
           <Button href="/products/hoodie" block>
-            Upload a photo
+            Start your portrait
           </Button>
           <p className="eyebrow text-[11px] text-muted">
             Printed in Cape Town · Delivered in {DELIVERY_DAYS} working days

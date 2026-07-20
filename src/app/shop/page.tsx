@@ -4,6 +4,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { CatalogueCard } from "@/components/shop/CatalogueCard";
 import { StartFromPhotoBand } from "@/components/shop/StartFromPhotoBand";
+import { ClosingCta } from "@/components/sections/ClosingCta";
 import { PRODUCTS } from "@/lib/products";
 import { buildItemList } from "@/lib/seo/jsonld";
 import { BRAND_NAME, siteUrl } from "@/lib/seo/site";
@@ -61,11 +62,19 @@ export default function ShopPage() {
               </p>
             </Reveal>
           </div>
+        </Container>
+      </section>
 
+      {/* The highest-intent path for someone unsure what to buy, so it sits
+          before the grid rather than closing the page. */}
+      <StartFromPhotoBand />
+
+      <section className="py-16 md:py-24">
+        <Container>
           {/* Two-up on desktop with an alternating vertical offset, so the grid
               reads as a browsable catalogue rather than the home page's compact
               photo-overlay bento. */}
-          <div className="mt-12 grid gap-6 md:mt-16 md:grid-cols-2 md:items-start md:gap-8">
+          <div className="grid gap-6 md:grid-cols-2 md:items-start md:gap-8">
             {PRODUCTS.map((product, index) => (
               <Reveal
                 key={product.slug}
@@ -79,7 +88,7 @@ export default function ShopPage() {
         </Container>
       </section>
 
-      <StartFromPhotoBand />
+      <ClosingCta />
     </div>
   );
 }

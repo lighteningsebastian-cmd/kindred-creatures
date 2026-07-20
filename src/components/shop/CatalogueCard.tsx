@@ -25,6 +25,14 @@ export function CatalogueCard({ product }: { product: Product }) {
   const price = formatZar(fromPriceZar(product));
   const colours = product.variants.map((variant) => variant.color).join(", ");
 
+  // Sizes available, as a plain range: "XS to XXL" for apparel, "One size" for
+  // the tote. Built from the variants so the hint can never drift from stock.
+  const sizes = Array.from(
+    new Set(product.variants.flatMap((variant) => variant.sizes)),
+  );
+  const sizesHint =
+    sizes.length === 1 ? sizes[0] : `${sizes[0]} to ${sizes[sizes.length - 1]}`;
+
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-lg border border-line bg-surface">
       <Link href={href} className="block">
@@ -49,25 +57,29 @@ export function CatalogueCard({ product }: { product: Product }) {
           {product.blurb}
         </p>
 
-        <div
-          className="flex items-center gap-2"
-          role="img"
-          aria-label={`Available in ${colours}`}
-        >
-          {product.variants.map((variant) => (
-            <span
-              key={variant.color}
-              title={variant.color}
-              className="h-4 w-4 rounded-full border border-black/10"
-              style={{ backgroundColor: variant.colorHex }}
-            />
-          ))}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div
+            className="flex items-center gap-2"
+            role="img"
+            aria-label={`Available in ${colours}`}
+          >
+            {product.variants.map((variant) => (
+              <span
+                key={variant.color}
+                title={variant.color}
+                className="h-4 w-4 rounded-full border border-black/10"
+                style={{ backgroundColor: variant.colorHex }}
+              />
+            ))}
+          </div>
+          <span className="text-sm text-muted">Sizes {sizesHint}</span>
         </div>
 
-        <div className="mt-auto pt-2">
+        <div className="mt-auto flex flex-col gap-2 pt-2">
           <Button href={href} block className="w-full sm:w-auto">
             Personalise
           </Button>
+          <p className="text-sm text-muted">Printed after your approval.</p>
         </div>
       </div>
     </article>
