@@ -29,7 +29,7 @@ admit/refuse, claim attaches only matching-email guest orders).
 following a valid (mock) token sets a session and claims matching guest orders; expired/used/
 tampered tokens refused without enumeration.
 
-## B2. Account pages: creatures gallery + order history  [pending]
+## B2. Account pages: creatures gallery + order history  [DONE 8ff1411, 1a88ca1, 69c7754]
 `/account/login` (email -> "check your email"), `/account` (requireCustomer): Your creatures
 gallery (cards: previewKey thumb via signed URL + style label + "Wear this again" CTA ->
 B4's reorder, which may 404 until B4 lands: link it, note it), Your orders (status list),
