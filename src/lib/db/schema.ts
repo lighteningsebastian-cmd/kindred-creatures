@@ -39,6 +39,54 @@ export type Artwork = typeof artworks.$inferSelect;
 export type NewArtwork = typeof artworks.$inferInsert;
 
 /**
+ * A returning customer's account. Retention subsystem B (accounts) is
+ * passwordless: there is no password column here because a magic link is the
+ * whole of authentication (see login_tokens below). Email is stored lowercased
+ * and trimmed and is unique, so an address is one account; `name` is nullable
+ * and seeded from an order's firstName the first time guest orders are claimed.
+ * Guest checkout is untouched by this table: an order carries a customerId only
+ * once its email has signed in, and stays null forever otherwise.
+ */
+export const customers = pgTable("customers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // Lowercased and trimmed (normaliseEmail) before it ever reaches here; unique.
+  email: text("email").notNull().unique(),
+  // Null until we learn it from a claimed order; the account works without it.
+  name: text("name"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type Customer = typeof customers.$inferSelect;
+export type NewCustomer = typeof customers.$inferInsert;
+
+/**
+ * A single-use magic-link token, at rest. The raw token is never stored: only
+ * its SHA-256 hash lives here, so a leak of this table cannot be replayed into a
+ * login. Rows are short-lived (expiresAt ~15 min) and single-use (usedAt flips
+ * once, and a fresh request supersedes any earlier outstanding token for the
+ * same email). `email` is the normalised address the link will sign in.
+ */
+export const loginTokens = pgTable("login_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  // Normalised email the token authenticates. Not a fk: a token can be minted
+  // for an address before its customers row is certain to exist.
+  email: text("email").notNull(),
+  // SHA-256 hex of the raw token. The raw token exists only in the emailed link.
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  // Null until the link is followed; set once, which is what makes it single-use.
+  usedAt: timestamp("used_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type LoginToken = typeof loginTokens.$inferSelect;
+export type NewLoginToken = typeof loginTokens.$inferInsert;
+
+/**
  * Lifecycle of an order. "pending" is written at checkout, before payment; the
  * PayFast ITN webhook moves it to "paid" (or "flagged" when a notification does
  * not reconcile). The printer states are driven by fulfilment, not the customer.
@@ -63,6 +111,10 @@ export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(),
   status: text("status").$type<OrderStatus>().notNull().default("pending"),
   email: text("email").notNull(),
+  // The account this order belongs to, or null for an unclaimed guest order.
+  // Set when a customer signs in with a matching email (the claim on login);
+  // guest checkout never sets it and never needs to. Additive only.
+  customerId: uuid("customer_id").references(() => customers.id),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   phone: text("phone").notNull(),
@@ -216,10 +268,33 @@ CREATE TABLE IF NOT EXISTS artworks (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS customers (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text NOT NULL UNIQUE,
+  name text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS login_tokens (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text NOT NULL,
+  token_hash text NOT NULL,
+  expires_at timestamptz NOT NULL,
+  used_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS login_tokens_token_hash_idx
+  ON login_tokens (token_hash);
+
+CREATE INDEX IF NOT EXISTS login_tokens_email_idx
+  ON login_tokens (email, created_at);
+
 CREATE TABLE IF NOT EXISTS orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   status text NOT NULL DEFAULT 'pending',
   email text NOT NULL,
+  customer_id uuid REFERENCES customers(id),
   first_name text NOT NULL,
   last_name text NOT NULL,
   phone text NOT NULL,
@@ -276,4 +351,9 @@ CREATE TABLE IF NOT EXISTS subscribers (
   consent_at timestamptz NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Retention B, additive: a pre-existing orders table (created before accounts
+-- shipped) gains the nullable account link here. IF NOT EXISTS makes this a
+-- no-op on a fresh database where the CREATE TABLE above already added it.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id uuid REFERENCES customers(id);
 `;
