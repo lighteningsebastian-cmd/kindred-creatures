@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/schema";
 import {
   customerOwnsArtwork,
+  getReorderableCreature,
   listCreaturesForCustomer,
   listOrdersForCustomer,
 } from "./creatures";
@@ -240,6 +241,77 @@ describe("customerOwnsArtwork", () => {
     await expect(
       customerOwnsArtwork(customerId, "not-a-uuid"),
     ).resolves.toBe(false);
+  });
+});
+
+describe("getReorderableCreature", () => {
+  it("returns the creature for an artwork from the customer's paid order", async () => {
+    const customerId = await seedCustomer();
+    const artworkId = await seedArtwork();
+    await seedOrder({ customerId, artworkId, status: "paid" });
+
+    const creature = await getReorderableCreature(customerId, artworkId);
+
+    expect(creature).not.toBeNull();
+    expect(creature!.artworkId).toBe(artworkId);
+    expect(creature!.style).toBe("watercolor");
+    expect(creature!.styleLabel).toBe("Watercolor");
+    expect(creature!.previewUrl).toBeTruthy();
+  });
+
+  it("counts sent_to_printer, printed and shipped as reorderable too", async () => {
+    for (const status of [
+      "sent_to_printer",
+      "printed",
+      "shipped",
+    ] as OrderStatus[]) {
+      const customerId = await seedCustomer();
+      const artworkId = await seedArtwork();
+      await seedOrder({ customerId, artworkId, status });
+
+      const creature = await getReorderableCreature(customerId, artworkId);
+      expect(creature?.artworkId).toBe(artworkId);
+    }
+  });
+
+  it("refuses another customer's artwork", async () => {
+    const mine = await seedCustomer();
+    const stranger = await seedCustomer();
+    const strangerArtwork = await seedArtwork();
+    await seedOrder({
+      customerId: stranger,
+      artworkId: strangerArtwork,
+      status: "paid",
+    });
+
+    await expect(
+      getReorderableCreature(mine, strangerArtwork),
+    ).resolves.toBeNull();
+  });
+
+  it("refuses an artwork whose only order is unpaid", async () => {
+    const customerId = await seedCustomer();
+    const artworkId = await seedArtwork();
+    await seedOrder({ customerId, artworkId, status: "pending" });
+    await seedOrder({ customerId, artworkId, status: "flagged" });
+
+    await expect(
+      getReorderableCreature(customerId, artworkId),
+    ).resolves.toBeNull();
+  });
+
+  it("refuses an unknown artwork id", async () => {
+    const customerId = await seedCustomer();
+    await expect(
+      getReorderableCreature(customerId, randomUUID()),
+    ).resolves.toBeNull();
+  });
+
+  it("refuses, not throws, on a malformed artwork id", async () => {
+    const customerId = await seedCustomer();
+    await expect(
+      getReorderableCreature(customerId, "not-a-uuid"),
+    ).resolves.toBeNull();
   });
 });
 
