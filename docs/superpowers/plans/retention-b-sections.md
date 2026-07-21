@@ -43,7 +43,7 @@ the page.
 **Done when:** a logged-in customer sees their creatures + orders; a stranger is bounced to
 login; queries are session-scoped.
 
-## B3. Print-file-per-order-item refactor (MONEY PATH, careful)  [pending]
+## B3. Print-file-per-order-item refactor (MONEY PATH, careful)  [DONE d9b928a, da82997]
 The one risky section. Add `order_items.printKey` (nullable). Move S7 fulfilment to generate
 a print file PER order_item at THAT product's `printPixels` (300 DPI), idempotent per
 order_item (skip if the order_item already has a printKey), NOT per artwork. Job-sheet email
