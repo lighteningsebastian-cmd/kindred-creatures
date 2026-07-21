@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { User } from "@phosphor-icons/react/dist/ssr";
 import { Container } from "@/components/ui/Container";
 import { CartButton } from "@/components/layout/CartButton";
 import { MobileMenu, type NavLink } from "@/components/layout/MobileMenu";
@@ -47,11 +48,22 @@ export function Nav() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-2">
             {/* "Track order" is intentionally absent: order status lives behind
                 the token link we email, and there is no self-service lookup page
                 to point at yet. A dead /track link is worse than none. Add it
                 back the day an order-lookup page exists. */}
+            {/* Account. A single link to /account is enough at every width: the
+                page itself bounces a signed-out visitor to /account/login, so
+                the nav never has to read the session (which would force it
+                client-side and complicate the split). */}
+            <Link
+              href="/account"
+              aria-label="Your account"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-ink transition-[transform,background-color] hover:bg-surface active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base"
+            >
+              <User weight="regular" size={22} />
+            </Link>
             <CartButton />
             <MobileMenu links={links} />
           </div>

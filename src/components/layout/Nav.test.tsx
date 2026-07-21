@@ -41,6 +41,13 @@ describe("nav links resolve", () => {
     }
   });
 
+  it("offers an Account entry pointing at /account", () => {
+    render(<Nav />);
+    expect(
+      screen.getByRole("link", { name: "Your account" }),
+    ).toHaveAttribute("href", "/account");
+  });
+
   it("points no nav link at a route that does not exist", () => {
     const { container } = render(<Nav />);
     for (const href of internalHrefs(container)) {
