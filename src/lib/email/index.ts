@@ -17,7 +17,7 @@
  * caller, not an outage, and it should be loud in development.
  */
 
-import type { Artwork, Order, OrderItem } from "@/lib/db/schema";
+import type { Order, OrderItem } from "@/lib/db/schema";
 import { signOrderToken, signToken } from "@/lib/order-token";
 import { normaliseEmail } from "@/lib/newsletter";
 import { getProduct, printPixels } from "@/lib/products";
@@ -281,24 +281,20 @@ export async function sendShippingNotification(
   });
 }
 
-async function toJobSheetLines(
-  items: OrderItem[],
-  artworks: Artwork[],
-): Promise<JobSheetLine[]> {
-  const byId = new Map(artworks.map((artwork) => [artwork.id, artwork]));
+async function toJobSheetLines(items: OrderItem[]): Promise<JobSheetLine[]> {
   const storage = getStorage();
 
   return Promise.all(
     items.map(async (item) => {
       const product = getProduct(item.productSlug);
-      const artwork = byId.get(item.artworkId);
       // Links are signed and short-lived (PRINT_LINK_TTL_SEC, 7 days): the file
       // is a customer's artwork, so the mail carries a lease on it, not a
-      // permanent public URL. An artwork with no printKey yet gets no link and
-      // the sheet says so.
-      const printFileUrl = artwork?.printKey
+      // permanent public URL. The print file is per garment now, so the link
+      // comes from the order_item's printKey; an item with no printKey yet gets
+      // no link and the sheet says so.
+      const printFileUrl = item.printKey
         ? absolute(
-            await storage.getSignedUrl(artwork.printKey, PRINT_LINK_TTL_SEC),
+            await storage.getSignedUrl(item.printKey, PRINT_LINK_TTL_SEC),
           )
         : null;
 
@@ -321,15 +317,15 @@ async function toJobSheetLines(
  * The print shop's job sheet. Goes to PRINT_SHOP_EMAIL, never to the customer.
  *
  * @param order the orders row.
- * @param items its order_items rows.
- * @param artworks the artworks the items point at, for the print files.
+ * @param items its order_items rows, each carrying its own printKey (the print
+ * file is per garment; see order_items.printKey). A line without one prints as
+ * "not ready" rather than a dead link.
  * @returns ok with the provider's id, or ok:false with the error, including the
  * case where PRINT_SHOP_EMAIL is not configured. Never throws.
  */
 export async function sendJobSheet(
   order: Order,
   items: OrderItem[],
-  artworks: Artwork[],
 ): Promise<EmailResult> {
   const to = process.env.PRINT_SHOP_EMAIL?.trim();
   if (!to) {
@@ -345,7 +341,7 @@ export async function sendJobSheet(
   const rendered = jobSheetEmail({
     orderRef: orderRef(order.id),
     orderDate: formatOrderDate(order.createdAt),
-    lines: await toJobSheetLines(items, artworks),
+    lines: await toJobSheetLines(items),
     shipTo: addressLines(order),
     customerEmail: order.email,
     linkTtlHours: PRINT_LINK_TTL_SEC / 3600,

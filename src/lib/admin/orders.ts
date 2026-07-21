@@ -211,8 +211,10 @@ export async function getAdminOrder(
         previewUrl: artwork?.previewKey
           ? await storage.getSignedUrl(artwork.previewKey, ADMIN_LINK_TTL_SEC)
           : null,
-        printUrl: artwork?.printKey
-          ? await storage.getSignedUrl(artwork.printKey, ADMIN_LINK_TTL_SEC)
+        // The print file is per garment now (retention B3): its key lives on the
+        // order_item, not the artwork. A line with none is not yet printed.
+        printUrl: item.printKey
+          ? await storage.getSignedUrl(item.printKey, ADMIN_LINK_TTL_SEC)
           : null,
       };
     }),

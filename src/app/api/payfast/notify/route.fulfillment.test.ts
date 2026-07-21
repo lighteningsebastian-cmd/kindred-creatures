@@ -158,31 +158,40 @@ describe("a verified ITN, end to end", () => {
     // order is paid and nothing has been generated yet. This is the property
     // that keeps a slow provider from becoming a PayFast retry storm.
     expect((await readOrder(orderId)).status).toBe("paid");
-    const [artworkBefore] = await (await getDb())
+    const [itemBefore] = await (await getDb())
       .select()
-      .from(artworks)
-      .where(eq(artworks.id, artworkId));
-    expect(artworkBefore.printKey).toBeNull();
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId));
+    // The print file is per garment now (B3): its key lands on the order_item,
+    // and nothing is generated until the after() callback runs.
+    expect(itemBefore.printKey).toBeNull();
 
     await flushAfter();
 
     expect((await readOrder(orderId)).status).toBe("sent_to_printer");
 
+    const [item] = await (await getDb())
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId));
+    expect(item.printKey).toMatch(new RegExp(`^prints/${item.id}/\\d+\\.`));
+    // The legacy artwork.printKey is left untouched; it is no longer the source
+    // of truth for a printed file.
     const [artwork] = await (await getDb())
       .select()
       .from(artworks)
       .where(eq(artworks.id, artworkId));
-    expect(artwork.printKey).toMatch(new RegExp(`^prints/${artworkId}/\\d+\\.`));
+    expect(artwork.printKey).toBeNull();
 
     // The file is really there, not just a key on a row.
-    const bytes = await getStorage().getBytes(artwork.printKey!);
+    const bytes = await getStorage().getBytes(item.printKey!);
     expect(bytes?.length).toBeGreaterThan(0);
 
     const jobSheet = logged.find((line) => line.includes("press@example.co.za"));
     expect(jobSheet).toBeTruthy();
     // A signed, time-limited link to the file we just made. A job sheet without
     // one is a print shop with nothing to print.
-    expect(jobSheet).toContain(`/api/asset/${artwork.printKey}`);
+    expect(jobSheet).toContain(`/api/asset/${item.printKey}`);
     expect(jobSheet).toMatch(/sig=[0-9a-f]{64}/);
     // And the size they cut against: the hoodie print area at 300 DPI.
     expect(jobSheet).toContain("3307");

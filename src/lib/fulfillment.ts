@@ -10,9 +10,16 @@
  * THE COST PRINCIPLE. generatePrintFile is the one call in this shop that
  * spends real money, and it is the only reason this code does not run until an
  * order is genuinely `paid`. Previews are cheap and watermarked; a print file is
- * not. Everything below is arranged around not paying for the same portrait
- * twice: an artwork that already has a printKey is never regenerated, no matter
- * how many times a retry, a duplicate ITN or an impatient admin arrives.
+ * not. Everything below is arranged around not paying for the same garment
+ * twice: an order_item that already has a printKey is never regenerated, no
+ * matter how many times a retry, a duplicate ITN or an impatient admin arrives.
+ *
+ * PER GARMENT, NOT PER ARTWORK (retention B3). The print file lives on the
+ * order_item, sized to THAT item's product at 300 DPI. The same portrait
+ * re-ordered onto a different product is a different print area and so a
+ * different file; keying the file on the artwork (as this once did) would ship a
+ * wrong-sized print on the second order. The artwork keeps only the reusable
+ * inputs (uploadKey, style); artworks.printKey is legacy and read nowhere here.
  *
  * THE FAILURE POLICY, stated once and enforced below.
  *
@@ -31,14 +38,13 @@
  * never unwinds a payment.
  */
 
-import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { getDb, type Db } from "@/lib/db/client";
 import {
   artworks,
   fulfillmentEvents,
   orderItems,
   orders,
-  type Artwork,
   type FulfillmentOutcome,
   type FulfillmentStep,
   type Order,
@@ -61,10 +67,21 @@ const FULFILLED_STATES = new Set(["sent_to_printer", "printed", "shipped"]);
 /** Error text is caller-supplied on its way into a column. Keep it bounded. */
 const MAX_DETAIL_CHARS = 500;
 
-/** One line's print file: made now, found already made, or not made at all. */
+/**
+ * One line's print file: made now, found already made, or not made at all.
+ * Identified by the order_item (orderItemId), because the file is per garment;
+ * artworkId rides along for the fulfillment_events breadcrumb, which is keyed on
+ * the portrait.
+ */
 export type PrintFileLine =
-  | { ok: true; artworkId: string; printKey: string; generated: boolean }
-  | { ok: false; artworkId: string; reason: string };
+  | {
+      ok: true;
+      orderItemId: string;
+      artworkId: string;
+      printKey: string;
+      generated: boolean;
+    }
+  | { ok: false; orderItemId: string; artworkId: string; reason: string };
 
 export type PrintFilesResult = {
   /** True only when every line has a print file. One bad line fails the order. */
@@ -135,26 +152,56 @@ async function record(
 }
 
 /**
- * The print file for one line.
+ * The print file for one order_item.
  *
- * The early return on an existing printKey is the whole idempotency story and it
- * sits before every expensive thing in this function on purpose. The guarded
- * UPDATE at the end is the second half of it: two runs racing on one artwork
- * cannot both write a key, so the loser adopts the winner's file rather than
- * leaving a second one orphaned in storage with the row pointing elsewhere.
+ * The early return on an existing order_item printKey is the whole idempotency
+ * story and it sits before every expensive thing in this function on purpose.
+ * The guarded UPDATE at the end is the second half of it: two runs racing on one
+ * order_item cannot both write a key, so the loser adopts the winner's file
+ * rather than leaving a second one orphaned in storage with the row pointing
+ * elsewhere. Both halves are keyed on the order_item, not the artwork, so the
+ * same portrait on two garments is generated twice at two sizes on purpose,
+ * while one garment is never generated twice.
  */
 async function generatePrintFile(
   db: Db,
   orderId: string,
   item: OrderItem,
 ): Promise<PrintFileLine> {
+  const orderItemId = item.id;
   const artworkId = item.artworkId;
 
   const fail = async (reason: string): Promise<PrintFileLine> => {
     await record(db, orderId, "generate-print-file", "failed", reason, artworkId);
-    return { ok: false, artworkId, reason };
+    return { ok: false, orderItemId, artworkId, reason };
   };
 
+  if (item.printKey) {
+    // Already paid for once. This is the retry, the duplicate ITN and the admin
+    // clicking twice, and none of them bills us again for THIS garment.
+    await record(
+      db,
+      orderId,
+      "generate-print-file",
+      "skipped",
+      `print file already exists: ${item.printKey}`,
+      artworkId,
+    );
+    return {
+      ok: true,
+      orderItemId,
+      artworkId,
+      printKey: item.printKey,
+      generated: false,
+    };
+  }
+
+  const product = getProduct(item.productSlug);
+  if (!product) return fail(`unknown product slug "${item.productSlug}"`);
+
+  // The artwork supplies only the reusable inputs (the photo and the chosen
+  // style). Its own printKey is legacy and deliberately ignored: a re-order onto
+  // a different product must not adopt a wrong-sized file made for another one.
   const [artwork] = await db
     .select()
     .from(artworks)
@@ -162,28 +209,12 @@ async function generatePrintFile(
 
   if (!artwork) return fail("the artwork row this line points at is missing");
 
-  if (artwork.printKey) {
-    // Already paid for once. This is the retry, the duplicate ITN and the admin
-    // clicking twice, and none of them bills us again.
-    await record(
-      db,
-      orderId,
-      "generate-print-file",
-      "skipped",
-      `print file already exists: ${artwork.printKey}`,
-      artworkId,
-    );
-    return { ok: true, artworkId, printKey: artwork.printKey, generated: false };
-  }
-
-  const product = getProduct(item.productSlug);
-  if (!product) return fail(`unknown product slug "${item.productSlug}"`);
-
   const style = artwork.style;
   if (!style) return fail("no art style was ever chosen for this artwork");
 
-  // 300 DPI across the product's print area. The print shop's sheet quotes the
-  // same numbers, so the two cannot drift: both come from printPixels().
+  // 300 DPI across THIS item's product print area. The print shop's sheet quotes
+  // the same numbers, so the two cannot drift: both come from printPixels() of
+  // the same product.
   const { widthPx, heightPx } = printPixels(product);
 
   try {
@@ -197,14 +228,16 @@ async function generatePrintFile(
 
     // Providers return raw bytes and disagree about the format (the mock draws
     // SVG, OpenAI returns PNG), so the key is named after what actually arrived.
+    // Keyed by order_item id: the file belongs to this garment, and two garments
+    // sharing one artwork must not share a storage path.
     const ext = sniffImageExtension(printBytes);
-    const printKey = `prints/${artworkId}/${Date.now()}.${ext}`;
+    const printKey = `prints/${orderItemId}/${Date.now()}.${ext}`;
     await getStorage().put(printKey, printBytes, `image/${ext}`);
 
     const claimed = await db
-      .update(artworks)
-      .set({ printKey, status: "ready" })
-      .where(and(eq(artworks.id, artworkId), isNull(artworks.printKey)))
+      .update(orderItems)
+      .set({ printKey })
+      .where(and(eq(orderItems.id, orderItemId), isNull(orderItems.printKey)))
       .returning();
 
     if (claimed.length === 0) {
@@ -213,23 +246,28 @@ async function generatePrintFile(
       // a mismatch to paper over.
       const [current] = await db
         .select()
-        .from(artworks)
-        .where(eq(artworks.id, artworkId));
+        .from(orderItems)
+        .where(eq(orderItems.id, orderItemId));
       if (!current?.printKey) {
-        return fail("the print file was stored but the artwork row lost it");
+        return fail("the print file was stored but the order item row lost it");
       }
-      return { ok: true, artworkId, printKey: current.printKey, generated: false };
+      return {
+        ok: true,
+        orderItemId,
+        artworkId,
+        printKey: current.printKey,
+        generated: false,
+      };
     }
 
     await record(db, orderId, "generate-print-file", "ok", printKey, artworkId);
-    return { ok: true, artworkId, printKey, generated: true };
+    return { ok: true, orderItemId, artworkId, printKey, generated: true };
   } catch (error) {
-    // The artwork's pipeline failed, so say so on the row. A successful retry
-    // puts it back to "ready" with the key on it.
-    await db
-      .update(artworks)
-      .set({ status: "failed" })
-      .where(eq(artworks.id, artworkId));
+    // A print-generation failure is recorded on the order_item (it simply has no
+    // printKey, so a retry regenerates only it) and in fulfillment_events. We do
+    // NOT touch the shared artwork's status here: the artwork is a reusable input
+    // that other orders may point at, and one garment's print failure must not
+    // mark that portrait broken for everyone.
     return fail(errorMessage(error));
   }
 }
@@ -259,14 +297,6 @@ export async function generatePrintFilesForOrder(
   }
 
   return { ok: lines.every((line) => line.ok), lines };
-}
-
-async function artworksFor(db: Db, items: OrderItem[]): Promise<Artwork[]> {
-  if (items.length === 0) return [];
-  return db
-    .select()
-    .from(artworks)
-    .where(inArray(artworks.id, items.map((item) => item.artworkId)));
 }
 
 async function flag(
@@ -346,11 +376,18 @@ export async function fulfillPaidOrder(
 
   const printKeys = print.lines.flatMap((line) => (line.ok ? [line.printKey] : []));
 
+  // Re-read the lines so the job sheet sees the printKeys generation just wrote:
+  // the rows loaded above are from before generation and still carry null keys.
+  const printedItems = await db
+    .select()
+    .from(orderItems)
+    .where(eq(orderItems.orderId, orderId));
+
   // Emails go before the transition, so the row only claims "sent_to_printer"
   // once we have actually tried to send it. Neither result can stop the
   // transition below: the print files exist, and losing them to a mailbox
   // outage would be the expensive mistake.
-  const jobSheet = await sendJobSheet(order, items, await artworksFor(db, items));
+  const jobSheet = await sendJobSheet(order, printedItems);
   await record(
     db,
     orderId,
@@ -429,15 +466,15 @@ export async function resendJobSheet(
     return { status: "refused", orderId, reason: "no-lines" };
   }
 
-  const art = await artworksFor(db, items);
   // Every line needs its file: a sheet that links three garments and two files
-  // is a sheet the shop has to ring us about.
-  const missing = art.filter((artwork) => !artwork.printKey).length;
-  if (art.length < items.length || missing > 0) {
+  // is a sheet the shop has to ring us about. The file is on the order_item now,
+  // so a missing printKey there is a line the shop cannot print.
+  const missing = items.filter((item) => !item.printKey).length;
+  if (missing > 0) {
     return { status: "refused", orderId, reason: "no-print-files" };
   }
 
-  const jobSheet = await sendJobSheet(order, items, art);
+  const jobSheet = await sendJobSheet(order, items);
   await record(
     db,
     orderId,
@@ -461,8 +498,9 @@ export async function resendJobSheet(
  * Allowed from `flagged` and from `paid` (an order whose fulfilment never fired
  * at all, because the process died between the ITN and the after() callback).
  * Anything already at the printer comes back "already-fulfilled". Only what is
- * missing is regenerated: generatePrintFile skips any artwork that already has
- * a key, so a three-line order with one bad line costs one generation, not three.
+ * missing is regenerated: generatePrintFile skips any order_item that already
+ * has a key, so a three-line order with one bad line costs one generation, not
+ * three.
  *
  * THE GUARD THAT MATTERS. `flagged` has two meanings in this shop. Fulfilment
  * flags an order that was paid and could not be printed. The ITN webhook also

@@ -43,7 +43,6 @@ async function seedOrder(options: {
     uploadKey: `uploads/${artworkId}.jpg`,
     style: "watercolor",
     previewKey: `previews/${artworkId}/1.svg`,
-    printKey: options.withPrintFile ? `prints/${artworkId}.png` : null,
     status: "ready",
     productSlug: "hoodie",
   });
@@ -77,6 +76,8 @@ async function seedOrder(options: {
     qty: options.qty ?? 1,
     unitPriceZar: 899,
     artworkId,
+    // The print file is per garment now (B3): its key lives on the order_item.
+    printKey: options.withPrintFile ? `prints/${artworkId}.png` : null,
   });
 
   return orderId;

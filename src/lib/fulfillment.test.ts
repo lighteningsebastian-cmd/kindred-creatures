@@ -128,6 +128,52 @@ async function orderWith(
   return { orderId, artworkIds };
 }
 
+/**
+ * A paid order where ONE artwork (one saved creature) is printed onto several
+ * different products, the way a re-order lands (retention B4). This is the case
+ * the whole B3 refactor exists for: the same portrait needs a differently sized
+ * print file per garment.
+ */
+async function orderWithSharedArtwork(
+  slugs: string[],
+): Promise<{ orderId: string; artworkId: string }> {
+  const db = await getDb();
+  const orderId = randomUUID();
+  const artworkId = await readyArtwork(slugs[0]);
+
+  await db.insert(orders).values({
+    id: orderId,
+    status: "paid",
+    payfastPaymentId: "1000002",
+    email: "thandi@example.co.za",
+    firstName: "Thandi",
+    lastName: "Mokoena",
+    phone: "082 123 4567",
+    addressLine1: "14 Loop Street",
+    suburb: "Gardens",
+    city: "Cape Town",
+    province: "Western Cape",
+    postalCode: "8001",
+    subtotalZar: 899,
+    shippingZar: 99,
+    totalZar: 998,
+  });
+
+  for (const slug of slugs) {
+    await db.insert(orderItems).values({
+      orderId,
+      productSlug: slug,
+      color: "Stone",
+      size: "M",
+      qty: 1,
+      unitPriceZar: 899,
+      artworkId,
+    });
+  }
+
+  return { orderId, artworkId };
+}
+
 async function readOrder(id: string) {
   const db = await getDb();
   const [row] = await db.select().from(orders).where(eq(orders.id, id));
@@ -140,6 +186,12 @@ async function readArtwork(id: string) {
   return row;
 }
 
+/** The order's lines, in insertion order, so a test can read their printKeys. */
+async function readItems(orderId: string) {
+  const db = await getDb();
+  return db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+}
+
 async function eventsFor(orderId: string) {
   const db = await getDb();
   return db
@@ -150,7 +202,7 @@ async function eventsFor(orderId: string) {
 
 describe("fulfillPaidOrder: an order that goes through", () => {
   it("makes a print file per line at 300 DPI and sends it to the printer", async () => {
-    const { orderId, artworkIds } = await orderWith(["hoodie", "tote"]);
+    const { orderId } = await orderWith(["hoodie", "tote"]);
 
     const result = await fulfillPaidOrder(orderId);
     expect(result.status).toBe("sent_to_printer");
@@ -165,12 +217,10 @@ describe("fulfillPaidOrder: an order that goes through", () => {
       );
     }
 
-    for (const artworkId of artworkIds) {
-      const artwork = await readArtwork(artworkId);
-      expect(artwork.printKey).toMatch(
-        new RegExp(`^prints/${artworkId}/\\d+\\.png$`),
-      );
-      expect(artwork.status).toBe("ready");
+    // The print file lives on the order_item now, keyed by the order_item id.
+    const items = await readItems(orderId);
+    for (const item of items) {
+      expect(item.printKey).toMatch(new RegExp(`^prints/${item.id}/\\d+\\.png$`));
     }
 
     expect(sendJobSheetMock).toHaveBeenCalledTimes(1);
@@ -178,16 +228,16 @@ describe("fulfillPaidOrder: an order that goes through", () => {
     expect((await readOrder(orderId)).status).toBe("sent_to_printer");
   });
 
-  it("hands the job sheet the artworks with their print keys on them", async () => {
+  it("hands the job sheet the order items with their print keys on them", async () => {
     const { orderId } = await orderWith(["hoodie"]);
     await fulfillPaidOrder(orderId);
 
-    // The sheet mints its own links from these rows, so a row without a key is
-    // a job sheet with a dead link on it.
-    const [, items, sheetArtworks] = sendJobSheetMock.mock.calls[0];
+    // The sheet mints its own links from the order_item rows, so a line without
+    // a key is a job sheet with a dead link on it. The rows it is handed are the
+    // ones read back AFTER generation, so they carry the freshly written key.
+    const [, items] = sendJobSheetMock.mock.calls[0];
     expect(items).toHaveLength(1);
-    expect(sheetArtworks).toHaveLength(1);
-    expect(sheetArtworks[0].printKey).toBeTruthy();
+    expect(items[0].printKey).toBeTruthy();
   });
 
   it("hoodie print pixels are the 300 DPI conversion, not a guess", async () => {
@@ -217,13 +267,13 @@ describe("fulfillPaidOrder: not paying twice", () => {
     expect(sendOrderConfirmationMock).toHaveBeenCalledTimes(1);
   });
 
-  it("skips an artwork that already has a print file", async () => {
-    const { orderId, artworkIds } = await orderWith(["hoodie"]);
+  it("skips an order item that already has a print file", async () => {
+    const { orderId } = await orderWith(["hoodie"]);
     const db = await getDb();
     await db
-      .update(artworks)
+      .update(orderItems)
       .set({ printKey: "prints/already/there.png" })
-      .where(eq(artworks.id, artworkIds[0]));
+      .where(eq(orderItems.orderId, orderId));
 
     const result = await generatePrintFilesForOrder(orderId);
 
@@ -235,6 +285,83 @@ describe("fulfillPaidOrder: not paying twice", () => {
     });
     // The expensive call. Never made, because the file already exists.
     expect(generatePrintFileMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("fulfillPaidOrder: one creature across different products (B3)", () => {
+  it("makes a distinct, correctly sized print file for each product", async () => {
+    // The reason this refactor exists: the SAME artwork on two products must
+    // print at two DIFFERENT sizes. hoodie is 280x350mm, tote is 260x300mm, so
+    // their 300 DPI pixel dimensions differ, and keying the file on the artwork
+    // (the old bug) would have shipped one of them at the wrong size.
+    const { orderId, artworkId } = await orderWithSharedArtwork([
+      "hoodie",
+      "tote",
+    ]);
+
+    const result = await fulfillPaidOrder(orderId);
+    expect(result.status).toBe("sent_to_printer");
+
+    // One generation per garment, both off the one shared upload/style.
+    expect(generatePrintFileMock).toHaveBeenCalledTimes(2);
+
+    const hoodiePx = printPixels(getProduct("hoodie")!);
+    const totePx = printPixels(getProduct("tote")!);
+    // The two products really are different sizes, or this test proves nothing.
+    expect(hoodiePx).not.toEqual(totePx);
+
+    // Each product was asked for at ITS OWN dimensions, off the shared inputs.
+    expect(generatePrintFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        widthPx: hoodiePx.widthPx,
+        heightPx: hoodiePx.heightPx,
+        uploadKey: `uploads/${artworkId}.jpg`,
+        style: "watercolor",
+      }),
+    );
+    expect(generatePrintFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        widthPx: totePx.widthPx,
+        heightPx: totePx.heightPx,
+        uploadKey: `uploads/${artworkId}.jpg`,
+        style: "watercolor",
+      }),
+    );
+
+    // Two order_items, one artwork, two DISTINCT print files.
+    const items = await readItems(orderId);
+    expect(items).toHaveLength(2);
+    const keys = items.map((item) => item.printKey);
+    expect(keys.every(Boolean)).toBe(true);
+    expect(new Set(keys).size).toBe(2);
+    // The legacy artwork.printKey is never touched: it is not the source of
+    // truth for a printed file any more, and a re-order must not read it.
+    expect((await readArtwork(artworkId)).printKey).toBeNull();
+  });
+
+  it("is idempotent per order item: a second run regenerates nothing", async () => {
+    const { orderId } = await orderWithSharedArtwork(["hoodie", "tote"]);
+
+    await fulfillPaidOrder(orderId);
+    const keysAfterFirst = (await readItems(orderId)).map((i) => i.printKey);
+    // Two generations on the first pass, one per garment.
+    expect(generatePrintFileMock).toHaveBeenCalledTimes(2);
+
+    // A second fulfilment is a no-op (order already at the printer): no third or
+    // fourth generation, and the keys on the rows do not change.
+    const second = await fulfillPaidOrder(orderId);
+    expect(second.status).toBe("already-fulfilled");
+    expect(generatePrintFileMock).toHaveBeenCalledTimes(2);
+
+    // And even driving the generation step directly does not re-bill: every
+    // order_item already has a key, so the provider is not called again.
+    await generatePrintFilesForOrder(orderId);
+    expect(generatePrintFileMock).toHaveBeenCalledTimes(2);
+
+    const keysNow = (await readItems(orderId)).map((i) => i.printKey);
+    expect(keysNow).toEqual(keysAfterFirst);
+    // One job sheet, not two, however many times fulfilment ran.
+    expect(sendJobSheetMock).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -251,7 +378,10 @@ describe("fulfillPaidOrder: a generation that fails", () => {
     // The order is flagged BECAUSE the shop must not be told about a job whose
     // file does not exist.
     expect(sendJobSheetMock).not.toHaveBeenCalled();
-    expect((await readArtwork(artworkIds[0])).printKey).toBeNull();
+    expect((await readItems(orderId))[0].printKey).toBeNull();
+    // The shared artwork is a reusable input and must NOT be marked broken by
+    // one garment's print failure: other orders may point at this portrait.
+    expect((await readArtwork(artworkIds[0])).status).toBe("ready");
 
     // The breadcrumb: which artwork, which step, what the error said.
     const events = await eventsFor(orderId);
@@ -288,15 +418,18 @@ describe("fulfillPaidOrder: a generation that fails", () => {
     expect(result.status).toBe("flagged");
     // A half-printed order is not a shipped order. The good line keeps its file
     // so the retry does not pay for it again.
-    expect((await readArtwork(artworkIds[0])).printKey).toBeTruthy();
-    expect((await readArtwork(artworkIds[1])).printKey).toBeNull();
+    const items = await readItems(orderId);
+    const first = items.find((item) => item.artworkId === artworkIds[0]);
+    const second = items.find((item) => item.artworkId === artworkIds[1]);
+    expect(first!.printKey).toBeTruthy();
+    expect(second!.printKey).toBeNull();
     expect(sendJobSheetMock).not.toHaveBeenCalled();
   });
 });
 
 describe("fulfillPaidOrder: emails that do not send", () => {
   it("keeps the print file and the order when the job sheet bounces", async () => {
-    const { orderId, artworkIds } = await orderWith(["hoodie"]);
+    const { orderId } = await orderWith(["hoodie"]);
     sendJobSheetMock.mockResolvedValue({
       ok: false,
       error: new Error("mailbox is down"),
@@ -310,7 +443,7 @@ describe("fulfillPaidOrder: emails that do not send", () => {
     expect(result.status).toBe("sent_to_printer");
     expect((await readOrder(orderId)).status).toBe("sent_to_printer");
     expect((await readOrder(orderId)).payfastPaymentId).toBe("1000001");
-    expect((await readArtwork(artworkIds[0])).printKey).toBeTruthy();
+    expect((await readItems(orderId))[0].printKey).toBeTruthy();
 
     // But loud: nobody in Cape Town knows this job exists.
     expect(logged).toHaveBeenCalledWith(
@@ -405,8 +538,8 @@ describe("fulfillPaidOrder: orders it will not touch", () => {
 });
 
 describe("retryFulfillment", () => {
-  it("regenerates only the missing artwork and completes", async () => {
-    const { orderId, artworkIds } = await orderWith(["hoodie", "tote"]);
+  it("regenerates only the missing line and completes", async () => {
+    const { orderId } = await orderWith(["hoodie", "tote"]);
     generatePrintFileMock
       .mockResolvedValueOnce({ printBytes: PNG_BYTES })
       .mockRejectedValueOnce(new Error("the second one failed"));
@@ -423,10 +556,8 @@ describe("retryFulfillment", () => {
     // for a second time.
     expect(generatePrintFileMock).toHaveBeenCalledTimes(3);
 
-    for (const artworkId of artworkIds) {
-      const artwork = await readArtwork(artworkId);
-      expect(artwork.printKey).toBeTruthy();
-      expect(artwork.status).toBe("ready");
+    for (const item of await readItems(orderId)) {
+      expect(item.printKey).toBeTruthy();
     }
     expect((await readOrder(orderId)).status).toBe("sent_to_printer");
     expect(sendJobSheetMock).toHaveBeenCalledTimes(1);

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import type { Artwork, Order, OrderItem } from "@/lib/db/schema";
+import type { Order, OrderItem } from "@/lib/db/schema";
 import { verifyOrderToken } from "@/lib/order-token";
 import {
   MockEmailTransport,
@@ -40,6 +40,8 @@ const ORDER: Order = {
   createdAt: new Date("2026-07-17T09:00:00Z"),
 };
 
+// The print file lives on the order_item now (retention B3), so printKey rides
+// on the line the job sheet links, not on the artwork.
 const ITEMS: OrderItem[] = [
   {
     id: "b1b1b1b1-1111-2222-3333-444455556666",
@@ -50,20 +52,7 @@ const ITEMS: OrderItem[] = [
     qty: 2,
     unitPriceZar: 899,
     artworkId: ARTWORK_ID,
-  },
-];
-
-const ARTWORKS: Artwork[] = [
-  {
-    id: ARTWORK_ID,
-    uploadKey: "uploads/abc.png",
-    style: "classic-portrait",
-    previewKey: "previews/abc.png",
     printKey: "prints/abc.png",
-    regenCount: 1,
-    status: "ready",
-    productSlug: "hoodie",
-    createdAt: new Date("2026-07-17T08:30:00Z"),
   },
 ];
 
@@ -158,7 +147,7 @@ describe("email helpers", () => {
   describe("sendJobSheet", () => {
     it("goes to the print shop, never to the customer", async () => {
       const sent = captureSends();
-      const result = await sendJobSheet(ORDER, ITEMS, ARTWORKS);
+      const result = await sendJobSheet(ORDER, ITEMS);
 
       expect(result.ok).toBe(true);
       expect(sent[0].to).toBe("press@printshop.test");
@@ -169,7 +158,7 @@ describe("email helpers", () => {
 
     it("carries an absolute, signed, expiring print-file link", async () => {
       const sent = captureSends();
-      await sendJobSheet(ORDER, ITEMS, ARTWORKS);
+      await sendJobSheet(ORDER, ITEMS);
 
       const match = sent[0].text.match(/File: (\S+)/);
       expect(match).not.toBeNull();
@@ -187,7 +176,7 @@ describe("email helpers", () => {
 
     it("carries the shipping address and print dimensions", async () => {
       const sent = captureSends();
-      await sendJobSheet(ORDER, ITEMS, ARTWORKS);
+      await sendJobSheet(ORDER, ITEMS);
 
       expect(sent[0].text).toContain("Thandi Mokoena");
       expect(sent[0].text).toContain("12 Kloof Street");
@@ -202,7 +191,7 @@ describe("email helpers", () => {
       vi.spyOn(console, "error").mockImplementation(() => {});
       vi.stubEnv("PRINT_SHOP_EMAIL", "");
 
-      const result = await sendJobSheet(ORDER, ITEMS, ARTWORKS);
+      const result = await sendJobSheet(ORDER, ITEMS);
       expect(result.ok).toBe(false);
       // Better a logged failure than a job sheet, with a customer's address on
       // it, sent to whatever the default recipient happened to be.
@@ -217,7 +206,7 @@ describe("email helpers", () => {
       resetEmailTransport();
       const log = vi.spyOn(console, "log").mockImplementation(() => {});
 
-      const result = await sendJobSheet(ORDER, ITEMS, ARTWORKS);
+      const result = await sendJobSheet(ORDER, ITEMS);
 
       expect(result.ok).toBe(true);
       const summary = log.mock.calls[0][0] as string;
