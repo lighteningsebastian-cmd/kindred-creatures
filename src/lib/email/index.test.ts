@@ -21,6 +21,7 @@ const ARTWORK_ID = "aaaa1111-1111-2222-3333-444455556666";
 const ORDER: Order = {
   id: ORDER_ID,
   status: "paid",
+  customerId: null,
   email: "thandi@example.test",
   firstName: "Thandi",
   lastName: "Mokoena",

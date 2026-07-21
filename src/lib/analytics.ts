@@ -47,6 +47,12 @@ export interface AnalyticsEventMap {
    * email or other PII travels with it (the list itself is the private record).
    */
   newsletter_signup: { source: "footer" | "checkout" };
+  /** A magic sign-in link was requested. No email travels with it. */
+  account_login_requested: Record<string, never>;
+  /** A customer session was established from a magic link. */
+  account_logged_in: Record<string, never>;
+  /** A saved creature was re-ordered onto a product (subsystem B4). */
+  creature_reordered: { product: string };
 }
 
 export type AnalyticsEvent = keyof AnalyticsEventMap;
@@ -159,4 +165,16 @@ export function trackNewsletterSignup(input: {
   source: "footer" | "checkout";
 }): void {
   track("newsletter_signup", { source: input.source });
+}
+
+export function trackAccountLoginRequested(): void {
+  track("account_login_requested", {});
+}
+
+export function trackAccountLoggedIn(): void {
+  track("account_logged_in", {});
+}
+
+export function trackCreatureReordered(input: { product: string }): void {
+  track("creature_reordered", { product: input.product });
 }

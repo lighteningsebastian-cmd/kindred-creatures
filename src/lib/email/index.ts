@@ -36,6 +36,7 @@ import {
 import { shippingNotificationEmail } from "./templates/shipping-notification";
 import { jobSheetEmail, type JobSheetLine } from "./templates/job-sheet";
 import { welcomeEmail } from "./templates/welcome";
+import { magicLinkEmail } from "./templates/magic-link";
 
 export * from "./send";
 export { orderRef } from "./layout";
@@ -209,6 +210,39 @@ export async function sendWelcome(email: string): Promise<EmailResult> {
     return {
       ok: false,
       error: cause instanceof Error ? cause : new Error("welcome send failed"),
+    };
+  }
+}
+
+/**
+ * The passwordless sign-in mail. The caller passes an absolute, single-use login
+ * URL (built and signed upstream); this only renders and delivers it. Guarded
+ * end to end so it never throws: a login mail that could not be built must not
+ * take down the request that asked for it, and the requester is told the same
+ * thing either way.
+ *
+ * @param email the recipient.
+ * @param loginUrl the absolute single-use callback link.
+ * @returns ok with the provider id, or ok:false with the error. Never throws.
+ */
+export async function sendMagicLink(
+  email: string,
+  loginUrl: string,
+): Promise<EmailResult> {
+  try {
+    const rendered = magicLinkEmail({ loginUrl });
+    return await deliver({
+      to: email,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      replyTo: emailReplyTo(),
+    });
+  } catch (cause) {
+    console.error("[email] magic link could not be prepared");
+    return {
+      ok: false,
+      error: cause instanceof Error ? cause : new Error("magic link send failed"),
     };
   }
 }
