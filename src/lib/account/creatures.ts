@@ -180,6 +180,78 @@ export async function customerOwnsArtwork(
   }
 }
 
+export type ReorderableCreature = {
+  artworkId: string;
+  style: ArtStyle | null;
+  /** Human style label, or a gentle fallback when the style is somehow unset. */
+  styleLabel: string;
+  /** Short-lived signed URL for the watermarked preview, or null if we have none. */
+  previewUrl: string | null;
+};
+
+/**
+ * The authorization gate for re-order (B4), returning the data the re-order page
+ * needs in the same breath as the check that earns it. A portrait is only
+ * reorderable when it is reachable from one of THIS customer's PAID-or-later
+ * orders; the query starts at the customer's own owned orders and walks to the
+ * artwork, so reachability IS authorization and there is no id path in from the
+ * outside. Returns the creature (style + a signed preview URL) when the customer
+ * owns it, or null for a stranger's artwork, an unpaid artwork, or a
+ * nonexistent/malformed id.
+ *
+ * Every re-order path calls this before putting a saved portrait back in a cart:
+ * a customer must never re-order an artwork that is not theirs or was never paid
+ * for.
+ *
+ * @param customerId the session customer. Callers pass their OWN id, never one
+ * taken from the request.
+ * @param artworkId the artwork the caller is asking to re-order.
+ */
+export async function getReorderableCreature(
+  customerId: string,
+  artworkId: string,
+): Promise<ReorderableCreature | null> {
+  const db = await getDb();
+
+  let row:
+    | { style: ArtStyle | null; previewKey: string | null }
+    | undefined;
+  try {
+    [row] = await db
+      .select({
+        style: artworks.style,
+        previewKey: artworks.previewKey,
+      })
+      .from(orders)
+      .innerJoin(orderItems, eq(orderItems.orderId, orders.id))
+      .innerJoin(artworks, eq(artworks.id, orderItems.artworkId))
+      .where(
+        and(
+          eq(orders.customerId, customerId),
+          eq(orderItems.artworkId, artworkId),
+          inArray(orders.status, OWNED_ORDER_STATUSES),
+        ),
+      )
+      .limit(1);
+  } catch {
+    // Malformed uuid: not owned, not a fault. A probe cannot tell a refusal
+    // from an error.
+    return null;
+  }
+  if (!row) return null;
+
+  const previewUrl = row.previewKey
+    ? await getStorage().getSignedUrl(row.previewKey, CREATURE_LINK_TTL_SEC)
+    : null;
+
+  return {
+    artworkId,
+    style: row.style,
+    styleLabel: row.style ? ART_STYLE_LABELS[row.style] : "Your portrait",
+    previewUrl,
+  };
+}
+
 export type CustomerOrderRow = {
   id: string;
   /** The short reference the shop quotes, matching the emails' orderRef. */
