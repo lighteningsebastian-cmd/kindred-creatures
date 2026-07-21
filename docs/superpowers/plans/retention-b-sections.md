@@ -11,7 +11,7 @@ Every section: read the spec + `design/DESIGN-SYSTEM.md` first; verify
 --include=*.ts` empty; commit trailer `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
 Known flake: cold test runs can fail DB-backed files (shared `.data/pgdata`); re-run.
 
-## B1. Auth foundation: customers, magic link, session  [pending]
+## B1. Auth foundation: customers, magic link, session  [DONE 2f15ef9, b6a2a53, 93751aa]
 Schema (+ DDL): `customers` (id, email unique normalised, name nullable, createdAt),
 `login_tokens` (id, email, tokenHash, expiresAt, usedAt nullable, createdAt), and add
 `orders.customerId` (nullable fk). Custom magic-link + signed session, mirroring the admin's
