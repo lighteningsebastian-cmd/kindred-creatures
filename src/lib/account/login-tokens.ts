@@ -63,6 +63,9 @@ export async function issueLoginToken(
     email: e,
     tokenHash: hashToken(rawToken),
     expiresAt: new Date(now + TOKEN_TTL_MS),
+    // Set explicitly (not the DB default) so `now` fully controls this row's
+    // clock: the rate-limit window compares against it.
+    createdAt: new Date(now),
   });
 
   return { ok: true, rawToken };
