@@ -58,7 +58,7 @@ the ITN/webhook security.
 **Done when:** fulfilment writes a correctly-sized print file per order_item, idempotent, and
 all existing fulfilment tests plus the new sizing/idempotency tests pass.
 
-## B4. Re-order flow: creature to cart  [pending]
+## B4. Re-order flow: creature to cart  [DONE f8a4acb, ebf2b1e]
 `/account/reorder/[artworkId]` (or inline on /account): authorize the artwork belongs to one
 of the caller's PAID orders (refuse otherwise); pick product + colour + size; add to cart
 with the EXISTING artworkId (no upload, no generation, no regeneration credit). Reuse the
