@@ -12,8 +12,14 @@ export type ArtworkStatus =
 /**
  * One customer upload and the AI portrait we derive from it. Rows are created
  * at upload time (status "uploaded", no style yet) and updated as the customer
- * picks a style and we generate a preview. The high-res print file is produced
- * later (post-payment, Task 6), so printKey stays null through this flow.
+ * picks a style and we generate a preview.
+ *
+ * The reusable inputs live here: uploadKey, style and previewKey are what a
+ * re-order of the same creature onto a different product replays, so they are
+ * keyed on the artwork by design (retention B). The high-res PRINT file is NOT:
+ * it is per garment now, because the same portrait printed on two products needs
+ * two differently sized files (300 DPI of two different print areas). See
+ * order_items.printKey, which is the source of truth for a printed file.
  */
 export const artworks = pgTable("artworks", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -23,7 +29,10 @@ export const artworks = pgTable("artworks", {
   style: text("style").$type<ArtStyle>(),
   // Storage key of the watermarked, screen-res preview (set once ready).
   previewKey: text("preview_key"),
-  // Storage key of the print-res file (produced post-payment, Task 6).
+  // LEGACY, no longer the source of truth for a printed file. The print file
+  // moved to order_items.printKey (retention B3) because it is per garment, not
+  // per artwork. Left in place so old rows are not disturbed; fulfilment, the
+  // job sheet and admin no longer read it. Do not reintroduce a dependency here.
   printKey: text("print_key"),
   // How many previews we have generated. Capped at 3 by the generate route.
   regenCount: integer("regen_count").notNull().default(0),
@@ -140,7 +149,7 @@ export const orders = pgTable("orders", {
 /**
  * One garment on an order. Prices are snapshotted at checkout so a later
  * catalogue change cannot rewrite what someone was charged. artworkId points at
- * the portrait being printed, one row per artwork.
+ * the portrait being printed, one row per garment.
  */
 export const orderItems = pgTable("order_items", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -155,6 +164,13 @@ export const orderItems = pgTable("order_items", {
   artworkId: uuid("artwork_id")
     .notNull()
     .references(() => artworks.id),
+  // Storage key of this garment's print-res file, generated post-payment at
+  // THIS product's print area (300 DPI). Null until fulfilment makes it, and the
+  // one thing fulfilment is idempotent on: a set printKey is never regenerated,
+  // so we never pay to print the same garment twice. This is per order_item, not
+  // per artwork, so re-ordering one creature onto two products yields two
+  // correctly-sized files rather than reusing one wrong-sized one (retention B3).
+  printKey: text("print_key"),
 });
 
 /**
@@ -320,7 +336,8 @@ CREATE TABLE IF NOT EXISTS order_items (
   size text NOT NULL,
   qty integer NOT NULL,
   unit_price_zar integer NOT NULL,
-  artwork_id uuid NOT NULL REFERENCES artworks(id)
+  artwork_id uuid NOT NULL REFERENCES artworks(id),
+  print_key text
 );
 
 CREATE TABLE IF NOT EXISTS webhook_events (
@@ -356,4 +373,10 @@ CREATE TABLE IF NOT EXISTS subscribers (
 -- shipped) gains the nullable account link here. IF NOT EXISTS makes this a
 -- no-op on a fresh database where the CREATE TABLE above already added it.
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id uuid REFERENCES customers(id);
+
+-- Retention B3, additive: the print file moved from artworks to order_items so a
+-- re-order onto a different product prints at the right size. A pre-existing
+-- order_items table gains the nullable per-garment print key here; IF NOT EXISTS
+-- makes it a no-op where the CREATE TABLE above already added it.
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS print_key text;
 `;
