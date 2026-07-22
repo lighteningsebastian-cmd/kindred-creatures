@@ -35,7 +35,7 @@ sequential; commit per chunk within sections. Every section: verify `npm run bui
   matching, generic miss, status URL only on match.
 **Commit:** `feat: public order reference and safe order lookup`.
 
-## D2. Checkout email net + phone plumbed through  [pending]
+## D2. Checkout email net + phone plumbed through  [DONE 94aa028, a9d5fcd, bc8b832]
 - Email typo-catcher on the checkout email field (and reuse on /account/login +
   newsletter footer if trivial): client-side suggestion for common domains (gmail.com,
   icloud.com, outlook.com, yahoo.com, webmail.co.za, mweb.co.za, telkomsa.net etc.),
