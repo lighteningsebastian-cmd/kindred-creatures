@@ -47,6 +47,7 @@ const seed = (...lines: CartItem[]) => {
 function placedBody(overrides: Record<string, unknown> = {}) {
   return {
     orderId: "ord-7",
+    publicRef: "KC-2607-K4M9P",
     totalZar: 998,
     mock: true,
     processUrl: "https://sandbox.payfast.co.za/eng/process",
@@ -507,5 +508,14 @@ describe("CheckoutForm: the PayFast handover", () => {
     // Redacted server-side; the real key must never be in the document.
     expect(screen.getByText("(hidden)")).toBeInTheDocument();
     expect(document.body.textContent).not.toContain("46f0cd694581a");
+  });
+
+  it("shows the speakable public reference on the mock panel", async () => {
+    spyOnFormSubmit();
+    await placeOrder(placedBody({ mock: true }));
+
+    await screen.findByText("Your order is saved. No money changed hands.");
+    // The reference the customer reads is the speakable KC ref, not the uuid.
+    expect(screen.getByText("KC-2607-K4M9P")).toBeInTheDocument();
   });
 });

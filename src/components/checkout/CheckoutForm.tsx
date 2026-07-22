@@ -137,6 +137,7 @@ function EmptyCheckout() {
 /** The signed payload the server hands back with a freshly opened order. */
 type Placed = {
   orderId: string;
+  publicRef: string | null;
   totalZar: number;
   mock: boolean;
   processUrl: string;
@@ -175,6 +176,16 @@ function PayfastHandoff({ placed }: { placed: Placed }) {
         button below.
       </p>
 
+      {placed.publicRef ? (
+        <p className="text-sm text-muted">
+          Your reference is{" "}
+          <span className="font-mono font-medium text-ink">
+            {placed.publicRef}
+          </span>
+          . We have emailed it to you as well.
+        </p>
+      ) : null}
+
       <form ref={formRef} method="post" action={placed.processUrl}>
         {Object.entries(placed.fields).map(([name, value]) => (
           <input key={name} type="hidden" name={name} value={value} />
@@ -206,7 +217,10 @@ function PayfastMock({ placed }: { placed: Placed }) {
         This shop is running without PayFast credentials, so we built and signed
         the payment below instead of sending you to it. Your order for{" "}
         {formatZar(placed.totalZar)} is held under reference{" "}
-        <span className="font-medium text-ink">{placed.orderId}</span>.
+        <span className="font-mono font-medium text-ink">
+          {placed.publicRef ?? placed.orderId}
+        </span>
+        .
       </p>
 
       <details className="w-full rounded-md border border-line bg-surface-alt px-4 py-3">
@@ -343,6 +357,7 @@ export function CheckoutForm() {
       // abandons the gateway comes back to their portraits.
       setPlaced({
         orderId: json.orderId,
+        publicRef: json.publicRef ?? null,
         totalZar: json.totalZar,
         mock: json.mock === true,
         processUrl: json.processUrl,

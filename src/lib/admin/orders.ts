@@ -96,6 +96,7 @@ export function parseFilter(value: unknown): OrderFilter {
 
 export type OrderListRow = {
   id: string;
+  publicRef: string | null;
   status: OrderStatus;
   createdAt: Date;
   customerName: string;
@@ -136,6 +137,7 @@ export async function listAdminOrders(
 
   return wanted.map((order) => ({
     id: order.id,
+    publicRef: order.publicRef,
     status: order.status,
     createdAt: order.createdAt,
     customerName: `${order.firstName} ${order.lastName}`.trim(),

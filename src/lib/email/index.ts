@@ -121,6 +121,16 @@ function productName(slug: string): string {
   return getProduct(slug)?.name ?? slug;
 }
 
+/**
+ * The reference to quote a customer or the print shop. The stored publicRef
+ * (KC-YYMM-XXXXX) is the one people read and type; orderRef(order.id), the old
+ * uuid-derived block, is only the fallback for any pre-launch row that predates
+ * the column. Every mail leans on this so the whole system quotes one reference.
+ */
+function refFor(order: Order): string {
+  return order.publicRef ?? orderRef(order.id);
+}
+
 function toConfirmationLines(items: OrderItem[]): ConfirmationLine[] {
   return items.map((item) => ({
     productName: productName(item.productSlug),
@@ -144,7 +154,7 @@ export async function sendOrderConfirmation(
 ): Promise<EmailResult> {
   const rendered = orderConfirmationEmail({
     firstName: order.firstName,
-    orderRef: orderRef(order.id),
+    orderRef: refFor(order),
     lines: toConfirmationLines(items),
     subtotalZar: order.subtotalZar,
     shippingZar: order.shippingZar,
@@ -267,7 +277,7 @@ export async function sendShippingNotification(
 
   const rendered = shippingNotificationEmail({
     firstName: order.firstName,
-    orderRef: orderRef(order.id),
+    orderRef: refFor(order),
     trackingNumber,
     orderUrl: orderStatusUrl(order.id),
   });
@@ -339,7 +349,7 @@ export async function sendJobSheet(
   }
 
   const rendered = jobSheetEmail({
-    orderRef: orderRef(order.id),
+    orderRef: refFor(order),
     orderDate: formatOrderDate(order.createdAt),
     lines: await toJobSheetLines(items),
     shipTo: addressLines(order),

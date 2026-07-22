@@ -200,7 +200,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <h1 className="font-display text-2xl text-ink">
-          Order {shortRef(order.id)}
+          Order {order.publicRef ?? shortRef(order.id)}
         </h1>
         <StatusBadge status={order.status} concern={concern} />
       </div>

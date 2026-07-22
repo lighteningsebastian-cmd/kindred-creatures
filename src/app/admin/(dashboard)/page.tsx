@@ -76,7 +76,9 @@ function OrderRow({ order }: { order: OrderListRow }) {
         )}
       >
         <div className="flex items-center justify-between gap-3 md:block">
-          <span className="font-mono text-xs text-ink">{shortRef(order.id)}</span>
+          <span className="font-mono text-xs text-ink">
+            {order.publicRef ?? shortRef(order.id)}
+          </span>
           {/*
             The badge is hidden by the WRAPPER, never by a class on the badge.
             cn() is a plain string joiner (no tailwind-merge), so a `hidden`

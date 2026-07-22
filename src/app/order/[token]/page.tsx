@@ -102,7 +102,9 @@ function OrderSummary({ order, lines }: { order: Order; lines: Line[] }) {
       <dl className="mt-5 flex flex-col gap-3 border-b border-line pb-5 text-sm">
         <div className="flex flex-col gap-1">
           <dt className="text-muted">Reference</dt>
-          <dd className="break-all font-mono text-xs text-ink">{order.id}</dd>
+          <dd className="break-all font-mono text-sm text-ink">
+            {order.publicRef ?? order.id}
+          </dd>
         </div>
         <div className="flex flex-col gap-1">
           <dt className="text-muted">Confirmation sent to</dt>

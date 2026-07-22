@@ -18,9 +18,12 @@ import {
 const ORDER_ID = "4f2a1c0d-1111-2222-3333-444455556666";
 const ARTWORK_ID = "aaaa1111-1111-2222-3333-444455556666";
 
+const PUBLIC_REF = "KC-2607-K4M9P";
+
 const ORDER: Order = {
   id: ORDER_ID,
   status: "paid",
+  publicRef: PUBLIC_REF,
   customerId: null,
   email: "thandi@example.test",
   firstName: "Thandi",
@@ -107,6 +110,13 @@ describe("email helpers", () => {
       expect(sent[0].text).not.toContain("hoodie");
     });
 
+    it("quotes the public reference the customer can look up", async () => {
+      const sent = captureSends();
+      await sendOrderConfirmation(ORDER, ITEMS);
+      expect(sent[0].text).toContain(PUBLIC_REF);
+      expect(sent[0].subject).toContain(PUBLIC_REF);
+    });
+
     it("returns ok:false rather than throwing when the send fails", async () => {
       // The contract S7 depends on: a dead mailbox must never unwind an order
       // that has already been paid for.
@@ -186,6 +196,13 @@ describe("email helpers", () => {
       expect(sent[0].text).toContain("3307 x 4134 px");
     });
 
+    it("headlines the public reference the shop and customer both quote", async () => {
+      const sent = captureSends();
+      await sendJobSheet(ORDER, ITEMS);
+      expect(sent[0].text).toContain(PUBLIC_REF);
+      expect(sent[0].subject).toContain(PUBLIC_REF);
+    });
+
     it("does not send at all when PRINT_SHOP_EMAIL is unset", async () => {
       const sent = captureSends();
       vi.spyOn(console, "error").mockImplementation(() => {});
@@ -211,7 +228,7 @@ describe("email helpers", () => {
       expect(result.ok).toBe(true);
       const summary = log.mock.calls[0][0] as string;
       expect(summary).toContain("press@printshop.test");
-      expect(summary).toContain("4F2A1C0D");
+      expect(summary).toContain(PUBLIC_REF);
       expect(summary).toContain("Thandi Mokoena");
     });
   });
