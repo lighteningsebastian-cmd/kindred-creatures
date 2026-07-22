@@ -143,7 +143,17 @@ type Placed = {
   mock: boolean;
   processUrl: string;
   fields: Record<string, string>;
+  /** The address this order is being paid under, echoed back for a last check. */
+  email: string;
 };
+
+/**
+ * How long the real PayFast handoff waits before auto-submitting, so a human has
+ * a beat to read "paying as <email>" and catch a wrong address before the
+ * gateway takes over. The Continue button is the accelerator for anyone who does
+ * not want to wait.
+ */
+const HANDOFF_AUTOSUBMIT_MS = 3500;
 
 /**
  * The handover itself. PayFast takes a form POST, not a fetch, so the fields
@@ -155,11 +165,33 @@ type Placed = {
  * gateway and backs out must come back to a cart that still holds their
  * portraits; the cart clears when payment is confirmed, not when it is asked for.
  */
-function PayfastHandoff({ placed }: { placed: Placed }) {
+function PayfastHandoff({
+  placed,
+  onEdit,
+}: {
+  placed: Placed;
+  onEdit: () => void;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
+  const submittedRef = useRef(false);
 
-  useEffect(() => {
+  // The submit is fired once, whether by the timer below or the Continue
+  // button. Guarding it means a customer who taps Continue mid-pause does not
+  // trigger a second submit when the timer later elapses.
+  const submit = () => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
     formRef.current?.submit();
+  };
+
+  // A deliberate, readable pause before handing off, so "paying as <email>" can
+  // actually be read. Cleared on unmount (e.g. if they tap Edit) so a timer
+  // never fires against a form that is no longer on the page.
+  useEffect(() => {
+    const timer = setTimeout(submit, HANDOFF_AUTOSUBMIT_MS);
+    return () => clearTimeout(timer);
+    // Runs once on mount; submit closes over stable refs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -172,9 +204,8 @@ function PayfastHandoff({ placed }: { placed: Placed }) {
         Handing you over to pay, safely.
       </h2>
       <p className="max-w-lg leading-relaxed text-muted">
-        Your order for {formatZar(placed.totalZar)} is saved. PayFast takes it
-        from here · if this page sits still for more than a moment, use the
-        button below.
+        Your order for {formatZar(placed.totalZar)} is saved. In a moment we will
+        send you to PayFast · use the button below to go now.
       </p>
 
       {placed.publicRef ? (
@@ -187,14 +218,25 @@ function PayfastHandoff({ placed }: { placed: Placed }) {
         </p>
       ) : null}
 
+      <p className="text-sm text-muted">
+        Paying as <span className="font-medium text-ink">{placed.email}</span>.{" "}
+        <button
+          type="button"
+          onClick={onEdit}
+          className="text-accent underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base"
+        >
+          Edit
+        </button>
+      </p>
+
       <form ref={formRef} method="post" action={placed.processUrl}>
         {Object.entries(placed.fields).map(([name, value]) => (
           <input key={name} type="hidden" name={name} value={value} />
         ))}
-        <Button size="md" type="submit">
-          Continue to PayFast
-        </Button>
       </form>
+      <Button size="md" type="button" onClick={submit}>
+        Continue to PayFast
+      </Button>
     </div>
   );
 }
@@ -204,7 +246,13 @@ function PayfastHandoff({ placed }: { placed: Placed }) {
  * real and really signed, and it is laid out here to be read. The merchant key
  * is redacted server-side and never reaches this component.
  */
-function PayfastMock({ placed }: { placed: Placed }) {
+function PayfastMock({
+  placed,
+  onEdit,
+}: {
+  placed: Placed;
+  onEdit: () => void;
+}) {
   return (
     <div
       className="flex flex-col items-start gap-4 rounded-lg border border-line bg-surface p-8"
@@ -222,6 +270,17 @@ function PayfastMock({ placed }: { placed: Placed }) {
           {placed.publicRef ?? placed.orderId}
         </span>
         .
+      </p>
+
+      <p className="text-sm text-muted">
+        Paying as <span className="font-medium text-ink">{placed.email}</span>.{" "}
+        <button
+          type="button"
+          onClick={onEdit}
+          className="text-accent underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base"
+        >
+          Edit
+        </button>
       </p>
 
       <details className="w-full rounded-md border border-line bg-surface-alt px-4 py-3">
@@ -263,6 +322,9 @@ export function CheckoutForm() {
   const [placed, setPlaced] = useState<Placed | null>(null);
   // Newsletter opt-in. Unticked by default (POPIA: no pre-ticked consent).
   const [newsletterOptIn, setNewsletterOptIn] = useState(false);
+  // Set when the handoff's Edit control sends the customer back to the form, so
+  // the just-mounted email field can take focus for a correction.
+  const [refocusEmail, setRefocusEmail] = useState(false);
 
   const subtotal = subtotalZar(items);
   const { shippingZar, totalZar } = orderTotals(subtotal);
@@ -277,6 +339,25 @@ export function CheckoutForm() {
     beginCheckoutFired.current = true;
     trackBeginCheckout({ subtotalZar: subtotal, itemCount: itemCount(items) });
   }, [hydrated, items, subtotal]);
+
+  // Returning from the handoff: drop the placed panel back to the editable form
+  // (all values are still in state, so the form comes back filled) and cue the
+  // email field to focus. The pending order simply goes unpaid and dies as
+  // pending, exactly like any abandoned checkout; a corrected resubmit opens a
+  // fresh one, so no order-mutation endpoint is needed.
+  const returnToFormToEditEmail = () => {
+    setPlaced(null);
+    setRefocusEmail(true);
+  };
+
+  useEffect(() => {
+    if (!refocusEmail || placed || !hydrated || items.length === 0) return;
+    const field = document.getElementsByName("email")[0] as
+      | HTMLInputElement
+      | undefined;
+    field?.focus();
+    setRefocusEmail(false);
+  }, [refocusEmail, placed, hydrated, items.length]);
 
   const setField = (field: CustomerField) => (value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -363,6 +444,7 @@ export function CheckoutForm() {
         mock: json.mock === true,
         processUrl: json.processUrl,
         fields: json.fields ?? {},
+        email: details.value.email,
       });
     } catch {
       setFormError(
@@ -391,9 +473,9 @@ export function CheckoutForm() {
             </div>
           ) : placed ? (
             placed.mock ? (
-              <PayfastMock placed={placed} />
+              <PayfastMock placed={placed} onEdit={returnToFormToEditEmail} />
             ) : (
-              <PayfastHandoff placed={placed} />
+              <PayfastHandoff placed={placed} onEdit={returnToFormToEditEmail} />
             )
           ) : items.length === 0 ? (
             <EmptyCheckout />

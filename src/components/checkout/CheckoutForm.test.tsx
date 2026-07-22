@@ -432,6 +432,7 @@ describe("CheckoutForm: the PayFast handover", () => {
   });
 
   it("posts the server's signed fields straight to PayFast", async () => {
+    const user = userEvent.setup();
     const submit = spyOnFormSubmit();
     await placeOrder(
       placedBody({
@@ -449,7 +450,10 @@ describe("CheckoutForm: the PayFast handover", () => {
       await screen.findByText("Handing you over to pay, safely."),
     ).toBeInTheDocument();
 
-    // A real form POST, not a fetch: PayFast will not accept anything else.
+    // There is now a readable pause before the auto-submit; Continue is the
+    // accelerator. Tapping it hands off immediately with a real form POST, not
+    // a fetch: PayFast will not accept anything else.
+    await user.click(screen.getByRole("button", { name: /continue to payfast/i }));
     await waitFor(() => expect(submit).toHaveBeenCalledOnce());
 
     const form = document.querySelector("form[method='post']");
@@ -517,5 +521,71 @@ describe("CheckoutForm: the PayFast handover", () => {
     await screen.findByText("Your order is saved. No money changed hands.");
     // The reference the customer reads is the speakable KC ref, not the uuid.
     expect(screen.getByText("KC-2607-K4M9P")).toBeInTheDocument();
+  });
+
+  it("shows the reference, the paying-as email and an Edit control on the handoff", async () => {
+    spyOnFormSubmit();
+    await placeOrder(placedBody({ mock: false }));
+
+    await screen.findByText("Handing you over to pay, safely.");
+    expect(screen.getByText("KC-2607-K4M9P")).toBeInTheDocument();
+    // The address the order is being paid under, echoed for a last check.
+    expect(screen.getByText("thandi@example.co.za")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
+  });
+
+  it("waits a readable beat before auto-submitting, so the email can be caught", async () => {
+    const submit = spyOnFormSubmit();
+    await placeOrder(placedBody({ mock: false }));
+
+    await screen.findByText("Handing you over to pay, safely.");
+    // The pause is deliberate: nothing has posted to PayFast yet, leaving the
+    // "paying as" line time to be read.
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("Edit returns to the filled form, focuses the email, and a fresh submit opens a new order", async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValue({ ok: true, json: async () => placedBody({ mock: false }) });
+    vi.stubGlobal("fetch", fetchSpy);
+    spyOnFormSubmit();
+    const user = userEvent.setup();
+    seed(line());
+
+    render(<CheckoutForm />);
+    await screen.findByLabelText("First name");
+    await fillForm(user);
+    await user.click(screen.getByRole("button", { name: /continue to payment/i }));
+
+    await screen.findByText("Handing you over to pay, safely.");
+    await waitFor(() =>
+      expect(
+        fetchSpy.mock.calls.filter(([url]) => url === "/api/checkout"),
+      ).toHaveLength(1),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+
+    // Back on the editable form, still filled in, with the email field focused
+    // for the correction.
+    const email = await screen.findByLabelText("Email");
+    expect(email).toHaveValue("thandi@example.co.za");
+    expect(email).toHaveFocus();
+    expect(screen.getByLabelText("First name")).toHaveValue("Thandi");
+
+    // A corrected resubmit opens a FRESH pending order: a second POST to the
+    // checkout API. The old pending order is simply left to die unpaid.
+    await user.clear(email);
+    await user.type(email, "thandi@gmail.com");
+    await user.click(screen.getByRole("button", { name: /continue to payment/i }));
+
+    await waitFor(() =>
+      expect(
+        fetchSpy.mock.calls.filter(([url]) => url === "/api/checkout"),
+      ).toHaveLength(2),
+    );
+    const secondBody = JSON.parse(fetchSpy.mock.calls[1][1].body);
+    expect(secondBody.email).toBe("thandi@gmail.com");
   });
 });
