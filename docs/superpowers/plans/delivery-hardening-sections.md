@@ -21,7 +21,7 @@ sequential; commit per chunk within sections. Every section: verify `npm run bui
 `npx vitest run` (cold-flake: re-run), `npm run lint`, dash grep empty; trailer
 `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
 
-## D1. Public order reference + safe lookup  [pending]
+## D1. Public order reference + safe lookup  [DONE 0febd17, 6392774, 0f4224a]
 - `orders.publicRef` text unique + DDL (+ALTER IF NOT EXISTS), generated at order creation
   in `/api/checkout` (format `KC-<YYMM>-<5 unambiguous alphanumerics>`, collision-retried,
   no vowels to avoid words). Backfill not needed (pre-launch).
