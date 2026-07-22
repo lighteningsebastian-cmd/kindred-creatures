@@ -40,6 +40,9 @@ export interface JobSheetData {
   /** Courier label address, one line per element, already formatted. */
   shipTo: string[];
   customerEmail: string;
+  /** The number the courier calls on delivery day. The visible fallback when
+   *  email cannot reach the customer, so it rides on the ops document too. */
+  customerPhone: string;
   /**
    * How long the print-file links stay alive, in hours, purely so the sheet can
    * say so. The links are minted by the caller (see sendJobSheet), which owns
@@ -98,6 +101,9 @@ ${headCell("Ship to (courier label)")}
 ${cell(data.shipTo.map((line) => escapeHtml(line)).join("<br />"))}
   </tr>
   <tr>
+${cell(`Courier contact (phone): ${escapeHtml(data.customerPhone)}`, `color:${COLORS.bark900};font-size:13px;font-weight:700;`)}
+  </tr>
+  <tr>
 ${cell(`Customer email: ${escapeHtml(data.customerEmail)}`, `color:${COLORS.taupe500};font-size:13px;`)}
   </tr>
 </table>`,
@@ -119,6 +125,7 @@ ${cell(`Customer email: ${escapeHtml(data.customerEmail)}`, `color:${COLORS.taup
     `SHIP TO (COURIER LABEL)`,
     ...data.shipTo,
     ``,
+    `Courier contact (phone): ${data.customerPhone}`,
     `Customer email: ${data.customerEmail}`,
     ``,
     `Kindred Creatures · Cape Town, South Africa`,

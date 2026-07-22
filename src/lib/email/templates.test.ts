@@ -171,9 +171,9 @@ describe("job sheet", () => {
       "Gardens",
       "Cape Town, Western Cape",
       "8001",
-      "0821234567",
     ],
     customerEmail: "thandi@example.test",
+    customerPhone: "0821234567",
     linkTtlHours: 168,
   });
 
@@ -225,6 +225,7 @@ describe("job sheet", () => {
       ],
       shipTo: ["Thandi Mokoena", "8001"],
       customerEmail: "thandi@example.test",
+      customerPhone: "0821234567",
       linkTtlHours: 168,
     });
     expect(pending.text).toContain("not ready yet");
@@ -238,6 +239,12 @@ describe("job sheet", () => {
       expect(body).toContain("Gardens");
       expect(body).toContain("Cape Town, Western Cape");
       expect(body).toContain("8001");
+    }
+  });
+
+  it("gives the courier a phone number to call on delivery day", () => {
+    for (const body of [rendered.html, rendered.text]) {
+      expect(body).toContain("Courier contact (phone):");
       expect(body).toContain("0821234567");
     }
   });

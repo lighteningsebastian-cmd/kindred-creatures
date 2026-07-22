@@ -196,6 +196,16 @@ describe("email helpers", () => {
       expect(sent[0].text).toContain("3307 x 4134 px");
     });
 
+    it("carries the customer phone as the courier contact", async () => {
+      const sent = captureSends();
+      await sendJobSheet(ORDER, ITEMS);
+
+      // The phone is the visible fallback when email cannot reach the customer,
+      // so the print shop's copy carries it as an explicit courier contact.
+      expect(sent[0].text).toContain("Courier contact (phone): 0821234567");
+      expect(sent[0].html).toContain("0821234567");
+    });
+
     it("headlines the public reference the shop and customer both quote", async () => {
       const sent = captureSends();
       await sendJobSheet(ORDER, ITEMS);
@@ -230,6 +240,8 @@ describe("email helpers", () => {
       expect(summary).toContain("press@printshop.test");
       expect(summary).toContain(PUBLIC_REF);
       expect(summary).toContain("Thandi Mokoena");
+      // The courier's fallback contact is legible in the mock transport log too.
+      expect(summary).toContain("Courier contact (phone): 0821234567");
     });
   });
 

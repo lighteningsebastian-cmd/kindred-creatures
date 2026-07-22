@@ -352,8 +352,11 @@ export async function sendJobSheet(
     orderRef: refFor(order),
     orderDate: formatOrderDate(order.createdAt),
     lines: await toJobSheetLines(items),
-    shipTo: addressLines(order),
+    // The phone rides as an explicit "courier contact" line below, so it is
+    // dropped from the label block here to avoid printing it twice.
+    shipTo: addressLines({ ...order, phone: undefined }),
     customerEmail: order.email,
+    customerPhone: order.phone,
     linkTtlHours: PRINT_LINK_TTL_SEC / 3600,
   });
 

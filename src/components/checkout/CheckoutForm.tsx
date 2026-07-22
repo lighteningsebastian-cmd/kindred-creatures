@@ -191,7 +191,6 @@ function PayfastHandoff({
     const timer = setTimeout(submit, HANDOFF_AUTOSUBMIT_MS);
     return () => clearTimeout(timer);
     // Runs once on mount; submit closes over stable refs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -323,8 +322,9 @@ export function CheckoutForm() {
   // Newsletter opt-in. Unticked by default (POPIA: no pre-ticked consent).
   const [newsletterOptIn, setNewsletterOptIn] = useState(false);
   // Set when the handoff's Edit control sends the customer back to the form, so
-  // the just-mounted email field can take focus for a correction.
-  const [refocusEmail, setRefocusEmail] = useState(false);
+  // the just-mounted email field can take focus for a correction. A ref, not
+  // state: it only cues an imperative focus, and must not itself cause a render.
+  const refocusEmailRef = useRef(false);
 
   const subtotal = subtotalZar(items);
   const { shippingZar, totalZar } = orderTotals(subtotal);
@@ -346,18 +346,19 @@ export function CheckoutForm() {
   // pending, exactly like any abandoned checkout; a corrected resubmit opens a
   // fresh one, so no order-mutation endpoint is needed.
   const returnToFormToEditEmail = () => {
+    refocusEmailRef.current = true;
     setPlaced(null);
-    setRefocusEmail(true);
   };
 
   useEffect(() => {
-    if (!refocusEmail || placed || !hydrated || items.length === 0) return;
+    if (!refocusEmailRef.current || placed || !hydrated || items.length === 0)
+      return;
+    refocusEmailRef.current = false;
     const field = document.getElementsByName("email")[0] as
       | HTMLInputElement
       | undefined;
     field?.focus();
-    setRefocusEmail(false);
-  }, [refocusEmail, placed, hydrated, items.length]);
+  }, [placed, hydrated, items.length]);
 
   const setField = (field: CustomerField) => (value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
