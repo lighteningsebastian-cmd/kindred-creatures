@@ -119,6 +119,12 @@ export type OrderStatus =
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(),
   status: text("status").$type<OrderStatus>().notNull().default("pending"),
+  // The short, speakable customer-facing reference (see lib/order-ref.ts):
+  // KC-YYMM-XXXXX. Unique. Nullable in the type only because the column was
+  // added after the table existed; every order created from now on sets it at
+  // checkout. It is a label, never a credential: a short ref alone unlocks
+  // nothing (the lookup needs ref AND email; the status page needs a token).
+  publicRef: text("public_ref").unique(),
   email: text("email").notNull(),
   // The account this order belongs to, or null for an unclaimed guest order.
   // Set when a customer signs in with a matching email (the claim on login);
@@ -309,6 +315,7 @@ CREATE INDEX IF NOT EXISTS login_tokens_email_idx
 CREATE TABLE IF NOT EXISTS orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   status text NOT NULL DEFAULT 'pending',
+  public_ref text UNIQUE,
   email text NOT NULL,
   customer_id uuid REFERENCES customers(id),
   first_name text NOT NULL,
@@ -379,4 +386,14 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id uuid REFERENCES customer
 -- order_items table gains the nullable per-garment print key here; IF NOT EXISTS
 -- makes it a no-op where the CREATE TABLE above already added it.
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS print_key text;
+
+-- Delivery-hardening D1, additive: the short customer-facing order reference.
+-- A pre-existing orders table gains the nullable column here (pre-launch, so
+-- there is nothing to backfill); IF NOT EXISTS makes it a no-op where the
+-- CREATE TABLE above already added it. The unique index is created separately
+-- because ADD COLUMN cannot carry a UNIQUE constraint idempotently.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS public_ref text;
+
+CREATE UNIQUE INDEX IF NOT EXISTS orders_public_ref_idx
+  ON orders (public_ref);
 `;

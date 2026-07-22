@@ -113,6 +113,22 @@ describe("POST /api/checkout", () => {
     expect(lines[0].artworkId).toBe(artworkId);
   });
 
+  it("sets a unique public reference on the created order", async () => {
+    const artworkId = await readyArtwork();
+    const res = await checkout(order([hoodieLine(artworkId)]));
+
+    expect(res.status).toBe(201);
+    const { orderId, publicRef } = await res.json();
+
+    // The response carries it, and it is the speakable KC-YYMM-XXXXX shape.
+    expect(publicRef).toMatch(/^KC-\d{4}-[A-Z2-9]{5}$/);
+
+    const db = await getDb();
+    const [row] = await db.select().from(orders).where(eq(orders.id, orderId));
+    // The row carries the same reference the customer was shown.
+    expect(row.publicRef).toBe(publicRef);
+  });
+
   it("ignores a tampered client price and charges the catalogue price", async () => {
     const artworkId = await readyArtwork();
     // A cart lives in the customer's own localStorage: assume it is hostile.

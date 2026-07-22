@@ -17,6 +17,7 @@ import {
   usingMockPayfast,
 } from "@/lib/payfast";
 import { signOrderToken } from "@/lib/order-token";
+import { generateUniquePublicRef } from "@/lib/order-ref";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -216,6 +217,24 @@ export async function POST(request: Request) {
   // choose, and it keeps the insert working across both drivers.
   const orderId = randomUUID();
 
+  // The short customer-facing reference, unique before we ever write it. The
+  // unique index on the column is the real backstop against a race; this loop
+  // keeps the ordinary path from reaching it. A failure to find a free ref is a
+  // sign the table is wedged, not a customer's fault, so it becomes the same
+  // "could not open your order" as any other write failure below.
+  let publicRef: string;
+  try {
+    publicRef = await generateUniquePublicRef(async (candidate) => {
+      const [taken] = await db
+        .select({ id: orders.id })
+        .from(orders)
+        .where(eq(orders.publicRef, candidate));
+      return taken !== undefined;
+    });
+  } catch {
+    return bad("We could not open your order. Please try again.", 500);
+  }
+
   try {
     await db.transaction(async (tx) => {
       await tx
@@ -223,6 +242,7 @@ export async function POST(request: Request) {
         .values({
           id: orderId,
           status: "pending",
+          publicRef,
           email: details.value.email,
           firstName: details.value.firstName,
           lastName: details.value.lastName,
@@ -295,6 +315,7 @@ export async function POST(request: Request) {
   return Response.json(
     {
       orderId,
+      publicRef: row.publicRef,
       totalZar: row.totalZar,
       mock,
       processUrl: payfastProcessUrl(),
