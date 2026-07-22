@@ -35,7 +35,7 @@ export function HowItWorks() {
               <Reveal
                 key={step.key}
                 delay={index * 0.1}
-                className="flex items-center gap-4 border-t border-line pt-5"
+                className="flex items-center gap-4 rounded-md border border-line bg-base p-5"
               >
                 <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-tint text-accent">
                   <Icon size={22} />
@@ -49,7 +49,7 @@ export function HowItWorks() {
         </div>
 
         <Reveal className="mt-10">
-          <Button href="/how-it-works" variant="ghost">
+          <Button href="/how-it-works" variant="secondary">
             See how it works
           </Button>
         </Reveal>

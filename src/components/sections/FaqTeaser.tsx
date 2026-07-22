@@ -26,7 +26,7 @@ export function FaqTeaser() {
           ))}
         </dl>
         <div className="mt-8">
-          <Button href="/faq" variant="ghost">
+          <Button href="/faq" variant="secondary">
             Read the FAQ
           </Button>
         </div>

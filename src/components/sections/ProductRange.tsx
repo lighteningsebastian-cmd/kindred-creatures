@@ -81,7 +81,7 @@ export function ProductRange() {
         </div>
 
         <Reveal className="mt-8">
-          <Button href="/shop" variant="ghost">
+          <Button href="/shop" variant="secondary">
             Shop the range
           </Button>
         </Reveal>
