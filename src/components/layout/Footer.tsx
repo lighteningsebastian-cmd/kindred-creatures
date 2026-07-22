@@ -14,6 +14,7 @@ const shopLinks = [
 ];
 
 const policyLinks = [
+  { href: "/order-lookup", label: "Find my order" },
   { href: "#", label: "Shipping & returns" },
   { href: "#", label: "Privacy" },
 ];

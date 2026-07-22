@@ -53,6 +53,12 @@ export interface AnalyticsEventMap {
   account_logged_in: Record<string, never>;
   /** A saved creature was re-ordered onto a product (subsystem B4). */
   creature_reordered: { product: string };
+  /**
+   * A self-service order lookup was attempted. outcome only, no reference and no
+   * email: whether a lookup hit is not PII, but the reference and address a
+   * person typed are, and neither may ever reach GA.
+   */
+  order_lookup: { outcome: "match" | "miss" };
 }
 
 export type AnalyticsEvent = keyof AnalyticsEventMap;
@@ -177,4 +183,12 @@ export function trackAccountLoggedIn(): void {
 
 export function trackCreatureReordered(input: { product: string }): void {
   track("creature_reordered", { product: input.product });
+}
+
+/**
+ * A self-service order lookup finished. outcome only: whether it hit, never the
+ * reference or email a person typed, both of which are theirs, not GA's.
+ */
+export function trackOrderLookup(input: { outcome: "match" | "miss" }): void {
+  track("order_lookup", { outcome: input.outcome });
 }
