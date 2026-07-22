@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Input } from "@/components/ui/Input";
+import { EmailSuggestion } from "@/components/ui/EmailSuggestion";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { formatZar, getProduct, type ProductSlug } from "@/lib/products";
 import {
@@ -430,6 +431,10 @@ export function CheckoutForm() {
                     value={values.email}
                     error={errors.email}
                     onChange={(event) => setField("email")(event.target.value)}
+                  />
+                  <EmailSuggestion
+                    email={values.email}
+                    onAccept={setField("email")}
                   />
                   <Input
                     label="Phone"

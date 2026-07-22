@@ -3,6 +3,7 @@
 import { useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { EmailSuggestion } from "@/components/ui/EmailSuggestion";
 import { trackNewsletterSignup } from "@/lib/analytics";
 
 /**
@@ -134,6 +135,7 @@ export function NewsletterSignup() {
             if (status.kind === "error") setStatus({ kind: "idle" });
           }}
         />
+        <EmailSuggestion email={email} onAccept={setEmail} />
         <Button
           type="submit"
           size="sm"

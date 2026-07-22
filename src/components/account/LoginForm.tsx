@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { EmailSuggestion } from "@/components/ui/EmailSuggestion";
 import { trackAccountLoginRequested } from "@/lib/analytics";
 
 type State = "idle" | "submitting" | "sent" | "error";
@@ -74,6 +75,7 @@ export function LoginForm({ expired }: { expired: boolean }) {
             : undefined
         }
       />
+      <EmailSuggestion email={email} onAccept={setEmail} />
       <Button type="submit" disabled={state === "submitting"}>
         {state === "submitting" ? "Sending the link" : "Email me a link"}
       </Button>
