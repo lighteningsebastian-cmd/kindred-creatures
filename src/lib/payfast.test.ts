@@ -202,6 +202,35 @@ describe("buildPaymentFields", () => {
     );
   });
 
+  it("puts the welcome token on the return_url and NOWHERE else", () => {
+    // The D3 security matrix: the one-time login rides the URL PayFast only
+    // sends a buyer to after payment. cancel_url must never carry it (backing
+    // out proves nothing about owning the email) and no other field may leak it.
+    const welcome = "d2VsY29tZS10b2tlbg";
+    const fields = buildPaymentFields(
+      { ...ORDER, welcomeToken: welcome },
+      CONFIG,
+    );
+
+    expect(fields.return_url).toBe(
+      `https://kindredcreature.co.za/order/${RETURN_TOKEN}?welcome=${welcome}`,
+    );
+    expect(fields.cancel_url).toBe(
+      "https://kindredcreature.co.za/checkout/cancelled",
+    );
+    for (const [key, value] of Object.entries(fields)) {
+      if (key === "return_url") continue;
+      expect(value).not.toContain(welcome);
+    }
+    // And the signature covers the URL it rides on.
+    expect(verifyItnSignature(fields)).toBe(true);
+  });
+
+  it("leaves the return_url bare when no welcome token is given", () => {
+    const fields = buildPaymentFields(ORDER, CONFIG);
+    expect(fields.return_url).not.toContain("welcome");
+  });
+
   it("signs a different amount differently", () => {
     const a = buildPaymentFields(ORDER, CONFIG);
     const b = buildPaymentFields({ ...ORDER, totalZar: 1 }, CONFIG);

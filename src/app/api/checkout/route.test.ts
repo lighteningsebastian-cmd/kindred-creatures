@@ -129,6 +129,36 @@ describe("POST /api/checkout", () => {
     expect(row.publicRef).toBe(publicRef);
   });
 
+  it("mints a one-time welcome login on the return_url, and only there", async () => {
+    const artworkId = await readyArtwork();
+    const res = await checkout(
+      order([hoodieLine(artworkId)], { email: "welcome.buyer@example.co.za" }),
+    );
+
+    expect(res.status).toBe(201);
+    const { fields } = await res.json();
+
+    // The return_url carries the one-time login...
+    const match = /\?welcome=([A-Za-z0-9_-]+)$/.exec(fields.return_url);
+    expect(match).not.toBeNull();
+    const raw = match![1];
+
+    // ...and nothing else does: not the cancel_url, not any other field. A
+    // buyer who backs out, or anyone reading the rest of the payload, holds
+    // no login.
+    expect(fields.cancel_url).not.toContain("welcome");
+    for (const [key, value] of Object.entries(fields)) {
+      if (key === "return_url") continue;
+      expect(String(value)).not.toContain(raw);
+    }
+
+    // The token is a real welcome token bound to the order's email.
+    const { consumeWelcomeToken } = await import(
+      "@/lib/account/login-tokens"
+    );
+    expect(await consumeWelcomeToken(raw)).toBe("welcome.buyer@example.co.za");
+  });
+
   it("ignores a tampered client price and charges the catalogue price", async () => {
     const artworkId = await readyArtwork();
     // A cart lives in the customer's own localStorage: assume it is hostile.

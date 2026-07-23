@@ -18,6 +18,7 @@ import {
 } from "@/lib/payfast";
 import { signOrderToken } from "@/lib/order-token";
 import { generateUniquePublicRef } from "@/lib/order-ref";
+import { issueWelcomeToken } from "@/lib/account/login-tokens";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -291,6 +292,20 @@ export async function POST(request: Request) {
     return bad("We could not open your order. Please try again.", 500);
   }
 
+  // The one-time welcome login token (D3): if the buyer pays and comes back,
+  // the return_url signs them straight into an account for this email. Minted
+  // here because paying against an address is the proof the address is theirs;
+  // the token only ever rides the return_url, which only PayFast sees and only
+  // after payment. Best-effort on purpose: a checkout must never fail because
+  // an auto-login could not be minted, so on any trouble the return_url is
+  // simply the bare status page.
+  let welcomeToken: string | undefined;
+  try {
+    welcomeToken = await issueWelcomeToken(row.email);
+  } catch {
+    welcomeToken = undefined;
+  }
+
   // The return URL carries a signed token for this order (S5). It is minted
   // here, on the one request that has already proven the caller is entitled to
   // this order, rather than handed out by a lookup endpoint later. The token
@@ -303,6 +318,7 @@ export async function POST(request: Request) {
     email: row.email,
     totalZar: row.totalZar,
     returnToken: signOrderToken(row.id),
+    welcomeToken,
   });
 
   // With no credentials (or MOCK_SERVICES on) the shop still runs end to end:

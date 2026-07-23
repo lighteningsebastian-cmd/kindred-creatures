@@ -206,6 +206,16 @@ export interface PaymentInput {
    * order-lookup endpoint keyed by an id that is already in this very form.
    */
   returnToken: string;
+  /**
+   * The one-time welcome login token (see lib/account/login-tokens, D3) that
+   * rides the return_url as `?welcome=<raw>` so a buyer coming back from
+   * PayFast lands already signed in. Optional: with none, the return_url is
+   * the bare status page and nothing else changes. It goes on the return_url
+   * ONLY. Never on cancel_url (someone who backed out has not proven the email
+   * is theirs by paying against it) and never in an emailed status link (the
+   * order-status token grants no login, ever).
+   */
+  welcomeToken?: string;
   itemName?: string;
 }
 
@@ -223,13 +233,19 @@ export function buildPaymentFields(
 ): Record<string, string> {
   const { siteUrl: site } = config;
 
+  // The customer comes back to their own order page. Both halves of the order
+  // token are uuid/base64url and the welcome token is base64url, so there is
+  // nothing here to percent-encode; the value is ours and it goes into the
+  // base string exactly as it goes into the URL. The welcome token rides this
+  // URL and no other: cancel_url stays bare by design.
+  const returnUrl = input.welcomeToken
+    ? `${site}/order/${input.returnToken}?welcome=${input.welcomeToken}`
+    : `${site}/order/${input.returnToken}`;
+
   const fields: Record<string, string> = {
     merchant_id: config.merchantId,
     merchant_key: config.merchantKey,
-    // The customer comes back to their own order page. Both halves of the token
-    // are uuid/base64url, so there is nothing here to percent-encode; the value
-    // is ours and it goes into the base string exactly as it goes into the URL.
-    return_url: `${site}/order/${input.returnToken}`,
+    return_url: returnUrl,
     cancel_url: `${site}/checkout/cancelled`,
     notify_url: `${site}/api/payfast/notify`,
     name_first: input.firstName,
