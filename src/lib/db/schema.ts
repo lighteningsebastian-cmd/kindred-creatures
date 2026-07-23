@@ -161,6 +161,14 @@ export const orders = pgTable("orders", {
   payfastPaymentId: text("payfast_payment_id"),
   // Set by fulfilment once the courier has a waybill.
   trackingNumber: text("tracking_number"),
+  // Set by the Resend delivery webhook (D4) when a mail about this order
+  // bounced. It is a signal to a human ("phone the customer; the number is on
+  // the order"), never a trigger for an automatic re-send: the address just
+  // proved it eats mail, and hammering it again only burns sender reputation.
+  // Deliberately NOT the `flagged` status: flagged is about money and print
+  // files, and a bounced receipt on a happily printing order must not make it
+  // look like one of those.
+  emailBouncedAt: timestamp("email_bounced_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -278,6 +286,64 @@ export const subscribers = pgTable("subscribers", {
 
 export type Subscriber = typeof subscribers.$inferSelect;
 export type NewSubscriber = typeof subscribers.$inferInsert;
+
+/** Which order mail a send was. The chip in admin is grouped by this. */
+export type OrderEmailKind = "confirmation" | "job-sheet" | "shipping";
+
+/**
+ * One order-related send, keyed by the provider's message id (D4). This is the
+ * join the delivery webhook needs: Resend reports "message X bounced", and this
+ * table answers "message X was order Y's confirmation". Written best-effort
+ * right after a successful send; a row that could not be written costs us the
+ * association for that one mail, never the send or the order (see
+ * lib/email/monitoring.ts). messageId is unique, which is also the idempotency:
+ * recording the same send twice is a no-op.
+ */
+export const orderEmails = pgTable("order_emails", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderId: uuid("order_id")
+    .notNull()
+    .references(() => orders.id),
+  kind: text("kind").$type<OrderEmailKind>().notNull(),
+  // Who the mail went to: the customer for confirmation/shipping, the print
+  // shop for a job sheet. Stored so a bounce can be read without re-deriving
+  // which address was in play at the time.
+  recipient: text("recipient").notNull(),
+  // The provider's id for the message, as returned by the transport.
+  messageId: text("message_id").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export type OrderEmail = typeof orderEmails.$inferSelect;
+export type NewOrderEmail = typeof orderEmails.$inferInsert;
+
+/** The delivery outcomes Resend tells us about that we act on. */
+export type EmailEventType = "delivered" | "bounced" | "complained";
+
+/**
+ * One delivery event from the Resend webhook (D4). orderId is resolved at
+ * write time via order_emails; null means the event was about mail we sent but
+ * never keyed to an order (a magic link, a newsletter welcome), which is still
+ * worth keeping. `raw` is the verified webhook payload verbatim, for the day a
+ * delivery dispute needs the provider's own words. One row per (message, type):
+ * Svix retries deliveries, and a retry must not double-record.
+ */
+export const emailEvents = pgTable("email_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  messageId: text("message_id").notNull(),
+  recipient: text("recipient").notNull(),
+  type: text("type").$type<EmailEventType>().notNull(),
+  orderId: uuid("order_id").references(() => orders.id),
+  receivedAt: timestamp("received_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  raw: text("raw").notNull(),
+});
+
+export type EmailEvent = typeof emailEvents.$inferSelect;
+export type NewEmailEvent = typeof emailEvents.$inferInsert;
 
 export type Order = typeof orders.$inferSelect;
 export type NewOrder = typeof orders.$inferInsert;
@@ -412,6 +478,36 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS public_ref text;
 CREATE UNIQUE INDEX IF NOT EXISTS orders_public_ref_idx
   ON orders (public_ref);
 
+CREATE TABLE IF NOT EXISTS order_emails (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id uuid NOT NULL REFERENCES orders(id),
+  kind text NOT NULL,
+  recipient text NOT NULL,
+  message_id text NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS order_emails_order_id_idx
+  ON order_emails (order_id, created_at);
+
+CREATE TABLE IF NOT EXISTS email_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id text NOT NULL,
+  recipient text NOT NULL,
+  type text NOT NULL,
+  order_id uuid REFERENCES orders(id),
+  received_at timestamptz NOT NULL DEFAULT now(),
+  raw text NOT NULL
+);
+
+-- Svix retries webhook deliveries until it gets a 2xx, so the same event can
+-- arrive more than once. One row per (message, type) makes the retry a no-op.
+CREATE UNIQUE INDEX IF NOT EXISTS email_events_message_type_idx
+  ON email_events (message_id, type);
+
+CREATE INDEX IF NOT EXISTS email_events_order_id_idx
+  ON email_events (order_id);
+
 -- Delivery-hardening D3, additive: login tokens gain a purpose so the one-time
 -- welcome token on the PayFast return_url shares the table (and the hashing,
 -- expiry and single-use machinery) with the emailed magic link without either
@@ -420,4 +516,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS orders_public_ref_idx
 -- TABLE above already added it.
 ALTER TABLE login_tokens
   ADD COLUMN IF NOT EXISTS purpose text NOT NULL DEFAULT 'magic-link';
+
+-- Delivery-hardening D4, additive: a pre-existing orders table gains the
+-- bounced-mail marker here. Nullable and set only by the Resend delivery
+-- webhook; IF NOT EXISTS makes it a no-op where the CREATE TABLE above
+-- already added it.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS email_bounced_at timestamptz;
 `;

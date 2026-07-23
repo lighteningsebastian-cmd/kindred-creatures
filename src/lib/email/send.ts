@@ -96,7 +96,11 @@ let mockCounter = 0;
  */
 export class MockEmailTransport implements EmailTransport {
   async send(message: EmailMessage): Promise<{ id: string }> {
-    const id = `mock-email-${++mockCounter}`;
+    // Unique across processes, not just within one: order_emails keys sends by
+    // message id, and the dev database outlives this counter. A bare counter
+    // would hand tomorrow's dev server the same "mock-email-1" as today's, and
+    // the second send would silently fail to record.
+    const id = `mock-email-${Date.now().toString(36)}-${++mockCounter}`;
     const reply = message.replyTo ? `\nReply-To: ${message.replyTo}` : "";
     const headerLines = message.headers
       ? Object.entries(message.headers).map(([key, value]) => `${key}: ${value}`)

@@ -56,6 +56,7 @@ import {
   orderRef,
   type EmailResult,
 } from "@/lib/email";
+import { recordOrderEmailSend } from "@/lib/email/monitoring";
 import { getImageProvider } from "@/lib/images";
 import { sniffImageExtension } from "@/lib/images/detect";
 import { getProduct, printPixels } from "@/lib/products";
@@ -388,6 +389,14 @@ export async function fulfillPaidOrder(
   // transition below: the print files exist, and losing them to a mailbox
   // outage would be the expensive mistake.
   const jobSheet = await sendJobSheet(order, printedItems);
+  // The delivery ledger (D4): keyed by the provider's message id so the Resend
+  // webhook can later say what became of it. Best-effort and never throws.
+  await recordOrderEmailSend(
+    orderId,
+    "job-sheet",
+    process.env.PRINT_SHOP_EMAIL?.trim() ?? "",
+    jobSheet,
+  );
   await record(
     db,
     orderId,
@@ -404,6 +413,7 @@ export async function fulfillPaidOrder(
   }
 
   const confirmation = await sendOrderConfirmation(order, items);
+  await recordOrderEmailSend(orderId, "confirmation", order.email, confirmation);
   await record(
     db,
     orderId,
@@ -475,6 +485,12 @@ export async function resendJobSheet(
   }
 
   const jobSheet = await sendJobSheet(order, items);
+  await recordOrderEmailSend(
+    orderId,
+    "job-sheet",
+    process.env.PRINT_SHOP_EMAIL?.trim() ?? "",
+    jobSheet,
+  );
   await record(
     db,
     orderId,

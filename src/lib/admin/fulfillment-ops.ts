@@ -27,6 +27,7 @@ import {
   type OrderStatus,
 } from "@/lib/db/schema";
 import { sendShippingNotification, type EmailResult } from "@/lib/email";
+import { recordOrderEmailSend } from "@/lib/email/monitoring";
 
 /**
  * The only transitions this shop performs by hand, as a table rather than as
@@ -141,6 +142,9 @@ export async function markShipped(
   await record(orderId, `admin: marked shipped, tracking ${tracking}`);
 
   const email = await sendShippingNotification(updated);
+  // The delivery ledger (D4): keyed by message id so the Resend webhook can
+  // later report what became of it. Best-effort; never blocks the ship.
+  await recordOrderEmailSend(orderId, "shipping", updated.email, email);
   await record(
     orderId,
     email.ok
