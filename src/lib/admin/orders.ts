@@ -36,6 +36,10 @@ import {
 } from "@/lib/db/schema";
 import { getProduct } from "@/lib/products";
 import { getStorage } from "@/lib/storage";
+import {
+  orderEmailSummary,
+  type OrderEmailSummary,
+} from "@/lib/email/monitoring";
 
 /** How long an artwork link on the dashboard stays good. One working session. */
 const ADMIN_LINK_TTL_SEC = 60 * 60;
@@ -113,6 +117,8 @@ export type OrderListRow = {
   totalZar: number;
   trackingNumber: string | null;
   concern: Concern | null;
+  /** True when a mail about this order bounced (D4). The fix is a phone call. */
+  emailBounced: boolean;
 };
 
 /**
@@ -154,6 +160,7 @@ export async function listAdminOrders(
     totalZar: order.totalZar,
     trackingNumber: order.trackingNumber,
     concern: concernFor(order),
+    emailBounced: order.emailBouncedAt !== null,
   }));
 }
 
@@ -171,6 +178,8 @@ export type AdminOrderDetail = {
   lines: AdminOrderLine[];
   events: FulfillmentEvent[];
   concern: Concern | null;
+  /** What became of the order's mail (D4): the chip plus per-send detail. */
+  emailSummary: OrderEmailSummary;
 };
 
 /**
@@ -236,7 +245,9 @@ export async function getAdminOrder(
     .where(eq(fulfillmentEvents.orderId, orderId))
     .orderBy(fulfillmentEvents.createdAt);
 
-  return { order, lines, events, concern: concernFor(order) };
+  const emailSummary = await orderEmailSummary(orderId);
+
+  return { order, lines, events, concern: concernFor(order), emailSummary };
 }
 
 /** True when every line has a print file, which is what a re-send needs. */

@@ -10,7 +10,14 @@ import {
   shortRef,
 } from "./orders";
 import { getDb } from "@/lib/db/client";
-import { artworks, orderItems, orders, type OrderStatus } from "@/lib/db/schema";
+import {
+  artworks,
+  emailEvents,
+  orderEmails,
+  orderItems,
+  orders,
+  type OrderStatus,
+} from "@/lib/db/schema";
 
 /**
  * The reading half of the dashboard, and mostly one question: does this screen
@@ -33,6 +40,7 @@ async function seedOrder(options: {
   createdAt?: Date;
   withPrintFile?: boolean;
   qty?: number;
+  emailBouncedAt?: Date;
 }): Promise<string> {
   const db = await getDb();
   const orderId = randomUUID();
@@ -54,6 +62,7 @@ async function seedOrder(options: {
       options.payfastPaymentId === undefined ? "1000001" : options.payfastPaymentId,
     trackingNumber: options.trackingNumber ?? null,
     ...(options.createdAt ? { createdAt: options.createdAt } : {}),
+    ...(options.emailBouncedAt ? { emailBouncedAt: options.emailBouncedAt } : {}),
     email: "thandi@example.co.za",
     firstName: "Thandi",
     lastName: "Mokoena",
@@ -222,6 +231,24 @@ describe("listAdminOrders", () => {
     expect(ids).not.toContain(shipped);
   });
 
+  it("includes a bounced-email order under the attention filter", async () => {
+    // Shipped and done by every lifecycle measure, and still in the queue:
+    // the customer's mail bounced, and only a human with a phone fixes that.
+    const bounced = await seedOrder({
+      status: "shipped",
+      trackingNumber: "TCG9",
+      emailBouncedAt: new Date(),
+    });
+
+    const rows = await listAdminOrders("attention");
+    const row = rows.find((r) => r.id === bounced);
+
+    expect(row).toBeDefined();
+    expect(row?.emailBounced).toBe(true);
+    // The lifecycle story is untouched: no concern was invented for it.
+    expect(row?.concern).toBeNull();
+  });
+
   it("shows everything under the all filter", async () => {
     const shipped = await seedOrder({ status: "shipped", trackingNumber: "TCG1" });
 
@@ -266,6 +293,37 @@ describe("getAdminOrder", () => {
     expect(detail!.order.id).toBe(id);
     expect(detail!.lines).toHaveLength(1);
     expect(detail!.concern).toBe("never-paid");
+  });
+
+  it("summarises the order's mail for the delivery panel", async () => {
+    const id = await seedOrder({ status: "sent_to_printer" });
+    const db = await getDb();
+    const messageId = `msg-${randomUUID()}`;
+    await db.insert(orderEmails).values({
+      orderId: id,
+      kind: "confirmation",
+      recipient: "thandi@example.co.za",
+      messageId,
+    });
+    await db.insert(emailEvents).values({
+      messageId,
+      recipient: "thandi@example.co.za",
+      type: "bounced",
+      orderId: id,
+      raw: "{}",
+    });
+
+    const detail = await getAdminOrder(id);
+
+    expect(detail!.emailSummary.status).toBe("bounced");
+    expect(detail!.emailSummary.sends).toHaveLength(1);
+    expect(detail!.emailSummary.sends[0].outcome).toBe("bounced");
+  });
+
+  it("summarises an order with no recorded mail as null, not a chip", async () => {
+    const id = await seedOrder({ status: "paid" });
+    const detail = await getAdminOrder(id);
+    expect(detail!.emailSummary).toEqual({ status: null, sends: [] });
   });
 
   it("signs the artwork preview rather than exposing a bare key", async () => {

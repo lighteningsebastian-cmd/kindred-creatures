@@ -12,6 +12,7 @@ import { getDb } from "@/lib/db/client";
 import {
   artworks,
   fulfillmentEvents,
+  orderEmails,
   orderItems,
   orders,
   type OrderStatus,
@@ -226,6 +227,35 @@ describe("fulfillPaidOrder: an order that goes through", () => {
     expect(sendJobSheetMock).toHaveBeenCalledTimes(1);
     expect(sendOrderConfirmationMock).toHaveBeenCalledTimes(1);
     expect((await readOrder(orderId)).status).toBe("sent_to_printer");
+  });
+
+  it("keys each sent mail to the order by its message id (D4)", async () => {
+    const jobId = `job-${randomUUID()}`;
+    const confId = `conf-${randomUUID()}`;
+    sendJobSheetMock.mockResolvedValue({ ok: true, id: jobId });
+    sendOrderConfirmationMock.mockResolvedValue({ ok: true, id: confId });
+    vi.stubEnv("PRINT_SHOP_EMAIL", "print@example.co.za");
+
+    const { orderId } = await orderWith(["hoodie"]);
+    await fulfillPaidOrder(orderId);
+
+    // The delivery ledger is what the Resend webhook joins on later: without
+    // these rows a bounce could never find its order.
+    const db = await getDb();
+    const sends = await db
+      .select()
+      .from(orderEmails)
+      .where(eq(orderEmails.orderId, orderId));
+    const byKind = new Map(sends.map((send) => [send.kind, send]));
+
+    expect(byKind.get("job-sheet")).toMatchObject({
+      messageId: jobId,
+      recipient: "print@example.co.za",
+    });
+    expect(byKind.get("confirmation")).toMatchObject({
+      messageId: confId,
+      recipient: "thandi@example.co.za",
+    });
   });
 
   it("hands the job sheet the order items with their print keys on them", async () => {

@@ -9,8 +9,10 @@ import {
 } from "@/lib/admin/orders";
 import { formatZar } from "@/lib/products";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { EmailStatusChip } from "@/components/admin/EmailStatusChip";
 import { OrderActions } from "@/components/admin/OrderActions";
-import type { FulfillmentEvent, Order } from "@/lib/db/schema";
+import type { FulfillmentEvent, Order, OrderEmailKind } from "@/lib/db/schema";
+import type { OrderEmailSummary } from "@/lib/email/monitoring";
 import { cn } from "@/lib/cn";
 
 export const runtime = "nodejs";
@@ -183,6 +185,90 @@ function Timeline({ events }: { events: FulfillmentEvent[] }) {
   );
 }
 
+/** What each order mail is called on screen. */
+const EMAIL_KIND_LABEL: Record<OrderEmailKind, string> = {
+  confirmation: "Order confirmation",
+  "job-sheet": "Job sheet",
+  shipping: "Shipping notification",
+};
+
+/**
+ * What became of the order's mail, next to the buttons that send more of it.
+ *
+ * The bounce advice leads with the phone number because that IS the procedure:
+ * the address just proved undeliverable, so re-sending to it is the one move
+ * this screen must talk the owner out of. The per-send list below answers the
+ * follow-up ("which mail, to whom, when") without opening Resend.
+ */
+function EmailDelivery({
+  order,
+  summary,
+}: {
+  order: Order;
+  summary: OrderEmailSummary;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <EmailStatusChip status={summary.status} />
+
+      {order.emailBouncedAt ? (
+        <div className="rounded-md border border-signal-error p-4">
+          <p className="eyebrow text-[11px] text-signal-error">
+            Phone the customer
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-ink">
+            A mail about this order bounced, so the customer may not know where
+            things stand. Give them a ring on{" "}
+            <a href={`tel:${order.phone}`} className="underline">
+              {order.phone}
+            </a>{" "}
+            and check the email address while you have them.
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-muted">
+            Do not re-send to the same address: it just proved undeliverable,
+            and repeat sends hurt our standing with every mailbox we deliver to.
+          </p>
+        </div>
+      ) : null}
+
+      {summary.sends.length === 0 ? (
+        <p className="text-sm text-muted">
+          No order mail recorded yet. Sends are logged here the moment they go.
+        </p>
+      ) : (
+        <ol className="flex flex-col gap-3">
+          {summary.sends.map((send) => (
+            <li key={send.id} className="text-xs">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium text-ink">
+                  {EMAIL_KIND_LABEL[send.kind]}
+                </span>
+                <span
+                  className={cn(
+                    send.outcome === "bounced" && "text-signal-error",
+                    send.outcome === "delivered" && "text-signal-success",
+                    send.outcome === "sent" && "text-muted",
+                  )}
+                >
+                  {send.outcome}
+                </span>
+              </div>
+              <p className="mt-1 break-all text-muted">{send.recipient}</p>
+              <p className="mt-1 text-muted">
+                {new Intl.DateTimeFormat("en-ZA", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                  hour12: false,
+                }).format(send.createdAt)}
+              </p>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 export default async function AdminOrderDetailPage({ params }: PageProps) {
   await requireAdmin();
 
@@ -190,7 +276,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
   const detail = await getAdminOrder(id);
   if (!detail) notFound();
 
-  const { order, lines, events, concern } = detail;
+  const { order, lines, events, concern, emailSummary } = detail;
 
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
@@ -254,6 +340,10 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
               concern={concern}
               canResendJobSheet={hasPrintFiles(lines)}
             />
+          </Panel>
+
+          <Panel title="Email delivery">
+            <EmailDelivery order={order} summary={emailSummary} />
           </Panel>
 
           <Panel title="Ship to">

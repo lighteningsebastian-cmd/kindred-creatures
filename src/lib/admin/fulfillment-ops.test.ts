@@ -6,6 +6,7 @@ import { markPrinted, markShipped, ALLOWED_FROM } from "./fulfillment-ops";
 import { getDb } from "@/lib/db/client";
 import {
   fulfillmentEvents,
+  orderEmails,
   orders,
   type OrderStatus,
 } from "@/lib/db/schema";
@@ -157,6 +158,22 @@ describe("markShipped", () => {
     const [notified] = sendShippingNotificationMock.mock.calls[0];
     expect(notified.trackingNumber).toBe("TCG123456789");
     expect(notified.status).toBe("shipped");
+  });
+
+  it("keys the shipping mail to the order by its message id (D4)", async () => {
+    const messageId = `ship-${randomUUID()}`;
+    sendShippingNotificationMock.mockResolvedValue({ ok: true, id: messageId });
+    const id = await orderAt("printed");
+
+    await markShipped(id, "TCG123456789");
+
+    const db = await getDb();
+    const sends = await db
+      .select()
+      .from(orderEmails)
+      .where(eq(orderEmails.orderId, id));
+    expect(sends).toHaveLength(1);
+    expect(sends[0]).toMatchObject({ kind: "shipping", messageId });
   });
 
   it("requires a tracking number", async () => {

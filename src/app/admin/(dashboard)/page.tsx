@@ -10,6 +10,7 @@ import {
 import { getSubscriberCounts } from "@/lib/admin/subscribers";
 import { formatZar } from "@/lib/products";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { EmailStatusChip } from "@/components/admin/EmailStatusChip";
 import { cn } from "@/lib/cn";
 
 export const runtime = "nodejs";
@@ -89,8 +90,14 @@ function OrderRow({ order }: { order: OrderListRow }) {
             up only as two badges on a phone. A wrapper with no display class of
             its own has nothing to lose the fight to.
           */}
-          <span className="md:hidden">
+          <span className="flex flex-wrap justify-end gap-1 md:hidden">
             <StatusBadge status={order.status} concern={order.concern} />
+            {/*
+              Only the bounced state earns a chip in the list: it is the one
+              email outcome that puts an order in this queue, and a routine
+              "sent" chip on every row would bury it.
+            */}
+            {order.emailBounced ? <EmailStatusChip status="bounced" /> : null}
           </span>
         </div>
 
@@ -101,8 +108,9 @@ function OrderRow({ order }: { order: OrderListRow }) {
           <p className="truncate text-xs text-muted">{order.email}</p>
         </div>
 
-        <span className="hidden md:inline">
+        <span className="hidden md:flex md:flex-wrap md:gap-1">
           <StatusBadge status={order.status} concern={order.concern} />
+          {order.emailBounced ? <EmailStatusChip status="bounced" /> : null}
         </span>
 
         <span className="text-xs text-muted md:text-right">
@@ -133,7 +141,8 @@ function Empty({ filter }: { filter: OrderFilter }) {
       <p className="mt-2 text-sm leading-relaxed text-muted">
         {filter === "attention" ? (
           <>
-            No flagged orders and nothing paid waiting on a print file.{" "}
+            No flagged orders, no bounced email, and nothing paid waiting on a
+            print file.{" "}
             <Link href="/admin?filter=all" className="text-accent underline">
               See all orders
             </Link>
