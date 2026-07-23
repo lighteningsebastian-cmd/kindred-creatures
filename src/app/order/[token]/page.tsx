@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
@@ -8,6 +8,7 @@ import { TrackPurchase } from "@/components/analytics/TrackPurchase";
 import { getDb } from "@/lib/db/client";
 import { orderItems, orders, type Order, type OrderStatus } from "@/lib/db/schema";
 import { verifyOrderToken } from "@/lib/order-token";
+import { getCustomer } from "@/lib/account/auth";
 import { formatZar, getProduct, type ProductSlug } from "@/lib/products";
 
 export const runtime = "nodejs";
@@ -22,6 +23,7 @@ export const metadata: Metadata = {
 
 type OrderPageProps = {
   params: Promise<{ token: string }>;
+  searchParams?: Promise<{ welcome?: string | string[] }>;
 };
 
 /**
@@ -167,8 +169,26 @@ function OrderSummary({ order, lines }: { order: Order; lines: Line[] }) {
  * webhook can have written it. A customer who pays and lands here before the
  * ITN does is told the truth: we have not heard yet.
  */
-export default async function OrderPage({ params }: OrderPageProps) {
+export default async function OrderPage({
+  params,
+  searchParams,
+}: OrderPageProps) {
   const { token } = await params;
+  const { welcome } = (searchParams ? await searchParams : {}) as {
+    welcome?: string | string[];
+  };
+
+  // A welcome parameter is the one-time auto-login minted at checkout and
+  // carried back on PayFast's return_url (D3). A cookie cannot be set while a
+  // server component renders, so the token is spent by a route handler that
+  // signs the buyer in (or silently does not) and lands right back here with
+  // the parameter gone. Valid or not, the page that then renders is this same
+  // page: the only difference a session makes is the account teaser below.
+  if (typeof welcome === "string" && welcome !== "") {
+    redirect(
+      `/api/account/welcome?token=${encodeURIComponent(welcome)}&order=${encodeURIComponent(token)}`,
+    );
+  }
 
   const orderId = verifyOrderToken(token);
   // A forged, edited or expired-secret token is simply not an order. Same 404
@@ -190,6 +210,12 @@ export default async function OrderPage({ params }: OrderPageProps) {
     .select()
     .from(orderItems)
     .where(eq(orderItems.orderId, order.id));
+
+  // The session, if the browser carries one: set moments ago by the welcome
+  // handler, or on any earlier sign-in. Read-only. This page never grants a
+  // login itself, and the order-status token in the URL is never enough to
+  // create one: anyone can hold this link, and holding it proves nothing.
+  const customer = await getCustomer();
 
   const view = PRESENTATION[order.status] ?? PRESENTATION.pending;
 
@@ -223,6 +249,24 @@ export default async function OrderPage({ params }: OrderPageProps) {
                 Shop the range
               </Button>
             </div>
+
+            {customer ? (
+              <div className="mt-4 w-full max-w-xl rounded-lg border border-line bg-surface p-6">
+                <p className="eyebrow text-xs text-accent">Your creatures</p>
+                <p className="mt-3 text-sm leading-relaxed text-muted">
+                  You are signed in as{" "}
+                  <span className="text-ink">{customer.email}</span>. Every
+                  portrait we draw for you is saved to your account, ready to
+                  wear again on a different garment whenever the mood takes
+                  you.
+                </p>
+                <div className="mt-4">
+                  <Button href="/account" size="md" variant="secondary">
+                    See your creatures
+                  </Button>
+                </div>
+              </div>
+            ) : null}
 
             <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
               Questions about this order? Reply to your confirmation email with
