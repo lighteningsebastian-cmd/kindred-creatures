@@ -76,11 +76,19 @@ export function concernFor(order: Pick<Order, "status" | "payfastPaymentId">): C
   return null;
 }
 
-/** True for the orders the "needs attention" filter shows. */
+/**
+ * True for the orders the "needs attention" filter shows.
+ *
+ * Wider than concernFor on purpose: a bounced order email (D4) needs a human
+ * too (the fix is a phone call, not a button), but it is deliberately NOT a
+ * Concern. Concern narrates the money/print lifecycle and drives which
+ * fulfilment buttons render; a bounce is orthogonal to both and an order can
+ * carry it alongside any concern without either masking the other.
+ */
 export function needsAttention(
-  order: Pick<Order, "status" | "payfastPaymentId">,
+  order: Pick<Order, "status" | "payfastPaymentId" | "emailBouncedAt">,
 ): boolean {
-  return concernFor(order) !== null;
+  return concernFor(order) !== null || order.emailBouncedAt !== null;
 }
 
 /** The short order reference the shop quotes. Matches the emails' orderRef. */

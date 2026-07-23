@@ -121,14 +121,49 @@ describe("concernFor: telling the two flags apart", () => {
 
 describe("needsAttention", () => {
   it("catches both kinds of flag and the unfulfilled paid order", () => {
-    expect(needsAttention({ status: "flagged", payfastPaymentId: null })).toBe(true);
-    expect(needsAttention({ status: "flagged", payfastPaymentId: "1" })).toBe(true);
-    expect(needsAttention({ status: "paid", payfastPaymentId: "1" })).toBe(true);
+    expect(
+      needsAttention({ status: "flagged", payfastPaymentId: null, emailBouncedAt: null }),
+    ).toBe(true);
+    expect(
+      needsAttention({ status: "flagged", payfastPaymentId: "1", emailBouncedAt: null }),
+    ).toBe(true);
+    expect(
+      needsAttention({ status: "paid", payfastPaymentId: "1", emailBouncedAt: null }),
+    ).toBe(true);
+  });
+
+  it("catches a bounced order email on any status: the fix is a phone call", () => {
+    expect(
+      needsAttention({
+        status: "shipped",
+        payfastPaymentId: "1",
+        emailBouncedAt: new Date(),
+      }),
+    ).toBe(true);
+    expect(
+      needsAttention({
+        status: "sent_to_printer",
+        payfastPaymentId: "1",
+        emailBouncedAt: new Date(),
+      }),
+    ).toBe(true);
+  });
+
+  it("a bounce is not a Concern: the lifecycle story stays untouched", () => {
+    // The bounce must never dress up as a money/print problem: concernFor
+    // keeps narrating the order exactly as before.
+    expect(
+      concernFor({ status: "sent_to_printer", payfastPaymentId: "1" }),
+    ).toBeNull();
   });
 
   it("ignores the orders that are simply in flight", () => {
-    expect(needsAttention({ status: "shipped", payfastPaymentId: "1" })).toBe(false);
-    expect(needsAttention({ status: "pending", payfastPaymentId: null })).toBe(false);
+    expect(
+      needsAttention({ status: "shipped", payfastPaymentId: "1", emailBouncedAt: null }),
+    ).toBe(false);
+    expect(
+      needsAttention({ status: "pending", payfastPaymentId: null, emailBouncedAt: null }),
+    ).toBe(false);
   });
 });
 
