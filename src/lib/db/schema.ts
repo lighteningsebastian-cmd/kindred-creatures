@@ -71,11 +71,20 @@ export type Customer = typeof customers.$inferSelect;
 export type NewCustomer = typeof customers.$inferInsert;
 
 /**
+ * What a login token is for. "magic-link" is the emailed sign-in link (B1);
+ * "welcome" is the one-time auto-login carried on the PayFast return_url (D3).
+ * The two are minted and spent by separate code paths and a token of one
+ * purpose can never be consumed as the other.
+ */
+export type LoginTokenPurpose = "magic-link" | "welcome";
+
+/**
  * A single-use magic-link token, at rest. The raw token is never stored: only
  * its SHA-256 hash lives here, so a leak of this table cannot be replayed into a
- * login. Rows are short-lived (expiresAt ~15 min) and single-use (usedAt flips
- * once, and a fresh request supersedes any earlier outstanding token for the
- * same email). `email` is the normalised address the link will sign in.
+ * login. Rows are short-lived (expiresAt ~15 min for a magic link, ~30 min for
+ * a welcome token) and single-use (usedAt flips once, and a fresh request
+ * supersedes any earlier outstanding token of the same purpose for the same
+ * email). `email` is the normalised address the token will sign in.
  */
 export const loginTokens = pgTable("login_tokens", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -84,6 +93,11 @@ export const loginTokens = pgTable("login_tokens", {
   email: text("email").notNull(),
   // SHA-256 hex of the raw token. The raw token exists only in the emailed link.
   tokenHash: text("token_hash").notNull(),
+  // Which flow this token belongs to. Consumption is purpose-scoped.
+  purpose: text("purpose")
+    .$type<LoginTokenPurpose>()
+    .notNull()
+    .default("magic-link"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   // Null until the link is followed; set once, which is what makes it single-use.
   usedAt: timestamp("used_at", { withTimezone: true }),
@@ -301,6 +315,7 @@ CREATE TABLE IF NOT EXISTS login_tokens (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email text NOT NULL,
   token_hash text NOT NULL,
+  purpose text NOT NULL DEFAULT 'magic-link',
   expires_at timestamptz NOT NULL,
   used_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
@@ -396,4 +411,13 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS public_ref text;
 
 CREATE UNIQUE INDEX IF NOT EXISTS orders_public_ref_idx
   ON orders (public_ref);
+
+-- Delivery-hardening D3, additive: login tokens gain a purpose so the one-time
+-- welcome token on the PayFast return_url shares the table (and the hashing,
+-- expiry and single-use machinery) with the emailed magic link without either
+-- being spendable as the other. The default backfills every pre-existing row
+-- as the magic link it was; IF NOT EXISTS makes this a no-op where the CREATE
+-- TABLE above already added it.
+ALTER TABLE login_tokens
+  ADD COLUMN IF NOT EXISTS purpose text NOT NULL DEFAULT 'magic-link';
 `;
