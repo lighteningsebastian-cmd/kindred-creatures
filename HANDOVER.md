@@ -84,15 +84,16 @@ em/en-dashes.
   `docs/superpowers/specs/`). One-click reorder works cross-product.
 - Delivery hardening D1 (public ref KC-YYMM-XXXXX + /order-lookup) and D2 (email
   typo-catcher on all email fields, "Paying as <email>" + Edit + pause on the PayFast
-  handoff, phone on the job sheet) — `docs/superpowers/plans/delivery-hardening-sections.md`.
+  handoff, phone on the job sheet) and D3 (auto-account + one-time welcome login on the
+  PayFast return_url only; ITN webhook find-or-creates + claims server-side; order-status
+  token still never logs in; token consume happens via `/api/account/welcome` redirect
+  because server components cannot set cookies) —
+  `docs/superpowers/plans/delivery-hardening-sections.md`.
 
 ## NEXT UP (in order)
-1. **D3 auto-account + auto-login on payment return** [pending]: full brief in
-   `delivery-hardening-sections.md`. Two agent attempts died on infra; the working tree
-   was reverted clean, so D3 starts fresh from the brief. The security matrix in the brief
-   is the contract (welcome token in return_url ONLY, order-status link never logs in).
-2. **D4 email delivery monitoring** [pending]: same file.
-3. Then (owner-prioritised backlog): retention C (reviews) and D (upsells) need specs
+1. **D4 email delivery monitoring** [pending]: full brief in
+   `delivery-hardening-sections.md`.
+2. Then (owner-prioritised backlog): retention C (reviews) and D (upsells) need specs
    first (`docs/design-tweaks.md` items 7-8 are blocked on the print partner:
    embroidery file format + a curated sayings range). Phase-A admin settings (price
    overrides, shipping knobs, announcement bar, product visibility) discussed and wanted
@@ -104,8 +105,8 @@ em/en-dashes.
   DB-backed files, re-runs pass. An owner-run background worktree was fixing isolation;
   check whether it merged. Never conclude a real failure from one cold run; never weaken
   a money-path assertion for a flake.
-- Two pre-existing lint warnings (`login-tokens.ts` unused `sql`, `welcome.ts` unused
-  `FONT_BODY`). Untracked owner files at repo root (`AI_PHOTO_SYSTEM.md`,
+- One pre-existing lint warning (`welcome.ts` unused `FONT_BODY`; the old `login-tokens.ts`
+  unused `sql` warning was cleared by the D3 rewrite). Untracked owner files at repo root (`AI_PHOTO_SYSTEM.md`,
   `CUSTOMER_JOURNEY_REDESIGN.md`): leave them alone.
 - Footer email is `hello@kindredcreatures.co.za` but the real domain is unconfirmed
   (`docs/design-tweaks.md` item 4).

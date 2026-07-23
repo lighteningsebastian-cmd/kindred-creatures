@@ -50,7 +50,7 @@ sequential; commit per chunk within sections. Every section: verify `npm run bui
   shows ref + email; job sheet contains phone.
 **Commit:** `feat: checkout email safety net and phone on job sheet`.
 
-## D3. Auto-account + auto-login on payment return  [pending]
+## D3. Auto-account + auto-login on payment return  [done]
 - At checkout creation: mint a SINGLE-USE, ~30-min, hashed-at-rest login token bound to the
   order's email (reuse `login_tokens` + issue/consume machinery from B1; a dedicated
   `purpose` column or a separate mint path if cleaner), append `?welcome=<raw>` to the
