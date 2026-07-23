@@ -68,7 +68,7 @@ sequential; commit per chunk within sections. Every section: verify `npm run bui
   still fine.
 **Commit:** `feat: auto account and one-time login on payment return`.
 
-## D4. Email delivery monitoring  [pending]
+## D4. Email delivery monitoring  [done]
 - `email_events` table (id, provider messageId, to, type delivered|bounced|complained,
   orderId nullable, receivedAt, raw) + DDL. Store the provider message id returned by the
   transport when sending order-related mail (confirmation, job sheet, shipping) keyed to

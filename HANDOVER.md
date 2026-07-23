@@ -87,13 +87,15 @@ em/en-dashes.
   handoff, phone on the job sheet) and D3 (auto-account + one-time welcome login on the
   PayFast return_url only; ITN webhook find-or-creates + claims server-side; order-status
   token still never logs in; token consume happens via `/api/account/welcome` redirect
-  because server components cannot set cookies) —
+  because server components cannot set cookies) and D4 (email delivery monitoring:
+  `email_events` + `order_emails` tables, Svix-verified `POST /api/webhooks/resend`
+  fails closed without `RESEND_WEBHOOK_SECRET`; bounce sets `orders.email_bounced_at`
+  (deliberately NOT `flagged`, which stays money/print-lifecycle only) + admin chip +
+  needs-attention; never auto-resend) —
   `docs/superpowers/plans/delivery-hardening-sections.md`.
 
-## NEXT UP (in order)
-1. **D4 email delivery monitoring** [pending]: full brief in
-   `delivery-hardening-sections.md`.
-2. Then (owner-prioritised backlog): retention C (reviews) and D (upsells) need specs
+## NEXT UP (owner-prioritised backlog; delivery hardening D1-D4 all done)
+Retention C (reviews) and D (upsells) need specs
    first (`docs/design-tweaks.md` items 7-8 are blocked on the print partner:
    embroidery file format + a curated sayings range). Phase-A admin settings (price
    overrides, shipping knobs, announcement bar, product visibility) discussed and wanted
