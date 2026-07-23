@@ -4,6 +4,10 @@ import { getDb, type Db } from "@/lib/db/client";
 import { orders, webhookEvents } from "@/lib/db/schema";
 import { fulfillPaidOrder } from "@/lib/fulfillment";
 import {
+  findOrCreateCustomer,
+  claimOrdersForCustomer,
+} from "@/lib/account/customers";
+import {
   payfastConfig,
   payfastValidateUrl,
   toAmountString,
@@ -381,6 +385,26 @@ export async function POST(request: Request) {
     body,
     paid ? "paid" : `not-pending:${row.status}`,
   );
+
+  // Auto-account on payment (D3): the buyer paid against this email, which is
+  // the same proof of ownership the magic link asks for, so the account exists
+  // from the moment the money clears even if they never return from PayFast.
+  // Server-side only: no cookie, no session, nothing leaves this process; the
+  // one-time welcome token on the return_url is the only thing that can turn
+  // this account into a signed-in browser. Best-effort by design: the order is
+  // durably paid above, and an account hiccup must never turn a cleared
+  // payment into a non-200 and a retry storm.
+  if (paid) {
+    try {
+      const customer = await findOrCreateCustomer(row.email);
+      await claimOrdersForCustomer(customer.id, row.email);
+    } catch (error) {
+      console.error(
+        `[payfast] could not attach an account to paid order ${row.id}; the payment stands and the claim reruns on the customer's next sign-in:`,
+        error,
+      );
+    }
+  }
 
   // Only the notification that actually paid the order fulfils it. A duplicate
   // never gets here (the unique key stops it) and a second, different

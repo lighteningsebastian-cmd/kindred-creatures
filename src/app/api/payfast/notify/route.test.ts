@@ -4,7 +4,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { POST as notify } from "./route";
 import { getDb } from "@/lib/db/client";
-import { orders, webhookEvents, type OrderStatus } from "@/lib/db/schema";
+import {
+  customers,
+  orders,
+  webhookEvents,
+  type OrderStatus,
+} from "@/lib/db/schema";
 import { buildSignature } from "@/lib/payfast";
 
 /**
@@ -54,13 +59,16 @@ afterEach(() => {
 });
 
 /** A pending order, written the way /api/checkout writes one. */
-async function pendingOrder(totalZar = TOTAL_ZAR): Promise<string> {
+async function pendingOrder(
+  totalZar = TOTAL_ZAR,
+  email = "thandi@example.co.za",
+): Promise<string> {
   const db = await getDb();
   const id = randomUUID();
   await db.insert(orders).values({
     id,
     status: "pending",
-    email: "thandi@example.co.za",
+    email,
     firstName: "Thandi",
     lastName: "Mokoena",
     phone: "082 123 4567",
@@ -545,5 +553,68 @@ describe("POST /api/payfast/notify: proving it came from PayFast", () => {
     const orderId = await pendingOrder();
     expect((await notify(post(itn(orderId)))).status).toBe(200);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/payfast/notify: the account behind a payment (D3)", () => {
+  async function customersFor(email: string) {
+    const db = await getDb();
+    return db.select().from(customers).where(eq(customers.email, email));
+  }
+
+  it("creates the customer and claims the order the moment payment clears", async () => {
+    // The buyer never returns from PayFast: the account must exist anyway.
+    const email = `itn.claim.${Date.now()}@example.co.za`;
+    const orderId = await pendingOrder(TOTAL_ZAR, email);
+
+    const response = await notify(post(itn(orderId)));
+    expect(response.status).toBe(200);
+
+    const found = await customersFor(email);
+    expect(found).toHaveLength(1);
+
+    const row = await readOrder(orderId);
+    expect(row.status).toBe("paid");
+    expect(row.customerId).toBe(found[0].id);
+  });
+
+  it("claims every unclaimed order for the email, onto one account", async () => {
+    const email = `itn.two.${Date.now()}@example.co.za`;
+    const first = await pendingOrder(TOTAL_ZAR, email);
+    const second = await pendingOrder(TOTAL_ZAR, email);
+
+    await notify(post(itn(first)));
+    await notify(post(itn(second)));
+
+    // Still one account.
+    const found = await customersFor(email);
+    expect(found).toHaveLength(1);
+    // Both orders belong to it.
+    expect((await readOrder(first)).customerId).toBe(found[0].id);
+    expect((await readOrder(second)).customerId).toBe(found[0].id);
+  });
+
+  it("creates no account for money that did not reconcile", async () => {
+    // An amount mismatch flags the order and proves nothing about the email.
+    const email = `itn.mismatch.${Date.now()}@example.co.za`;
+    const orderId = await pendingOrder(TOTAL_ZAR, email);
+
+    const response = await notify(
+      post(itn(orderId, { amount_gross: "1.00" })),
+    );
+    expect(response.status).toBe(200);
+
+    expect((await readOrder(orderId)).status).toBe("flagged");
+    expect(await customersFor(email)).toHaveLength(0);
+  });
+
+  it("creates no account for a payment that did not complete", async () => {
+    const email = `itn.failed.${Date.now()}@example.co.za`;
+    const orderId = await pendingOrder(TOTAL_ZAR, email);
+
+    await notify(post(itn(orderId, { payment_status: "FAILED" })));
+
+    expect((await readOrder(orderId)).status).toBe("pending");
+    expect(await customersFor(email)).toHaveLength(0);
   });
 });
