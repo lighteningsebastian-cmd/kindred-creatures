@@ -4,7 +4,10 @@ import { artworks } from "@/lib/db/schema";
 import { getStorage } from "@/lib/storage";
 import { getImageProvider } from "@/lib/images";
 import { isArtStyle } from "@/lib/images/provider";
-import { sniffImageExtension } from "@/lib/images/detect";
+import {
+  imageMimeForExtension,
+  sniffImageExtension,
+} from "@/lib/images/detect";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,7 +76,11 @@ export async function POST(request: Request) {
 
     const ext = sniffImageExtension(previewBytes);
     const previewKey = `previews/${artworkId}/${Date.now()}.${ext}`;
-    await getStorage().put(previewKey, previewBytes, `image/${ext}`);
+    await getStorage().put(
+      previewKey,
+      previewBytes,
+      imageMimeForExtension(ext),
+    );
 
     const nextCount = artwork.regenCount + 1;
     await db

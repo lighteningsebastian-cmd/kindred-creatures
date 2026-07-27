@@ -58,7 +58,10 @@ import {
 } from "@/lib/email";
 import { recordOrderEmailSend } from "@/lib/email/monitoring";
 import { getImageProvider } from "@/lib/images";
-import { sniffImageExtension } from "@/lib/images/detect";
+import {
+  imageMimeForExtension,
+  sniffImageExtension,
+} from "@/lib/images/detect";
 import { getProduct, printPixels } from "@/lib/products";
 import { getStorage } from "@/lib/storage";
 
@@ -233,7 +236,7 @@ async function generatePrintFile(
     // sharing one artwork must not share a storage path.
     const ext = sniffImageExtension(printBytes);
     const printKey = `prints/${orderItemId}/${Date.now()}.${ext}`;
-    await getStorage().put(printKey, printBytes, `image/${ext}`);
+    await getStorage().put(printKey, printBytes, imageMimeForExtension(ext));
 
     const claimed = await db
       .update(orderItems)
