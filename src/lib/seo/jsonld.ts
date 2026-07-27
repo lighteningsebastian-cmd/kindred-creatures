@@ -12,7 +12,6 @@
  * builder that reads them from wherever they actually live.
  */
 import type { FaqEntry } from "@/lib/content";
-import { DELIVERY_DAYS } from "@/lib/content";
 import type { Product, Variant } from "@/lib/products";
 import { fromPriceZar } from "@/lib/products";
 
@@ -86,10 +85,10 @@ export function buildOrganization(input: OrganizationInput): JsonLd {
     name: required(input.name, "name"),
     url: baseUrl,
     description:
-      "Custom pet portrait apparel. You send a photo of your pet, we turn it into portrait artwork, and we print it on a hoodie, tee, crewneck or tote in Cape Town.",
+      "Custom pet portrait apparel. You send a photo of your pet, we turn it into portrait artwork, and we print it on a hoodie, tee, crewneck or tote in Jeffreys Bay.",
     address: {
       "@type": "PostalAddress",
-      addressLocality: "Cape Town",
+      addressLocality: "Jeffreys Bay",
       addressCountry: "ZA",
     },
     areaServed: {
@@ -206,7 +205,7 @@ export function buildProduct(input: ProductJsonLdInput): JsonLd {
         deliveryTime: {
           "@type": "ShippingDeliveryTime",
           // Printing starts once the customer approves the portrait, so the
-          // five working days are the transit-and-handling window we promise
+          // 7 to 10 working days are the transit-and-handling window we promise
           // from that moment, not from checkout.
           handlingTime: {
             "@type": "QuantitativeValue",
@@ -216,8 +215,8 @@ export function buildProduct(input: ProductJsonLdInput): JsonLd {
           },
           transitTime: {
             "@type": "QuantitativeValue",
-            minValue: DELIVERY_DAYS,
-            maxValue: DELIVERY_DAYS,
+            minValue: 7,
+            maxValue: 10,
             unitCode: "DAY",
           },
         },
@@ -343,7 +342,7 @@ export function buildHowTo(input: HowToInput): JsonLd {
     "@type": "HowTo",
     name: required(input.name, "name"),
     description: required(input.description, "description"),
-    totalTime: `P${DELIVERY_DAYS}D`,
+    totalTime: "P10D",
     step: steps.map((step, index) => ({
       "@type": "HowToStep",
       position: index + 1,

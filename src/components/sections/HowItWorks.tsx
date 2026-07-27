@@ -25,12 +25,13 @@ export function HowItWorks() {
         <Reveal>
           <p className="eyebrow text-[11px] text-accent">How it works</p>
           <h2 className="mt-4 max-w-xl font-display text-3xl leading-[1.16] text-ink md:text-4xl">
-            From your camera roll to your wardrobe
+            From your favourite photo to something you keep
           </h2>
         </Reveal>
         <div className="mt-10 grid gap-4 sm:grid-cols-3">
           {HOW_IT_WORKS_STEPS.map((step, index) => {
             const Icon = stepIcon[step.key];
+            const number = String(index + 1).padStart(2, "0");
             return (
               <Reveal
                 key={step.key}
@@ -40,9 +41,20 @@ export function HowItWorks() {
                 <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-tint text-accent">
                   <Icon size={22} />
                 </span>
-                <h3 className="font-display text-lg leading-[1.2] text-ink">
-                  {step.title}
-                </h3>
+                <div className="flex flex-col gap-1">
+                  <span
+                    aria-hidden="true"
+                    className="eyebrow text-[11px] text-accent-secondary"
+                  >
+                    {number}
+                  </span>
+                  <h3 className="font-display text-lg leading-[1.2] text-ink">
+                    {step.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-muted">
+                    {step.body}
+                  </p>
+                </div>
               </Reveal>
             );
           })}
@@ -50,7 +62,7 @@ export function HowItWorks() {
 
         <Reveal className="mt-10">
           <Button href="/how-it-works" variant="secondary">
-            See how it works
+            See how it happens
           </Button>
         </Reveal>
       </Container>

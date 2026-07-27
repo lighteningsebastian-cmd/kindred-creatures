@@ -31,7 +31,7 @@ describe("buildOrganization", () => {
     expect(org.url).toBe(BASE);
     expect(org["@id"]).toBe(`${BASE}/#organization`);
     expect(org.address).toMatchObject({
-      addressLocality: "Cape Town",
+      addressLocality: "Jeffreys Bay",
       addressCountry: "ZA",
     });
     expect(org.contactPoint).toMatchObject({
@@ -158,7 +158,7 @@ describe("buildProduct", () => {
     }
   });
 
-  it("promises delivery to South Africa in the real five working days", () => {
+  it("promises delivery to South Africa in the real 7 to 10 working days", () => {
     const node = buildProduct({
       baseUrl: BASE,
       product: hoodie,
@@ -171,8 +171,8 @@ describe("buildProduct", () => {
     const transit = deliveryTime.transitTime as Record<string, unknown>;
 
     expect(destination.addressCountry).toBe("ZA");
-    expect(transit.minValue).toBe(5);
-    expect(transit.maxValue).toBe(5);
+    expect(transit.minValue).toBe(7);
+    expect(transit.maxValue).toBe(10);
     expect(transit.unitCode).toBe("DAY");
   });
 
@@ -324,8 +324,8 @@ describe("buildFaqPage", () => {
     const answers = FAQS.map((faq) => faq.answer.toLowerCase()).join(" ");
     // A person or a model reading the FAQ should be able to lift where we print
     // and how long it takes without going anywhere else.
-    expect(answers).toContain("cape town");
-    expect(answers).toContain("five working days");
+    expect(answers).toContain("jeffreys bay");
+    expect(answers).toContain("7 to 10 working days");
     expect(answers).toContain("hoodie");
   });
 
@@ -347,12 +347,12 @@ describe("buildHowTo", () => {
     const steps = node.step as Array<Record<string, unknown>>;
 
     expect(node["@type"]).toBe("HowTo");
-    expect(node.totalTime).toBe("P5D");
+    expect(node.totalTime).toBe("P10D");
     expect(steps).toHaveLength(3);
     expect(steps.map((step) => step.name)).toEqual([
-      "Upload",
-      "Approve",
-      "Unbox",
+      "Meet",
+      "Create",
+      "Celebrate",
     ]);
     expect(steps.map((step) => step.position)).toEqual([1, 2, 3]);
     expect(steps[0].text).toBe(HOW_IT_WORKS_STEPS[0].body);

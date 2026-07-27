@@ -42,7 +42,7 @@ export const FAQS: FaqEntry[] = [
   {
     question: "How long until it arrives?",
     answer:
-      "Five working days from the moment you approve the portrait. Every order is printed in Cape Town and couriered to your door, tracked the whole way.",
+      "Most orders reach you within 7 to 10 working days from the moment you approve the portrait. Everything is printed in Jeffreys Bay and couriered to your door, tracked the whole way.",
   },
 ];
 
@@ -58,18 +58,18 @@ export interface HowItWorksStep {
 export const HOW_IT_WORKS_STEPS: HowItWorksStep[] = [
   {
     key: "upload",
-    title: "Upload",
-    body: "Pick the photo that captures them best. Clear light and a good look at their face is all we need.",
+    title: "Meet",
+    body: "Introduce us to your best friend.",
   },
   {
     key: "approve",
-    title: "Approve",
-    body: "We send back portrait artwork for your yes before anything is printed.",
+    title: "Create",
+    body: "We craft a portrait worthy of them.",
   },
   {
     key: "unbox",
-    title: "Unbox",
-    body: "Your apparel arrives couriered to your door, ready to wear and hard to take off.",
+    title: "Celebrate",
+    body: "Wear them. Gift them. Treasure them.",
   },
 ];
 
@@ -86,6 +86,22 @@ export const ART_STYLE_DESCRIPTIONS: Record<ArtStyle, string> = {
   "line-sketch": "Clean single-line ink, quiet and modern.",
   watercolor: "Soft washes with a hand-painted feel.",
 };
+
+/**
+ * The delivery promise, stated once.
+ *
+ * Measured from approval, not from order, because the customer controls when
+ * they approve.
+ *
+ * IMPORTANT: this is a typical case, never a guarantee. Every surface must say
+ * "most orders" and "about", because the courier leg is not ours to promise and
+ * outlying areas run longer. A missed delivery promise costs a refund, a review
+ * and the referral behind it. Do not let this harden into "delivered in 5
+ * working days" anywhere.
+ */
+export const DELIVERY_DAYS = 5;
+/** "about five working days". The only phrasing of the promise anywhere. */
+export const DELIVERY_WINDOW = "about five working days";
 
 export type HowItWorksPageStepKey = "upload" | "draw" | "approve" | "ship";
 
@@ -108,25 +124,22 @@ export interface HowItWorksPageStep {
 export const HOW_IT_WORKS_PAGE_STEPS: HowItWorksPageStep[] = [
   {
     key: "upload",
-    title: "Upload a photo",
-    body: "Pick the one that captures them best. Good light and a clear look at their face is all we need, and you can send a spare if you are torn between two.",
+    title: "Share the photo that captures them best",
+    body: "Good light and a clear look at their face is all we need. If you are torn between two, send both and we will tell you which one will make the better portrait.",
   },
   {
     key: "draw",
-    title: "We draw the portrait",
-    body: "Your photo becomes artwork in the style you choose, hand-finished and framed with care so it looks like them, not like a filter.",
+    title: "We craft their portrait",
+    body: "Your photo becomes artwork in the style you choose, hand-finished and framed with care, so it looks like them and not like a filter.",
   },
   {
     key: "approve",
-    title: "You approve it",
-    body: "We send the portrait back for your yes, and nothing goes to the press until you give it. If the first pass is not quite them, we rework it until it is right.",
+    title: "You say yes, or you say not quite",
+    body: "The portrait comes back to you before anything is printed. If the first one is not quite them, we rework it until it is. Nothing reaches the press without your word.",
   },
   {
     key: "ship",
-    title: "We print and ship",
-    body: "Once you approve it, we print your piece in Cape Town, check it by hand and courier it to your door, tracked the whole way, in five working days.",
+    title: "We make it, and send it home",
+    body: `Your piece is made to order in Jeffreys Bay, finished and checked over by hand, then packed to travel. Most orders reach their door within ${DELIVERY_WINDOW}, tracked the whole way.`,
   },
 ];
-
-/** The delivery promise, stated once. Five working days, from approval. */
-export const DELIVERY_DAYS = 5;
