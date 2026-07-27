@@ -128,7 +128,7 @@ ${cell(`Customer email: ${escapeHtml(data.customerEmail)}`, `color:${COLORS.taup
     `Courier contact (phone): ${data.customerPhone}`,
     `Customer email: ${data.customerEmail}`,
     ``,
-    `Kindred Creatures · Cape Town, South Africa`,
+    `Kindred Creatures · Jeffreys Bay, South Africa`,
   ].join("\n");
 
   return {

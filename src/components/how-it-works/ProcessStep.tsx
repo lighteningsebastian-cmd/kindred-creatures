@@ -9,7 +9,7 @@ const stepShot: Record<HowItWorksPageStepKey, string> = {
   draw: "detail: an artist hand-finishing a pet portrait on a tablet, the reference photo pinned alongside, focused desk light",
   approve:
     "over-the-shoulder: someone smiling at the finished portrait on a laptop, an approval email open, soft window light",
-  ship: "detail: a printed kindred hoodie folded into kraft packaging with a courier label, Cape Town print studio, soft daylight",
+  ship: "detail: a printed kindred hoodie folded into kraft packaging with a courier label, Jeffreys Bay print studio, soft daylight",
 };
 
 /**

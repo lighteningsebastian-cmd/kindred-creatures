@@ -2,7 +2,6 @@ import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { AccentRule } from "@/components/ui/AccentRule";
 import { Reveal } from "@/components/motion/Reveal";
-import { DELIVERY_DAYS } from "@/lib/content";
 
 /**
  * Centered "start from a photo" band for people who have not decided on a piece
@@ -30,7 +29,7 @@ export function StartFromPhotoBand() {
             Start your portrait
           </Button>
           <p className="eyebrow text-[11px] text-muted">
-            Printed in Cape Town · Delivered in {DELIVERY_DAYS} working days
+            Printed in Jeffreys Bay · Delivered in 7 to 10 working days
           </p>
         </Reveal>
       </Container>

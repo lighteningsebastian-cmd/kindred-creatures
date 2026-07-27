@@ -21,10 +21,10 @@ export function CreaturesDemo() {
         <Container className="grid items-center gap-10 md:grid-cols-2">
           <div>
             <h2 className="font-display text-3xl font-semibold tracking-tight text-ink">
-              Printed and delivered in 5 working days
+              With you in about five working days
             </h2>
             <p className="mt-3 max-w-md text-muted">
-              Every order is printed in Cape Town and couriered to your door,
+              Every order is printed in Jeffreys Bay and couriered to your door,
               carried the last stretch with great ceremony.
             </p>
           </div>

@@ -64,7 +64,7 @@ function totalRow(label: string, value: string, strong = false): string {
 /**
  * The first thing a customer gets after paying. It has one job beyond the
  * receipt: tell them what happens now, because they have just paid for a thing
- * that does not exist yet and five working days of silence is where the support
+ * that does not exist yet and a week or more of silence is where the support
  * mail comes from.
  */
 export function orderConfirmationEmail(
@@ -90,7 +90,7 @@ ${totalRow("Total paid", formatZar(data.totalZar), true)}
     divider(),
     eyebrow("What happens next"),
     paragraph(
-      "Your portrait goes to our print shop in Cape Town, who print it by hand onto your garment. Allow about five working days for printing and courier. When it leaves the shop we will send you the tracking number so you can watch it come to you.",
+      "Your portrait goes to our print shop in Jeffreys Bay, who print it by hand onto your garment. Allow 7 to 10 working days for printing and courier. When it leaves the shop we will send you the tracking number so you can watch it come to you.",
     ),
     paragraph(
       "You can check on your order any time using the link below. Keep it somewhere safe: it is the key to your order page.",
@@ -115,8 +115,8 @@ ${totalRow("Total paid", formatZar(data.totalZar), true)}
     `Total paid: ${formatZar(data.totalZar)}`,
     ``,
     `WHAT HAPPENS NEXT`,
-    `Your portrait goes to our print shop in Cape Town, who print it by hand`,
-    `onto your garment. Allow about five working days for printing and courier.`,
+    `Your portrait goes to our print shop in Jeffreys Bay, who print it by hand`,
+    `onto your garment. Allow 7 to 10 working days for printing and courier.`,
     `When it leaves the shop we will send you the tracking number.`,
     ``,
     `Check on your order any time:`,
@@ -124,7 +124,7 @@ ${totalRow("Total paid", formatZar(data.totalZar), true)}
     ``,
     `Anything at all, just reply to this mail and a person will answer.`,
     ``,
-    `Kindred Creatures · Cape Town, South Africa`,
+    `Kindred Creatures · Jeffreys Bay, South Africa`,
   ].join("\n");
 
   return {

@@ -10,7 +10,7 @@ import { buildItemList } from "@/lib/seo/jsonld";
 import { BRAND_NAME, siteUrl } from "@/lib/seo/site";
 
 const title = "Shop the range";
-const description = `The full ${BRAND_NAME} range: a hoodie, a tee, a crewneck and a tote, each printed in Cape Town with your pet's portrait. Personalise the one you will reach for most.`;
+const description = `The full ${BRAND_NAME} range: a hoodie, a tee, a crewneck and a tote, each printed in Jeffreys Bay with your pet's portrait. Personalise the one you will reach for most.`;
 
 export const metadata: Metadata = {
   title,

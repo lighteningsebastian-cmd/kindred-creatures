@@ -47,13 +47,13 @@ const PRESENTATION: Record<OrderStatus, Presentation> = {
   paid: {
     eyebrow: "Payment confirmed",
     heading: "Thank you. Your creature is off to be printed.",
-    body: "PayFast has confirmed your payment, so your portrait is on its way to our print shop in Cape Town. We print, check it over by hand, and courier it to you within 5 working days. Your tracking number lands in your inbox the moment the courier has it.",
+    body: "PayFast has confirmed your payment, so your portrait is on its way to our print shop in Jeffreys Bay. We print, check it over by hand, and courier it to you within 7 to 10 working days. Your tracking number lands in your inbox the moment the courier has it.",
     confirmed: true,
   },
   sent_to_printer: {
     eyebrow: "At the print shop",
     heading: "Your portrait is on the press.",
-    body: "Your payment is settled and your portrait is with our print shop in Cape Town. Once it is printed and checked over, it goes straight to the courier, and your tracking number follows by email.",
+    body: "Your payment is settled and your portrait is with our print shop in Jeffreys Bay. Once it is printed and checked over, it goes straight to the courier, and your tracking number follows by email.",
     confirmed: true,
   },
   printed: {

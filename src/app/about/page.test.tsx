@@ -19,10 +19,12 @@ describe("about page content", () => {
       screen.getByRole("heading", { level: 1 }),
     ).toBeInTheDocument();
 
-    // The load-bearing, honest facts: Cape Town printing and approval-first.
-    expect(screen.getByText(/Printed in Cape Town/)).toBeInTheDocument();
+    // The load-bearing, honest facts: Jeffreys Bay printing and approval-first.
+    expect(screen.getByText(/Printed in Jeffreys Bay/)).toBeInTheDocument();
     expect(
-      screen.getByText(/couriered anywhere in South Africa in 5 working days/),
+      screen.getByText(
+        /couriered anywhere in South Africa within 7 to 10 working days/,
+      ),
     ).toBeInTheDocument();
 
     // The hero photo slot is a hatched PhotoFrame placeholder pending the real

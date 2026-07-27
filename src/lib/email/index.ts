@@ -92,7 +92,7 @@ export function unsubscribeUrl(email: string): string {
 export function senderIdentity(): string {
   return (
     process.env.NEWSLETTER_SENDER_IDENTITY?.trim() ||
-    `Kindred Creatures, Cape Town, South Africa. Reach a human at ${emailReplyTo()}.`
+    `Kindred Creatures, Jeffreys Bay, South Africa. Reach a human at ${emailReplyTo()}.`
   );
 }
 

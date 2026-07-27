@@ -156,7 +156,7 @@ ${body}
       <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
         <tr>
           <td align="center" style="padding:16px 32px 0 32px;font-family:${FONT_BODY};font-size:12.5px;line-height:1.5;color:${COLORS.taupe500};">
-            ${footer ?? "Kindred Creatures · Cape Town, South Africa"}
+            ${footer ?? "Kindred Creatures · Jeffreys Bay, South Africa"}
           </td>
         </tr>
       </table>

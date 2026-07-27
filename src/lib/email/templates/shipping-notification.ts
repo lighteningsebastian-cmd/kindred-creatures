@@ -32,7 +32,7 @@ export function shippingNotificationEmail(
   const body = [
     heading("Your order is on its way."),
     paragraph(
-      `Hi ${escapeHtml(data.firstName)}, your order ${escapeHtml(data.orderRef)} left our Cape Town print shop today and is with the courier.`,
+      `Hi ${escapeHtml(data.firstName)}, your order ${escapeHtml(data.orderRef)} left our Jeffreys Bay print shop today and is with the courier.`,
     ),
     eyebrow("Tracking number"),
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px 0;">
@@ -55,7 +55,7 @@ export function shippingNotificationEmail(
   const text = [
     `Your order is on its way.`,
     ``,
-    `Hi ${data.firstName}, your order ${data.orderRef} left our Cape Town`,
+    `Hi ${data.firstName}, your order ${data.orderRef} left our Jeffreys Bay`,
     `print shop today and is with the courier.`,
     ``,
     `TRACKING NUMBER: ${data.trackingNumber}`,
@@ -69,7 +69,7 @@ export function shippingNotificationEmail(
     ``,
     `Reply to this mail if anything is not right and a person will sort it out.`,
     ``,
-    `Kindred Creatures · Cape Town, South Africa`,
+    `Kindred Creatures · Jeffreys Bay, South Africa`,
   ].join("\n");
 
   return {

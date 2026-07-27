@@ -3,11 +3,10 @@ import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { PhotoFrame } from "@/components/ui/PhotoFrame";
 import { Reveal } from "@/components/motion/Reveal";
-import { DELIVERY_DAYS } from "@/lib/content";
 import { BRAND_NAME } from "@/lib/seo/site";
 
 const title = "Our story";
-const description = `Why ${BRAND_NAME} makes portraits of the animals people love, hand-finished from your own photo and printed in Cape Town. The care behind every piece, and the approval step that means you only ever wear a portrait you love.`;
+const description = `Why ${BRAND_NAME} makes portraits of the animals people love, hand-finished from your own photo and printed in Jeffreys Bay. The care behind every piece, and the approval step that means you only ever wear a portrait you love.`;
 
 export const metadata: Metadata = {
   title,
@@ -47,10 +46,10 @@ const threads: Thread[] = [
     ],
   },
   {
-    heading: "Printed in Cape Town",
+    heading: "Printed in Jeffreys Bay",
     body: [
-      "We hold no stock and print nothing until your portrait is approved. When it is, it goes to a print shop in Cape Town that treats each garment as a single piece of work: printed, checked over by hand, and packed to travel.",
-      `From your yes, it is couriered anywhere in South Africa in ${DELIVERY_DAYS} working days, tracked the whole way, so you always know where your creature has got to.`,
+      "We hold no stock and print nothing until your portrait is approved. When it is, it goes to a print shop in Jeffreys Bay that treats each garment as a single piece of work: printed, checked over by hand, and packed to travel.",
+      "From your yes, it is couriered anywhere in South Africa within 7 to 10 working days, tracked the whole way, so you always know where your creature has got to.",
     ],
   },
   {
@@ -82,7 +81,7 @@ export default function AboutPage() {
                 <p className="max-w-md text-lg leading-relaxed text-muted">
                   {BRAND_NAME} turns your own photo of your pet into
                   hand-finished portrait artwork, printed on a hoodie, tee,
-                  crewneck or tote in Cape Town. One craft, done with care.
+                  crewneck or tote in Jeffreys Bay. One craft, done with care.
                 </p>
               </Reveal>
               <Reveal delay={0.15}>

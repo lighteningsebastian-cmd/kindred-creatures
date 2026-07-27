@@ -37,7 +37,7 @@ export function generateStaticParams() {
  * here is bare.
  */
 function productDescription(product: Product): string {
-  return `${product.name}, printed with a portrait made from your own photo of your pet. Printed in Cape Town and couriered to your door in 5 working days. From ${formatZar(fromPriceZar(product))}.`;
+  return `${product.name}, printed with a portrait made from your own photo of your pet. Printed in Jeffreys Bay and couriered to your door within 7 to 10 working days. From ${formatZar(fromPriceZar(product))}.`;
 }
 
 export async function generateMetadata({
@@ -83,7 +83,7 @@ export async function generateMetadata({
 const portraitSteps = [
   "Upload a favourite photo of your pet, no studio shoot required.",
   "We hand-finish it into portrait artwork and send it for your approval.",
-  "Once you say yes, we print and courier it, ready in 5 working days.",
+  "Once you say yes, we print it, check it over and send it on its way.",
 ];
 
 const goodToKnow = [
@@ -151,8 +151,9 @@ export default async function ProductPage({
             </h2>
             {/* PLACEHOLDER: R 99 flat courier rate pending logistics confirmation. */}
             <p className="max-w-md leading-relaxed text-muted">
-              Printed in Cape Town and couriered anywhere in South Africa in 5
-              working days, tracked the whole way, for a flat R 99.
+              Printed in Jeffreys Bay and couriered anywhere in South Africa
+              within 7 to 10 working days, tracked the whole way, for a flat R
+              99.
             </p>
           </div>
         </div>

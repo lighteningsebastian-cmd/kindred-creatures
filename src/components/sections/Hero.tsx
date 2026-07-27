@@ -22,7 +22,7 @@ export function Hero() {
           </h1>
           <p className="max-w-md text-lg leading-relaxed text-muted">
             Upload a favourite photo. We draw a hand-finished portrait and print
-            it on a hoodie in Cape Town.
+            it on a hoodie in Jeffreys Bay.
           </p>
           <div className="mt-2 flex flex-wrap gap-3">
             <Button href="/products/hoodie" block>

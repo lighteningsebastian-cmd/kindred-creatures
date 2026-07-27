@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     template: `%s | ${BRAND_NAME}`,
   },
   description:
-    "Send us a photo of your dog, cat, or whoever you love most. We turn it into portrait artwork, print it on a hoodie, tee, crewneck or tote in Cape Town, and courier it to you in 5 working days.",
+    "Send us a photo of your dog, cat, or whoever you love most. We turn it into portrait artwork, print it on a hoodie, tee, crewneck or tote in Jeffreys Bay, and courier it to you within 7 to 10 working days.",
   applicationName: BRAND_NAME,
   openGraph: {
     type: "website",
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     url: "/",
     title: `${BRAND_NAME} · Custom pet portrait apparel, printed in South Africa`,
     description:
-      "Upload a photo of your pet. We turn it into portrait artwork and print it on a hoodie, tee, crewneck or tote in Cape Town, couriered to you in 5 working days.",
+      "Upload a photo of your pet. We turn it into portrait artwork and print it on a hoodie, tee, crewneck or tote in Jeffreys Bay, couriered to you within 7 to 10 working days.",
     // No OG image: real brand photography does not exist yet (the site renders
     // hatched PhotoFrame placeholders). A text share card is honest; restore the
     // image here when the shoot lands.
@@ -65,7 +65,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: `${BRAND_NAME} · Custom pet portrait apparel, printed in South Africa`,
     description:
-      "Upload a photo of your pet. We turn it into portrait artwork and print it on a hoodie, tee, crewneck or tote in Cape Town, couriered to you in 5 working days.",
+      "Upload a photo of your pet. We turn it into portrait artwork and print it on a hoodie, tee, crewneck or tote in Jeffreys Bay, couriered to you within 7 to 10 working days.",
   },
   robots: { index: true, follow: true },
 };

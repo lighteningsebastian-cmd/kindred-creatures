@@ -34,8 +34,8 @@ describe("GET /llms.txt", () => {
 
   it("says where we print and how long delivery takes", async () => {
     const { text } = await read();
-    expect(text).toContain("Cape Town");
-    expect(text).toContain("5 working days");
+    expect(text).toContain("Jeffreys Bay");
+    expect(text).toContain("7 to 10 working days");
     expect(text).toContain("South Africa");
   });
 
@@ -51,7 +51,7 @@ describe("GET /llms.txt", () => {
   it("states the real shipping rule", async () => {
     const { text } = await read();
     expect(text).toContain("R 99");
-    expect(text).toContain("R 750");
+    expect(text).toContain("R 1 000");
   });
 
   it("links to the homepage and every product page", async () => {

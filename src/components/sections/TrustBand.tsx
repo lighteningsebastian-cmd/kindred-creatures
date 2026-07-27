@@ -1,7 +1,6 @@
 import { SealCheck, MapPin, Truck } from "@phosphor-icons/react/dist/ssr";
 import { Container } from "@/components/ui/Container";
 import { cn } from "@/lib/cn";
-import { DELIVERY_DAYS } from "@/lib/content";
 
 /**
  * A slim proof strip that sits directly under the hero: the three plainest
@@ -11,8 +10,8 @@ import { DELIVERY_DAYS } from "@/lib/content";
  */
 const beats = [
   { Icon: SealCheck, text: "You approve before we print" },
-  { Icon: MapPin, text: "Printed in Cape Town" },
-  { Icon: Truck, text: `Delivered in ${DELIVERY_DAYS} working days` },
+  { Icon: MapPin, text: "Printed in Jeffreys Bay" },
+  { Icon: Truck, text: "Delivered in 7 to 10 working days" },
 ];
 
 export function TrustBand() {

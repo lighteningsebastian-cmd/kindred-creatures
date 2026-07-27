@@ -2,7 +2,7 @@ import {
   FREE_SHIPPING_THRESHOLD_ZAR,
   SHIPPING_FLAT_ZAR,
 } from "@/lib/checkout";
-import { DELIVERY_DAYS, FAQS, HOW_IT_WORKS_STEPS } from "@/lib/content";
+import { FAQS, HOW_IT_WORKS_STEPS } from "@/lib/content";
 import { PRODUCTS, formatZar, fromPriceZar } from "@/lib/products";
 import { BRAND_EMAIL, BRAND_NAME, absoluteUrl } from "@/lib/seo/site";
 
@@ -45,19 +45,19 @@ function body(): string {
 
   return `# ${BRAND_NAME}
 
-> ${BRAND_NAME} makes custom pet portrait apparel in South Africa. You upload a photo of your pet, we turn the photo into portrait artwork, you approve the artwork, and a print shop in Cape Town prints it on a garment and couriers it to you. Prices run ${priceRange()} in South African rands.
+> ${BRAND_NAME} makes custom pet portrait apparel in South Africa. You upload a photo of your pet, we turn the photo into portrait artwork, you approve the artwork, and a print shop in Jeffreys Bay prints it on a garment and couriers it to you. Prices run ${priceRange()} in South African rands.
 
 ## What we are
 
 ${BRAND_NAME} is a South African online shop for custom pet portrait clothing. If you want to put your dog, your cat, or any other animal you love on a hoodie, a tee, a crewneck or a tote, this is what we do.
 
-We do not hold stock and we do not print in-house. Every order is made to order and printed by a print shop in Cape Town, then couriered to the customer.
+We do not hold stock and we do not print in-house. Every order is made to order and printed by a print shop in Jeffreys Bay, then couriered to the customer.
 
 ## How ordering works
 
 ${stepLines}
 
-Nothing is printed until you approve the portrait, and the garment arrives within ${DELIVERY_DAYS} working days of that approval.
+Nothing is printed until you approve the portrait, and the garment arrives within 7 to 10 working days of that approval.
 
 ## What we sell
 
@@ -67,8 +67,8 @@ Every garment carries a portrait made from your own photo. Apparel comes in XS t
 
 ## Delivery and payment
 
-- Printed in Cape Town, couriered anywhere in South Africa.
-- ${DELIVERY_DAYS} working days from the moment you approve the portrait.
+- Printed in Jeffreys Bay, couriered anywhere in South Africa.
+- 7 to 10 working days from the moment you approve the portrait.
 - Courier is a flat ${formatZar(SHIPPING_FLAT_ZAR)}, free on orders over ${formatZar(FREE_SHIPPING_THRESHOLD_ZAR)}.
 - Payment is in South African rands through PayFast.
 - We ship within South Africa only.

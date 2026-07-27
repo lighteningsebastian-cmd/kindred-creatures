@@ -112,8 +112,8 @@ describe("the order page: what it says", () => {
     const html = await renderToken(signOrderToken(await orderWithStatus("paid")));
 
     expect(html).toContain("Payment confirmed");
-    expect(html).toMatch(/Cape Town/);
-    expect(html).toMatch(/5 working days/);
+    expect(html).toMatch(/Jeffreys Bay/);
+    expect(html).toMatch(/7 to 10 working days/);
   });
 
   it("does not claim success on an order PayFast has not confirmed", async () => {

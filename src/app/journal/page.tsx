@@ -5,7 +5,7 @@ import { Reveal } from "@/components/motion/Reveal";
 import { BRAND_NAME } from "@/lib/seo/site";
 
 const title = "Journal";
-const description = `The ${BRAND_NAME} journal: notes on the creatures we have drawn, how a good portrait happens, and life at a small Cape Town print operation. New, and filling up soon.`;
+const description = `The ${BRAND_NAME} journal: notes on the creatures we have drawn, how a good portrait happens, and life at a small Jeffreys Bay print operation. New, and filling up soon.`;
 
 export const metadata: Metadata = {
   title,
@@ -49,7 +49,7 @@ export default function JournalPage() {
             <p className="max-w-xl text-lg leading-relaxed text-muted">
               This is where we will write about the creatures we have drawn,
               what makes a portrait feel like the real thing, and the small
-              details of printing apparel by hand in Cape Town. We are only just
+              details of printing apparel by hand in Jeffreys Bay. We are only just
               starting, so there is nothing here yet. That will change.
             </p>
           </Reveal>

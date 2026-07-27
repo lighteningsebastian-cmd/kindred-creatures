@@ -27,7 +27,7 @@ export default function Home() {
     buildHowTo({
       name: "How to put your pet's portrait on a hoodie, tee, crewneck or tote",
       description:
-        "Upload a photo of your pet, approve the portrait artwork we send back, and we print it in Cape Town and courier it to your door.",
+        "Upload a photo of your pet, approve the portrait artwork we send back, and we print it in Jeffreys Bay and courier it to your door.",
       steps: HOW_IT_WORKS_STEPS,
     }),
   ];

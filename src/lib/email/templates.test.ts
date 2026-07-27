@@ -109,8 +109,8 @@ describe("order confirmation", () => {
   });
 
   it("tells the customer what happens next", () => {
-    expect(rendered.text).toContain("Cape Town");
-    expect(rendered.text).toContain("five working days");
+    expect(rendered.text).toContain("Jeffreys Bay");
+    expect(rendered.text).toContain("7 to 10 working days");
     expect(rendered.text).toContain("tracking number");
   });
 
