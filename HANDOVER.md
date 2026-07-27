@@ -2,8 +2,12 @@
 
 Premium South African e-commerce for custom pet-portrait apparel. Customer uploads a pet
 photo -> AI draws a portrait (framed as "our portrait process", NEVER "AI-generated" in
-copy) -> printed on hoodie/tee/crewneck/tote by a Cape Town print shop -> couriered in 5
-working days. ZAR, PayFast. No stock held; fulfilment is job-sheet emails to the printer.
+copy) -> printed on hoodie/tee/crewneck/tote by a Jeffreys Bay print shop -> couriered in
+7 to 10 working days. ZAR, PayFast. No stock held; fulfilment is job-sheet emails to the
+printer. (Copy pass 27 Jul 2026: location is Jeffreys Bay by name, suppliers never named
+on customer surfaces; delivery promise is the wide "7 to 10 working days" on transactional
+surfaces and "about five working days" only on the how-it-works flow + DeliveryPromise,
+via `DELIVERY_WINDOW` in `src/lib/content.ts`; free shipping threshold is R1000.)
 
 ## Operating model (how this project is run)
 - The assistant acts as PM; implementation is dispatched to Opus subagents, ONE at a time
@@ -41,7 +45,7 @@ credential; add env vars to `.env.example`.
   an order paid: signature + server-confirmation postback + merchant id + amount vs the DB
   row; idempotent via UNIQUE `webhook_events.payfastPaymentId`; admin has NO mark-paid.
 - Checkout re-derives every price server-side from `src/lib/products.ts`; client prices
-  are never trusted. Shipping: flat R99, free >= R750 (matches the utility-bar promise).
+  are never trusted. Shipping: flat R99, free >= R1000 (matches the utility-bar promise).
 - Fulfilment runs AFTER the webhook 200 (`after()`); print files are per ORDER ITEM at
   that product's 300 DPI `printPixels` (B3 refactor), idempotent per item;
   `artworks.printKey` is legacy. `flagged` has two meanings: paid-but-print-failed
