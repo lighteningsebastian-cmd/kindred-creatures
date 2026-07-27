@@ -11,13 +11,14 @@ export function DeliveryPromise() {
     <section className="bg-surface py-20 md:py-28">
       <Container className="grid items-center gap-12 md:grid-cols-2 md:gap-16">
         <Reveal className="flex flex-col gap-4">
-          <p className="eyebrow text-[11px] text-accent">Printed in Cape Town</p>
+          <p className="eyebrow text-[11px] text-accent">Made in Jeffreys Bay</p>
           <h2 className="max-w-md font-display text-3xl leading-[1.16] text-ink md:text-4xl">
-            Printed and delivered in 5 working days
+            With you in about five working days
           </h2>
           <p className="max-w-md text-lg leading-relaxed text-muted">
-            Every order is printed in Cape Town and couriered to your door, with
-            tracking from the press to your gate so you always know where it is.
+            Most orders reach their door within five working days. Yours is made
+            to order, checked over by hand before it is packed, and tracked from
+            the moment it leaves us.
           </p>
         </Reveal>
         <DeliveryDog className="mx-auto w-full max-w-md" />

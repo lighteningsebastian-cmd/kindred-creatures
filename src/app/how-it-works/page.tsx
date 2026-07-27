@@ -7,7 +7,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { ProcessStep } from "@/components/how-it-works/ProcessStep";
 import { StyleCard } from "@/components/how-it-works/StyleCard";
 import {
-  DELIVERY_DAYS,
+  DELIVERY_WINDOW,
   FAQS,
   HOW_IT_WORKS_PAGE_STEPS,
 } from "@/lib/content";
@@ -16,7 +16,7 @@ import { buildFaqPage, buildHowTo } from "@/lib/seo/jsonld";
 import { BRAND_EMAIL, BRAND_NAME } from "@/lib/seo/site";
 
 const title = "How it works";
-const description = `From your photo to your door: how ${BRAND_NAME} turns a picture of your pet into portrait artwork, gets your approval, and prints it in Cape Town within ${DELIVERY_DAYS} working days.`;
+const description = `From your photo to your door: how ${BRAND_NAME} turns a picture of your pet into portrait artwork, gets your approval, and prints it in Jeffreys Bay and delivers within ${DELIVERY_WINDOW}.`;
 
 export const metadata: Metadata = {
   title,
@@ -57,10 +57,10 @@ const trustPoints = [
   },
   {
     heading: "Printed in South Africa",
-    body: "Every piece is printed in Cape Town on premium blanks, then checked over by hand before it is packed to travel.",
+    body: "Every piece is printed in Jeffreys Bay on premium blanks, checked over by hand, and packed to travel.",
   },
   {
-    heading: `Delivered in ${DELIVERY_DAYS} working days`,
+    heading: `Delivered in ${DELIVERY_WINDOW}`,
     body: "Couriered to your door from the day you approve your portrait, tracked the whole way so you always know where it is.",
   },
 ];
@@ -236,7 +236,7 @@ export default function HowItWorksPage() {
               Start your portrait
             </Button>
             <p className="eyebrow text-[11px] text-muted">
-              Printed in Cape Town · Delivered in {DELIVERY_DAYS} working days
+              Printed in Jeffreys Bay · Delivered in {DELIVERY_WINDOW}
             </p>
           </Reveal>
         </Container>
