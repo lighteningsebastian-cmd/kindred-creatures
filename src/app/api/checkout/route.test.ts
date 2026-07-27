@@ -373,10 +373,11 @@ describe("POST /api/checkout: the PayFast payload", () => {
     const [row] = await db.select().from(orders).where(eq(orders.id, orderId));
 
     // The number the customer is asked for is the number in the table.
-    // One R 899 hoodie clears the R 750 free-shipping threshold, so R 899 flat.
+    // One R 899 hoodie sits below the R 1000 free-shipping threshold, so it pays
+    // the flat R 99 courier: R 998.
     expect(row.totalZar).toBe(orderTotals(899).totalZar);
     expect(fields.amount).toBe(toAmountString(row.totalZar));
-    expect(fields.amount).toBe("899.00");
+    expect(fields.amount).toBe("998.00");
     expect(fields.amount).not.toBe("1.00");
   });
 
@@ -443,8 +444,9 @@ describe("POST /api/checkout: the PayFast payload", () => {
 
     expect(res.status).toBe(201);
     expect(json.mock).toBe(true);
-    // The order is still real, still priced, still signed.
-    expect(json.fields.amount).toBe("899.00");
+    // The order is still real, still priced, still signed. One R 899 hoodie is
+    // below the R 1000 free-shipping line, so it carries the flat R 99 courier.
+    expect(json.fields.amount).toBe("998.00");
     expect(json.fields.signature).toMatch(/^[0-9a-f]{32}$/);
   });
 

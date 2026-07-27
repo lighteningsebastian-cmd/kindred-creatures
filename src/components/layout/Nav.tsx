@@ -22,7 +22,7 @@ export function Nav() {
       <div className="bg-inverse text-on-inverse">
         <Container className="flex min-h-9 items-center justify-center py-2">
           <p className="eyebrow text-center text-[11px] leading-tight">
-            DESIGNED AND PRINTED IN SOUTH AFRICA · FREE SHIPPING OVER R750
+            DESIGNED AND MADE IN SOUTH AFRICA · FREE SHIPPING OVER R1000
           </p>
         </Container>
       </div>

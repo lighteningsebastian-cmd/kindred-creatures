@@ -9,14 +9,17 @@
 export const MIN_QTY = 1;
 export const MAX_QTY = 10;
 
-// PLACEHOLDER RATES, in whole rands: standing in until the Cape Town print
-// partner confirms courier costing. Both numbers need owner sign-off before
-// launch, but the threshold is not arbitrary: the utility bar and the cart both
-// promise "free shipping over R750", so the charge has to honour it or the site
-// lies to the customer. Single source of truth: the server reads these at
-// checkout, the summary renders them, nothing else hardcodes the figures.
+// PLACEHOLDER RATES, in whole rands: standing in until the print partner
+// confirms courier costing. Both numbers need owner sign-off before launch, but
+// the threshold is not arbitrary: the utility bar and the cart both promise
+// "free shipping over R1000", so the charge has to honour it or the site lies to
+// the customer. The line sits at R1000 on purpose, so every single-item order,
+// including the R899 hoodie, falls below it and pays the flat courier rate;
+// free shipping is a reward for the second piece, never automatic. Single source
+// of truth: the server reads these at checkout, the summary renders them,
+// nothing else hardcodes the figures.
 export const SHIPPING_FLAT_ZAR = 99;
-export const FREE_SHIPPING_THRESHOLD_ZAR = 750;
+export const FREE_SHIPPING_THRESHOLD_ZAR = 1000;
 
 /** The nine South African provinces, in the order the select offers them. */
 export const SA_PROVINCES = [

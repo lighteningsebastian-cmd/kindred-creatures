@@ -97,7 +97,7 @@ describe("CheckoutForm", () => {
     expect(screen.getByText("The Kindred Hoodie")).toBeInTheDocument();
     expect(screen.getByText("Stone · Size M · Qty 2")).toBeInTheDocument();
 
-    // R 1 798 is over the R 750 free-shipping threshold the site advertises, so
+    // R 1 798 is over the R 1000 free-shipping threshold the site advertises, so
     // shipping reads Free and the figure repeats as line total, subtotal, total.
     expect(screen.getAllByText("R 1 798")).toHaveLength(3);
     expect(screen.getByText("Free")).toBeInTheDocument();
