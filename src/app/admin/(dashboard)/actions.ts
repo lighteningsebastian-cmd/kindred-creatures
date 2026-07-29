@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
 import { markPrinted, markShipped } from "@/lib/admin/fulfillment-ops";
 import {
+  approveArtworkById,
+  markPersonalContact,
+} from "@/lib/artwork-approval";
+import {
   resendJobSheet,
   retryFulfillment,
   type FulfillmentResult,
@@ -176,4 +180,33 @@ export async function retryFulfillmentAction(
         message: `Refused: ${result.reason}`,
       };
   }
+}
+
+/**
+ * Approve a portrait on the customer's behalf.
+ *
+ * Used after the owner has spoken to somebody, which is the whole point of the
+ * queue. It sets the same timestamp the customer's own approval sets, because
+ * there is only one meaning of approved and only one thing that releases a job
+ * sheet.
+ */
+export async function releaseToPrint(
+  artworkId: string,
+): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  const artwork = await approveArtworkById(artworkId);
+  if (!artwork) return { ok: false, message: "That artwork no longer exists." };
+  revalidatePath("/admin/approvals");
+  return { ok: true, message: "Released to print." };
+}
+
+/** Take one off the automated path. Says a person is on it, not that it broke. */
+export async function markForPersonalContact(
+  artworkId: string,
+): Promise<{ ok: boolean; message: string }> {
+  await requireAdmin();
+  const artwork = await markPersonalContact(artworkId);
+  if (!artwork) return { ok: false, message: "That artwork no longer exists." };
+  revalidatePath("/admin/approvals");
+  return { ok: true, message: "Marked for personal contact." };
 }

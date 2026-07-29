@@ -85,6 +85,10 @@ export const artworks = pgTable("artworks", {
   // their own words, one entry per round. The words are here for a PERSON to
   // read and are never an input to anything the model sees.
   revisionNotes: text("revision_notes"),
+  // The owner has taken this one off the automated path to deal with by hand.
+  // Separate from orders.flagged, which narrates the money and print lifecycle:
+  // this says a person is on it, not that anything went wrong.
+  personalContactAt: timestamp("personal_contact_at", { withTimezone: true }),
 
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -611,6 +615,7 @@ ALTER TABLE artworks ADD COLUMN IF NOT EXISTS back_key text;
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS revision_count integer NOT NULL DEFAULT 0;
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS approved_at timestamptz;
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS revision_notes text;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS personal_contact_at timestamptz;
 
 CREATE TABLE IF NOT EXISTS breed_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

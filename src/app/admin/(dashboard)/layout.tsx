@@ -45,6 +45,12 @@ export default async function AdminLayout({
               Kindred Creatures
             </Link>
             <span className="eyebrow text-[11px] text-accent">Admin</span>
+            <Link
+              href="/admin/approvals"
+              className="eyebrow text-[11px] text-ink underline"
+            >
+              Approvals
+            </Link>
           </div>
 
           <form action={logout}>

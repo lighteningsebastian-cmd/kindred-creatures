@@ -199,3 +199,43 @@ export async function orderForArtwork(artworkId: string): Promise<Order | null> 
     .limit(1);
   return row?.order ?? null;
 }
+
+/**
+ * Approve on the customer's behalf, from the admin queue.
+ *
+ * The owner does this after speaking to somebody, so there is no token: the
+ * authority is the admin session, checked by the caller. Same idempotence as
+ * the customer path, and the same meaning: this timestamp releases the job
+ * sheet.
+ */
+export async function approveArtworkById(
+  artworkId: string,
+): Promise<Artwork | null> {
+  const db = await getDb();
+  const [existing] = await db
+    .select()
+    .from(artworks)
+    .where(eq(artworks.id, artworkId));
+  if (!existing) return null;
+  if (existing.approvedAt) return existing;
+
+  const [row] = await db
+    .update(artworks)
+    .set({ approvedAt: new Date() })
+    .where(eq(artworks.id, artworkId))
+    .returning();
+  return row ?? existing;
+}
+
+/** Takes an artwork off the automated path so a person deals with it. */
+export async function markPersonalContact(
+  artworkId: string,
+): Promise<Artwork | null> {
+  const db = await getDb();
+  const [row] = await db
+    .update(artworks)
+    .set({ personalContactAt: new Date() })
+    .where(eq(artworks.id, artworkId))
+    .returning();
+  return row ?? null;
+}
