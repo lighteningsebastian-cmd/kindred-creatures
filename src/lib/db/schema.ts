@@ -14,12 +14,13 @@ export type ArtworkStatus =
  * at upload time (status "uploaded", no style yet) and updated as the customer
  * picks a style and we generate a preview.
  *
- * The reusable inputs live here: uploadKey, style and previewKey are what a
- * re-order of the same creature onto a different product replays, so they are
- * keyed on the artwork by design (retention B). The high-res PRINT file is NOT:
- * it is per garment now, because the same portrait printed on two products needs
- * two differently sized files (300 DPI of two different print areas). See
- * order_items.printKey, which is the source of truth for a printed file.
+ * The reusable inputs live here: uploadKey, style, canonicalKey and previewKey
+ * are what a re-order of the same creature onto a different product replays, so
+ * they are keyed on the artwork by design (retention B). The high-res PRINT file
+ * is NOT: it is per garment now, because the same portrait printed on two
+ * products needs two differently sized files (300 DPI of two different print
+ * areas). See order_items.printKey, which is the source of truth for a printed
+ * file.
  */
 export const artworks = pgTable("artworks", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -27,7 +28,21 @@ export const artworks = pgTable("artworks", {
   uploadKey: text("upload_key").notNull(),
   // Chosen art style. Null until the customer picks one on the generate step.
   style: text("style").$type<ArtStyle>(),
-  // Storage key of the watermarked, screen-res preview (set once ready).
+  // Storage key of the CANONICAL portrait: the one and only set of bytes the
+  // model ever drew for this artwork, at full size and unwatermarked. The
+  // preview the customer approves and the print file the shop receives are both
+  // derived from these exact bytes, which is the whole of the promise that you
+  // get the portrait you approved (docs/spec-portrait-prompting.md section 1).
+  // "Try another" REPLACES this key, so the last portrait made before checkout
+  // is the one that ships. Null only for artworks that predate the change or
+  // have never been through the generator.
+  canonicalKey: text("canonical_key"),
+  // Which wording drew the canonical portrait (images/prompts.ts PROMPT_VERSION,
+  // or "mock" offline). Written on every generation so a later shift in quality
+  // can be traced to the prompt that caused it.
+  promptVersion: text("prompt_version"),
+  // Storage key of the watermarked, screen-res preview (set once ready). A
+  // downscale of canonicalKey's bytes, never a second trip to the model.
   previewKey: text("preview_key"),
   // LEGACY, no longer the source of truth for a printed file. The print file
   // moved to order_items.printKey (retention B3) because it is per garment, not
@@ -362,6 +377,8 @@ CREATE TABLE IF NOT EXISTS artworks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   upload_key text NOT NULL,
   style text,
+  canonical_key text,
+  prompt_version text,
   preview_key text,
   print_key text,
   regen_count integer NOT NULL DEFAULT 0,
@@ -522,4 +539,13 @@ ALTER TABLE login_tokens
 -- webhook; IF NOT EXISTS makes it a no-op where the CREATE TABLE above
 -- already added it.
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS email_bounced_at timestamptz;
+
+-- Portrait pipeline, additive: the canonical portrait bytes the preview and the
+-- print file are both derived from, and the prompt wording that drew them.
+-- Nullable because artworks that predate this change have neither, and a null
+-- canonical_key is exactly the signal fulfilment needs to refuse rather than
+-- print something the customer never approved. IF NOT EXISTS makes both a no-op
+-- where the CREATE TABLE above already added them.
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS canonical_key text;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS prompt_version text;
 `;

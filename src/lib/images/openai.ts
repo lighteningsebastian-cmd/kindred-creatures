@@ -1,4 +1,10 @@
 import { getStorage } from "@/lib/storage";
+import {
+  COMPOSITION,
+  CONSTRAINTS,
+  STYLE_CLAUSE,
+  SUBJECT,
+} from "./prompts";
 import type { ArtStyle, ImageProvider } from "./provider";
 
 /**
@@ -6,19 +12,47 @@ import type { ArtStyle, ImageProvider } from "./provider";
  * gpt-image-1 renders the portraits. The SDK is imported lazily and the class
  * is only ever constructed when OPENAI_API_KEY is present (see index.ts), so
  * dev/test never needs the `openai` package and never calls this code.
+ *
+ * NO PROMPT TEXT LIVES HERE. Every word we say to the model is in prompts.ts,
+ * which is written to be edited by someone who does not read TypeScript. This
+ * file only decides the ORDER the clauses go in.
  */
 
-const STYLE_PROMPT: Record<ArtStyle, string> = {
-  "classic-portrait":
-    "a warm, painterly classic pet portrait, soft studio lighting, museum framing, dignified pose",
-  "line-sketch":
-    "a clean single-weight ink line-art sketch of the pet, minimal, on plain background",
-  watercolor:
-    "a loose, expressive watercolor portrait of the pet, gentle washes, textured paper feel",
-};
+/**
+ * The largest size gpt-image-1 accepts, in the orientation the product needs.
+ *
+ * The model takes exactly three sizes: 1024x1024, 1536x1024 and 1024x1536.
+ * (1536x1536 is NOT one of them; the old print path asked for it and would have
+ * been refused by the API on the first real order.) Every print area in
+ * products.ts is taller than it is wide, so the portrait one is both the
+ * largest and the right shape.
+ */
+const CANONICAL_SIZE = "1024x1536";
 
 function toDataUrl(bytes: Uint8Array, contentType: string): string {
   return `data:${contentType};base64,${Buffer.from(bytes).toString("base64")}`;
+}
+
+/**
+ * Glues the clauses in prompts.ts into the one instruction the model is given.
+ *
+ * The order is the point: who to draw, how to draw it, where it sits, and what
+ * must not appear. Three of the four clauses are identical for every portrait
+ * we make, which is what stops the range drifting into three unrelated
+ * pictures.
+ */
+export function buildPortraitPrompt(style: ArtStyle): string {
+  return [
+    SUBJECT,
+    STYLE_CLAUSE[style],
+    // SEAM, deliberately empty (docs/spec-portrait-prompting.md section 5).
+    // The nature fragment chosen in the customer journey slots in HERE, between
+    // the style clause and the composition clause, and may modify light,
+    // expression and mood only. It is not built: the journey that collects it
+    // has not shipped, and a fragment with nothing to populate it is a guess.
+    COMPOSITION,
+    CONSTRAINTS,
+  ].join(" ");
 }
 
 export class OpenAIImageProvider implements ImageProvider {
@@ -83,8 +117,14 @@ export class OpenAIImageProvider implements ImageProvider {
     const result = await client.images.edit({
       model: "gpt-image-1",
       image,
-      prompt: `Turn this pet photo into ${STYLE_PROMPT[style]}.`,
+      prompt: buildPortraitPrompt(style),
       size,
+      // A portrait printed on a Stone hoodie must be an animal, not a white
+      // rectangle with an animal in it. Transparency requires a PNG or WebP
+      // output format, so the two options below travel together: change one and
+      // you must change the other.
+      background: "transparent",
+      output_format: "png",
     });
     const b64 = result.data?.[0]?.b64_json;
     if (!b64) throw new Error("No image returned from gpt-image-1");
@@ -98,7 +138,7 @@ export class OpenAIImageProvider implements ImageProvider {
     uploadKey: string;
     style: ArtStyle;
   }): Promise<{ previewBytes: Uint8Array }> {
-    return { previewBytes: await this.render(uploadKey, style, "1024x1024") };
+    return { previewBytes: await this.render(uploadKey, style, CANONICAL_SIZE) };
   }
 
   async generatePrintFile({
@@ -110,6 +150,6 @@ export class OpenAIImageProvider implements ImageProvider {
     widthPx: number;
     heightPx: number;
   }): Promise<{ printBytes: Uint8Array }> {
-    return { printBytes: await this.render(uploadKey, style, "1536x1536") };
+    return { printBytes: await this.render(uploadKey, style, CANONICAL_SIZE) };
   }
 }
