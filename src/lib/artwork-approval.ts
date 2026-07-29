@@ -1,0 +1,146 @@
+import { eq } from "drizzle-orm";
+import { getDb } from "@/lib/db/client";
+import { artworks, type Artwork } from "@/lib/db/schema";
+import { verifyApprovalToken } from "@/lib/approval";
+import {
+  adjustmentsFor,
+  isRevisionReason,
+  needsHuman,
+  normaliseNote,
+  type RevisionReason,
+} from "@/lib/revision";
+
+/**
+ * Saying yes, and saying not quite.
+ *
+ * Nothing reaches the printer until `approvedAt` is set. That is the whole of
+ * the promise the site has always made, and moving generation after payment
+ * does not change it: the customer still sees the portrait before it is made.
+ */
+
+/** One round of "not quite", kept for a person to read. */
+export interface RevisionEntry {
+  reasons: RevisionReason[];
+  /** The customer's own words. Read by a human, never by the model. */
+  note: string | null;
+  at: string;
+}
+
+export type ApprovalOutcome =
+  | { status: "approved"; artwork: Artwork }
+  | { status: "already-approved"; artwork: Artwork }
+  | { status: "refused"; reason: "bad-token" | "not-found" };
+
+export type RevisionOutcome =
+  | { status: "queued"; artwork: Artwork; reasons: RevisionReason[] }
+  /** The ladder ran out of automated rounds. A person takes it from here. */
+  | { status: "handed-over"; artwork: Artwork; reasons: RevisionReason[] }
+  | { status: "refused"; reason: "bad-token" | "not-found" | "already-approved" };
+
+async function load(token: unknown): Promise<Artwork | "bad-token" | "not-found"> {
+  const artworkId = verifyApprovalToken(token);
+  if (!artworkId) return "bad-token";
+  const db = await getDb();
+  const [row] = await db.select().from(artworks).where(eq(artworks.id, artworkId));
+  return row ?? "not-found";
+}
+
+export function readRevisions(artwork: Artwork): RevisionEntry[] {
+  if (!artwork.revisionNotes) return [];
+  try {
+    const parsed = JSON.parse(artwork.revisionNotes);
+    return Array.isArray(parsed) ? (parsed as RevisionEntry[]) : [];
+  } catch {
+    // A malformed log is not worth failing an approval over.
+    return [];
+  }
+}
+
+/** The artwork behind a link, for rendering the page. Never logs anyone in. */
+export async function artworkForApproval(
+  token: unknown,
+): Promise<Artwork | null> {
+  const found = await load(token);
+  return typeof found === "string" ? null : found;
+}
+
+/**
+ * Yes, print it.
+ *
+ * Idempotent: a second click, or a link opened twice, reports the approval it
+ * already has rather than moving the timestamp. The timestamp is what releases
+ * the job sheet, so it must mean "the moment they said yes" and not "the last
+ * time they looked".
+ */
+export async function approveArtwork(token: unknown): Promise<ApprovalOutcome> {
+  const found = await load(token);
+  if (typeof found === "string") return { status: "refused", reason: found };
+  if (found.approvedAt) return { status: "already-approved", artwork: found };
+
+  const db = await getDb();
+  const [row] = await db
+    .update(artworks)
+    .set({ approvedAt: new Date() })
+    .where(eq(artworks.id, found.id))
+    .returning();
+
+  return { status: "approved", artwork: row ?? found };
+}
+
+/**
+ * Something is not quite right.
+ *
+ * Records what they ticked and what they wrote, and counts the round. The chip
+ * ids are validated here as well as at the prompt: a request body is not a
+ * trust boundary, and these are the only customer input that ever influences a
+ * drawing.
+ *
+ * The customer is never told which round they are on. A visible limit turns a
+ * service into a ration; the tone simply becomes personal instead.
+ */
+export async function requestRevision(
+  token: unknown,
+  reasons: unknown,
+  note: unknown,
+): Promise<RevisionOutcome> {
+  const found = await load(token);
+  if (typeof found === "string") return { status: "refused", reason: found };
+  // Approved artwork is on its way to a press. Changing it needs a person.
+  if (found.approvedAt) return { status: "refused", reason: "already-approved" };
+
+  const validReasons = (Array.isArray(reasons) ? reasons : []).filter(
+    isRevisionReason,
+  );
+  const entry: RevisionEntry = {
+    reasons: validReasons,
+    note: normaliseNote(note),
+    at: new Date().toISOString(),
+  };
+
+  const nextCount = found.revisionCount + 1;
+  const db = await getDb();
+  const [row] = await db
+    .update(artworks)
+    .set({
+      revisionCount: nextCount,
+      revisionNotes: JSON.stringify([...readRevisions(found), entry]),
+    })
+    .where(eq(artworks.id, found.id))
+    .returning();
+
+  const artwork = row ?? found;
+  // needsHuman reads the count BEFORE this round, so a third request is the
+  // one that stops.
+  return needsHuman(found.revisionCount)
+    ? { status: "handed-over", artwork, reasons: validReasons }
+    : { status: "queued", artwork, reasons: validReasons };
+}
+
+/**
+ * The prompt adjustments for the most recent round, for the regeneration that
+ * follows. Our own sentences only, never the customer's.
+ */
+export function adjustmentsForLatest(artwork: Artwork): string[] {
+  const rounds = readRevisions(artwork);
+  return adjustmentsFor(rounds[rounds.length - 1]?.reasons ?? []);
+}

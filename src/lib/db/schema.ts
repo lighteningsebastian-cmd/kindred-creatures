@@ -81,6 +81,10 @@ export const artworks = pgTable("artworks", {
   revisionCount: integer("revision_count").notNull().default(0),
   // Set when the customer says yes. Nothing reaches the printer before this.
   approvedAt: timestamp("approved_at", { withTimezone: true }),
+  // JSON log of what the customer said was not right: validated chip ids and
+  // their own words, one entry per round. The words are here for a PERSON to
+  // read and are never an input to anything the model sees.
+  revisionNotes: text("revision_notes"),
 
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -606,6 +610,7 @@ ALTER TABLE artworks ADD COLUMN IF NOT EXISTS front_key text;
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS back_key text;
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS revision_count integer NOT NULL DEFAULT 0;
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS approved_at timestamptz;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS revision_notes text;
 
 CREATE TABLE IF NOT EXISTS breed_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
