@@ -2,6 +2,7 @@ import { getStorage } from "@/lib/storage";
 import {
   COMPOSITION,
   CONSTRAINTS,
+  PROMPT_VERSION,
   STYLE_CLAUSE,
   SUBJECT,
 } from "./prompts";
@@ -102,11 +103,7 @@ export class OpenAIImageProvider implements ImageProvider {
     return { ok: true };
   }
 
-  private async render(
-    uploadKey: string,
-    style: ArtStyle,
-    size: string,
-  ): Promise<Uint8Array> {
+  private async render(uploadKey: string, style: ArtStyle): Promise<Uint8Array> {
     const source = await getStorage().getBytes(uploadKey);
     if (!source) throw new Error(`Upload ${uploadKey} not found`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,7 +115,7 @@ export class OpenAIImageProvider implements ImageProvider {
       model: "gpt-image-1",
       image,
       prompt: buildPortraitPrompt(style),
-      size,
+      size: CANONICAL_SIZE,
       // A portrait printed on a Stone hoodie must be an animal, not a white
       // rectangle with an animal in it. Transparency requires a PNG or WebP
       // output format, so the two options below travel together: change one and
@@ -131,25 +128,16 @@ export class OpenAIImageProvider implements ImageProvider {
     return new Uint8Array(Buffer.from(b64, "base64"));
   }
 
-  async generatePreview({
+  async generatePortrait({
     uploadKey,
     style,
   }: {
     uploadKey: string;
     style: ArtStyle;
-  }): Promise<{ previewBytes: Uint8Array }> {
-    return { previewBytes: await this.render(uploadKey, style, CANONICAL_SIZE) };
-  }
-
-  async generatePrintFile({
-    uploadKey,
-    style,
-  }: {
-    uploadKey: string;
-    style: ArtStyle;
-    widthPx: number;
-    heightPx: number;
-  }): Promise<{ printBytes: Uint8Array }> {
-    return { printBytes: await this.render(uploadKey, style, CANONICAL_SIZE) };
+  }): Promise<{ portraitBytes: Uint8Array; promptVersion: string }> {
+    return {
+      portraitBytes: await this.render(uploadKey, style),
+      promptVersion: PROMPT_VERSION,
+    };
   }
 }

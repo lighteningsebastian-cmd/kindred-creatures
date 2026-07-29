@@ -199,8 +199,16 @@ export async function POST(request: Request) {
         400,
       );
     }
-    // You cannot order a portrait that was never drawn.
-    if (artwork.status !== "ready" || !artwork.previewKey) {
+    // You cannot order a portrait that was never drawn. canonicalKey is the
+    // half of that which fulfilment needs: the print file is a resize of those
+    // exact bytes, so a line without one is an order that can be paid for and
+    // never printed. Refusing here is a message on the checkout page; letting it
+    // through is a flagged order and a customer waiting on a garment.
+    if (
+      artwork.status !== "ready" ||
+      !artwork.previewKey ||
+      !artwork.canonicalKey
+    ) {
       return bad(
         "One of these portraits is not finished yet. Please generate it before ordering.",
         422,

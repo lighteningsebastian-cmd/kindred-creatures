@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { describe, it, expect, afterEach, vi } from "vitest";
 import sharp from "sharp";
-import { MockImageProvider } from "./mock";
+import { MOCK_PROMPT_VERSION, MockImageProvider } from "./mock";
+import { derivePreviewBytes } from "./derive";
 import { sniffImageExtension } from "./detect";
 import { isArtStyle } from "./provider";
 
@@ -26,16 +27,17 @@ describe("mock image provider", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("generatePreview returns non-empty PNG bytes", async () => {
-    // Was SVG. The mock now returns the same format the real provider does,
-    // because everything downstream of it assumes a raster image with alpha.
+  it("generatePortrait returns non-empty PNG bytes", async () => {
+    // Was SVG, and was two methods (a preview and a separate print file). The
+    // mock now draws ONE canonical picture in the same format the real provider
+    // does, because everything downstream of it assumes a raster with alpha.
     const provider = new MockImageProvider();
-    const { previewBytes } = await provider.generatePreview({
+    const { portraitBytes } = await provider.generatePortrait({
       uploadKey: "uploads/x.png",
       style: "watercolor",
     });
-    expect(previewBytes.length).toBeGreaterThan(0);
-    expect(sniffImageExtension(previewBytes)).toBe("png");
+    expect(portraitBytes.length).toBeGreaterThan(0);
+    expect(sniffImageExtension(portraitBytes)).toBe("png");
   });
 
   it("draws on a genuinely transparent background, like the real provider", async () => {
@@ -44,14 +46,12 @@ describe("mock image provider", () => {
     // against. If the mock were opaque, a transparency bug would reach a
     // printed garment before anyone saw it.
     const provider = new MockImageProvider();
-    const { printBytes } = await provider.generatePrintFile({
+    const { portraitBytes } = await provider.generatePortrait({
       uploadKey: "uploads/x.png",
       style: "line-sketch",
-      widthPx: 600,
-      heightPx: 800,
     });
 
-    const { data, info } = await sharp(Buffer.from(printBytes))
+    const { data, info } = await sharp(Buffer.from(portraitBytes))
       .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
@@ -60,28 +60,52 @@ describe("mock image provider", () => {
     expect(data[3]).toBe(0);
   });
 
-  it("preview is watermarked, print file is not", async () => {
+  it("draws at the size the real model returns, so the arithmetic is the same", async () => {
     const provider = new MockImageProvider();
-    const { previewBytes } = await provider.generatePreview({
+    const { portraitBytes } = await provider.generatePortrait({
       uploadKey: "uploads/x.png",
       style: "classic-portrait",
     });
-    const { printBytes } = await provider.generatePrintFile({
+    const meta = await sharp(Buffer.from(portraitBytes)).metadata();
+    expect({ width: meta.width, height: meta.height }).toEqual({
+      width: 1024,
+      height: 1536,
+    });
+  });
+
+  it("the canonical portrait carries no watermark", async () => {
+    // Was "preview is watermarked, print file is not", asserted by reading SVG
+    // source. The provider no longer makes either one: it makes the canonical
+    // portrait, and derive.ts adds the watermark to the preview copy only. So
+    // what is pinned here is that nothing is baked in at the source, and
+    // derive.test.ts pins the watermarking itself.
+    const provider = new MockImageProvider();
+    const { portraitBytes } = await provider.generatePortrait({
       uploadKey: "uploads/x.png",
       style: "classic-portrait",
-      widthPx: 1024,
-      heightPx: 1536,
     });
 
-    // Both are rasters now, so the watermark is asserted in pixels rather than
-    // in SVG source: the preview differs from a plain downscale of the same
-    // portrait, and the print file is byte-identical to a plain resize of it.
-    const canonical = await sharp(Buffer.from(printBytes)).png().toBuffer();
-    const plainPreview = await sharp(canonical)
+    const preview = await derivePreviewBytes(portraitBytes);
+    const plain = await sharp(Buffer.from(portraitBytes))
       .resize({ width: 768, height: 768, fit: "inside", withoutEnlargement: true })
       .png()
       .toBuffer();
-    expect(Buffer.from(previewBytes).equals(plainPreview)).toBe(false);
+
+    // The unwatermarked downscale and the preview differ; the difference is the
+    // watermark, and it is added on the way to the preview, not at the source.
+    expect(Buffer.from(preview).equals(plain)).toBe(false);
+  });
+
+  it("reports which prompt drew the portrait, even offline", async () => {
+    const provider = new MockImageProvider();
+    const { promptVersion } = await provider.generatePortrait({
+      uploadKey: "uploads/x.png",
+      style: "watercolor",
+    });
+    // "mock" and not a real PROMPT_VERSION: no prompt was ever used, and an
+    // artwork that claims a prompt version it never saw is worse than one that
+    // admits it was drawn offline.
+    expect(promptVersion).toBe(MOCK_PROMPT_VERSION);
   });
 });
 

@@ -5,7 +5,7 @@ import { POST as checkout } from "./route";
 import { POST as generate } from "../generate/route";
 import { POST as upload } from "../upload/route";
 import { getDb } from "@/lib/db/client";
-import { orderItems, orders } from "@/lib/db/schema";
+import { artworks, orderItems, orders } from "@/lib/db/schema";
 import { orderTotals } from "@/lib/checkout";
 import { buildSignature, toAmountString, verifyItnSignature } from "@/lib/payfast";
 
@@ -269,6 +269,29 @@ describe("POST /api/checkout", () => {
     const res = await checkout(order([hoodieLine(artworkId)]));
     expect(res.status).toBe(422);
     expect((await res.json()).error).toMatch(/not finished/i);
+  });
+
+  it("refuses a portrait with no canonical image, before taking any money", async () => {
+    // The print file is a resize of the canonical bytes, so a line without them
+    // is an order that can be paid for and never printed. Better a message on
+    // the checkout page than a flagged order and a customer waiting.
+    const artworkId = await readyArtwork();
+    const db = await getDb();
+    await db
+      .update(artworks)
+      .set({ canonicalKey: null })
+      .where(eq(artworks.id, artworkId));
+
+    const res = await checkout(order([hoodieLine(artworkId)]));
+
+    expect(res.status).toBe(422);
+    expect((await res.json()).error).toMatch(/not finished/i);
+    // Nothing was opened: no pending order for this portrait to reconcile later.
+    const lines = await db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.artworkId, artworkId));
+    expect(lines).toHaveLength(0);
   });
 
   it("rejects an artwork that does not exist", async () => {

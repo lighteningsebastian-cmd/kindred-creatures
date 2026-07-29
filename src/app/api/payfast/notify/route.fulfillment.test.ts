@@ -8,6 +8,8 @@ import { artworks, orderItems, orders } from "@/lib/db/schema";
 import { buildSignature } from "@/lib/payfast";
 import { resetEmailTransport } from "@/lib/email";
 import { getStorage } from "@/lib/storage";
+import { getImageProvider } from "@/lib/images";
+import { derivePrintBytes } from "@/lib/images/derive";
 
 /**
  * The seam between S5 and S7: a verified ITN arrives, the order is paid, and the
@@ -70,16 +72,31 @@ afterEach(() => {
 async function pendingOrderWithLine(): Promise<{
   orderId: string;
   artworkId: string;
+  canonicalKey: string;
 }> {
   const db = await getDb();
   const orderId = randomUUID();
   const artworkId = randomUUID();
 
+  // The approved portrait, really drawn by the offline provider and really
+  // stored, because fulfilment now RESIZES these bytes rather than asking for a
+  // fresh picture. An artwork without them is an order that cannot be printed.
+  const { portraitBytes, promptVersion } = await (
+    await getImageProvider()
+  ).generatePortrait({
+    uploadKey: `uploads/${artworkId}.jpg`,
+    style: "classic-portrait",
+  });
+  const canonicalKey = `portraits/${artworkId}/1.png`;
+  await getStorage().put(canonicalKey, portraitBytes, "image/png");
+
   await db.insert(artworks).values({
     id: artworkId,
     uploadKey: `uploads/${artworkId}.jpg`,
     style: "classic-portrait",
-    previewKey: `previews/${artworkId}/1.svg`,
+    canonicalKey,
+    promptVersion,
+    previewKey: `previews/${artworkId}/1.png`,
     status: "ready",
     productSlug: "hoodie",
   });
@@ -111,7 +128,7 @@ async function pendingOrderWithLine(): Promise<{
     artworkId,
   });
 
-  return { orderId, artworkId };
+  return { orderId, artworkId, canonicalKey };
 }
 
 let nextPaymentId = 5000000;
@@ -149,7 +166,7 @@ async function readOrder(id: string) {
 
 describe("a verified ITN, end to end", () => {
   it("pays the order, prints it, and mails the shop a working link", async () => {
-    const { orderId, artworkId } = await pendingOrderWithLine();
+    const { orderId, artworkId, canonicalKey } = await pendingOrderWithLine();
 
     const response = await notify(post(itn(orderId)));
     expect(response.status).toBe(200);
@@ -186,6 +203,15 @@ describe("a verified ITN, end to end", () => {
     // The file is really there, not just a key on a row.
     const bytes = await getStorage().getBytes(item.printKey!);
     expect(bytes?.length).toBeGreaterThan(0);
+
+    // THE APPROVAL PROMISE, end to end and in bytes. The file the print shop is
+    // linked to is the stored canonical portrait at the hoodie's print area and
+    // nothing else. Fulfilment used to ask the model for a fresh one here, and
+    // image models are not deterministic, so what arrived was a different
+    // picture of the same animal on a non-returnable garment.
+    const canonicalBytes = await getStorage().getBytes(canonicalKey);
+    const expected = await derivePrintBytes(canonicalBytes!, 3307, 4134);
+    expect(Buffer.from(bytes!).equals(Buffer.from(expected))).toBe(true);
 
     const jobSheet = logged.find((line) => line.includes("press@example.co.za"));
     expect(jobSheet).toBeTruthy();

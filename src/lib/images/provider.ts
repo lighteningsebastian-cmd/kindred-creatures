@@ -29,16 +29,29 @@ export function isArtStyle(value: unknown): value is ArtStyle {
 export interface ImageProvider {
   /** Screens an uploaded photo. Returns ok:false with a friendly reason to reject. */
   moderate(input: { bytes: Uint8Array }): Promise<{ ok: boolean; reason?: string }>;
-  /** Produces a screen-resolution, watermarked preview for the chosen style. */
-  generatePreview(input: {
-    uploadKey: string;
-    style: ArtStyle;
-  }): Promise<{ previewBytes: Uint8Array }>;
-  /** Produces the high-resolution, unwatermarked file for printing. */
-  generatePrintFile(input: {
-    uploadKey: string;
-    style: ArtStyle;
-    widthPx: number;
-    heightPx: number;
-  }): Promise<{ printBytes: Uint8Array }>;
+  /**
+   * Draws the CANONICAL portrait: one call to the model, at the largest size it
+   * supports, unwatermarked, on a transparent background.
+   *
+   * THIS IS THE ONLY METHOD THAT DRAWS ANYTHING, and it is called exactly once
+   * per portrait the customer keeps. The preview they approve and the print file
+   * the shop receives are both derived from these bytes by images/derive.ts, so
+   * the only differences between the two are scale and a watermark.
+   *
+   * There is deliberately no second method for the print file. Image models are
+   * not deterministic: a second call at a bigger size does not return a larger
+   * version of the same picture, it returns a DIFFERENT picture of the same
+   * animal, and the customer would receive a portrait they never approved. That
+   * defect shipped in this interface once already. See
+   * docs/spec-portrait-prompting.md section 1.
+   */
+  generatePortrait(input: { uploadKey: string; style: ArtStyle }): Promise<{
+    portraitBytes: Uint8Array;
+    /**
+     * Which prompt wording drew it (images/prompts.ts PROMPT_VERSION, or "mock"
+     * offline). Stored on the artwork so a later shift in quality can be traced
+     * back to the words that caused it.
+     */
+    promptVersion: string;
+  }>;
 }

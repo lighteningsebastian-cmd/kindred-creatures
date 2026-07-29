@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db/client";
 import { artworks } from "@/lib/db/schema";
 import { getStorage } from "@/lib/storage";
 import { getImageProvider } from "@/lib/images";
+import { derivePreviewBytes } from "@/lib/images/derive";
 import { isArtStyle } from "@/lib/images/provider";
 import {
   imageMimeForExtension,
@@ -20,9 +21,25 @@ function bad(error: string, status: number) {
 }
 
 /**
- * Generates (or regenerates) a watermarked preview for an artwork in the chosen
- * style. Capped at three generations per artwork; the fourth is refused with a
- * clear 429. The high-res print file is produced later, post-payment.
+ * Draws (or redraws) an artwork's portrait in the chosen style. Capped at three
+ * per artwork; the fourth is refused with a clear 429.
+ *
+ * THE MODEL IS CALLED ONCE HERE AND NOWHERE ELSE IN THE SHOP.
+ *
+ * Those bytes are stored whole, at full size and unwatermarked, as the
+ * artwork's canonical image. What comes back to the browser is a downscaled,
+ * watermarked copy of THAT FILE, and the print file made after payment is a
+ * resize of the same one. So the portrait a customer approves is, to the pixel
+ * and apart from scale, the portrait that reaches the garment.
+ *
+ * It used to work the other way: this route drew one picture and fulfilment
+ * drew a second one at print size. Image models are not deterministic, so the
+ * second picture was a different animal in the same style, and the customer
+ * received a portrait they had never seen. See
+ * docs/spec-portrait-prompting.md section 1.
+ *
+ * "Try another" REPLACES the canonical image. The last portrait made before
+ * checkout is the one that ships.
  */
 export async function POST(request: Request) {
   let body: unknown;
@@ -69,13 +86,28 @@ export async function POST(request: Request) {
 
   try {
     const provider = await getImageProvider();
-    const { previewBytes } = await provider.generatePreview({
+    const { portraitBytes, promptVersion } = await provider.generatePortrait({
       uploadKey: artwork.uploadKey,
       style,
     });
 
+    // The canonical bytes, stored first and stored whole. Everything the
+    // customer and the print shop ever see comes out of this one file, so it is
+    // written before anything is derived from it: a preview whose canonical
+    // image failed to store is a preview we could never honour.
+    const stamp = Date.now();
+    const canonicalExt = sniffImageExtension(portraitBytes);
+    const canonicalKey = `portraits/${artworkId}/${stamp}.${canonicalExt}`;
+    await getStorage().put(
+      canonicalKey,
+      portraitBytes,
+      imageMimeForExtension(canonicalExt),
+    );
+
+    // The preview: the same bytes, smaller, with a watermark on them.
+    const previewBytes = await derivePreviewBytes(portraitBytes);
     const ext = sniffImageExtension(previewBytes);
-    const previewKey = `previews/${artworkId}/${Date.now()}.${ext}`;
+    const previewKey = `previews/${artworkId}/${stamp}.${ext}`;
     await getStorage().put(
       previewKey,
       previewBytes,
@@ -85,7 +117,13 @@ export async function POST(request: Request) {
     const nextCount = artwork.regenCount + 1;
     await db
       .update(artworks)
-      .set({ previewKey, regenCount: nextCount, status: "ready" })
+      .set({
+        canonicalKey,
+        promptVersion,
+        previewKey,
+        regenCount: nextCount,
+        status: "ready",
+      })
       .where(eq(artworks.id, artworkId));
 
     const previewUrl = await getStorage().getSignedUrl(

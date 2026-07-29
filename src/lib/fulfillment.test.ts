@@ -18,31 +18,49 @@ import {
   type OrderStatus,
 } from "@/lib/db/schema";
 import { getProduct, printPixels } from "@/lib/products";
+import { getStorage } from "@/lib/storage";
 
 /**
  * The other half of the money path. The webhook decides an order was paid; this
- * decides what that costs us. Every test here is a way to spend money twice or
- * lose an order we have already been paid for.
+ * decides what the customer actually receives. Every test here is a way to ship
+ * the wrong garment, or to lose an order we have already been paid for.
  *
- * Nothing here touches the network: the image provider and the email helpers are
- * both stubbed, and the assertions are mostly about how many times the expensive
- * one was called.
+ * TWO THINGS ARE PINNED THROUGHOUT. Fulfilment NEVER calls the image provider:
+ * the print file is a resize of the bytes the customer approved, and a second
+ * trip to a non-deterministic model would print a portrait nobody agreed to.
+ * And a line that already has a print file is never rebuilt, however many
+ * retries, duplicate ITNs and impatient admins arrive.
+ *
+ * Nothing here touches the network: the provider, the resize and the email
+ * helpers are all stubbed, and the assertions are mostly about how many times
+ * each was called and with what.
  */
 
-const { generatePrintFileMock, sendJobSheetMock, sendOrderConfirmationMock } =
-  vi.hoisted(() => ({
-    generatePrintFileMock: vi.fn(),
-    sendJobSheetMock: vi.fn(),
-    sendOrderConfirmationMock: vi.fn(),
-  }));
+const {
+  generatePortraitMock,
+  derivePrintBytesMock,
+  sendJobSheetMock,
+  sendOrderConfirmationMock,
+} = vi.hoisted(() => ({
+  generatePortraitMock: vi.fn(),
+  derivePrintBytesMock: vi.fn(),
+  sendJobSheetMock: vi.fn(),
+  sendOrderConfirmationMock: vi.fn(),
+}));
 
+// The provider is stubbed so that CALLING it is observable. Fulfilment must
+// never reach this; every test below asserts it did not.
 vi.mock("@/lib/images", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/images")>()),
   getImageProvider: async () => ({
     moderate: async () => ({ ok: true }),
-    generatePreview: async () => ({ previewBytes: new Uint8Array() }),
-    generatePrintFile: generatePrintFileMock,
+    generatePortrait: generatePortraitMock,
   }),
+}));
+
+vi.mock("@/lib/images/derive", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/images/derive")>()),
+  derivePrintBytes: derivePrintBytesMock,
 }));
 
 vi.mock("@/lib/email", async (importOriginal) => ({
@@ -54,9 +72,23 @@ vi.mock("@/lib/email", async (importOriginal) => ({
 /** A believable print file. PNG magic, so the key gets a .png on it. */
 const PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
+/**
+ * The canonical bytes for one artwork, made recognisable by its id so a test can
+ * assert WHICH portrait was resized, not merely that something was. A Buffer
+ * rather than a bare Uint8Array because that is what comes back out of storage,
+ * and these are compared against what fulfilment read.
+ */
+function canonicalBytesFor(artworkId: string): Buffer {
+  return Buffer.from([...PNG_BYTES, ...new TextEncoder().encode(artworkId)]);
+}
+
 beforeEach(() => {
   vi.stubEnv("MOCK_SERVICES", "true");
-  generatePrintFileMock.mockResolvedValue({ printBytes: PNG_BYTES });
+  generatePortraitMock.mockResolvedValue({
+    portraitBytes: PNG_BYTES,
+    promptVersion: "test",
+  });
+  derivePrintBytesMock.mockResolvedValue(PNG_BYTES);
   sendJobSheetMock.mockResolvedValue({ ok: true, id: "job-sheet-1" });
   sendOrderConfirmationMock.mockResolvedValue({ ok: true, id: "confirmation-1" });
 });
@@ -64,20 +96,29 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
-  generatePrintFileMock.mockReset();
+  generatePortraitMock.mockReset();
+  derivePrintBytesMock.mockReset();
   sendJobSheetMock.mockReset();
   sendOrderConfirmationMock.mockReset();
 });
 
-/** An artwork the way the customizer leaves one: uploaded, styled, previewed. */
+/**
+ * An artwork the way the customizer leaves one: uploaded, styled, drawn once,
+ * previewed. The canonical bytes are really in storage, because reading them
+ * back is now the first thing fulfilment does.
+ */
 async function readyArtwork(productSlug = "hoodie"): Promise<string> {
   const db = await getDb();
   const id = randomUUID();
+  const canonicalKey = `portraits/${id}/1.png`;
+  await getStorage().put(canonicalKey, canonicalBytesFor(id), "image/png");
   await db.insert(artworks).values({
     id,
     uploadKey: `uploads/${id}.jpg`,
     style: "watercolor",
-    previewKey: `previews/${id}/1.svg`,
+    canonicalKey,
+    promptVersion: "test",
+    previewKey: `previews/${id}/1.png`,
     status: "ready",
     productSlug,
   });
@@ -203,18 +244,24 @@ async function eventsFor(orderId: string) {
 
 describe("fulfillPaidOrder: an order that goes through", () => {
   it("makes a print file per line at 300 DPI and sends it to the printer", async () => {
-    const { orderId } = await orderWith(["hoodie", "tote"]);
+    const { orderId, artworkIds } = await orderWith(["hoodie", "tote"]);
 
     const result = await fulfillPaidOrder(orderId);
     expect(result.status).toBe("sent_to_printer");
 
     // The dimensions are the whole point of the exercise: a print file at the
-    // wrong size is a garment printed at the wrong size.
-    expect(generatePrintFileMock).toHaveBeenCalledTimes(2);
-    for (const slug of ["hoodie", "tote"]) {
+    // wrong size is a garment printed at the wrong size. It used to be the
+    // provider that was asked for them; the resize is asked now, because the
+    // picture already exists and only its size is still in question.
+    expect(derivePrintBytesMock).toHaveBeenCalledTimes(2);
+    for (const [index, slug] of ["hoodie", "tote"].entries()) {
       const { widthPx, heightPx } = printPixels(getProduct(slug)!);
-      expect(generatePrintFileMock).toHaveBeenCalledWith(
-        expect.objectContaining({ widthPx, heightPx, style: "watercolor" }),
+      expect(derivePrintBytesMock).toHaveBeenCalledWith(
+        // ...and resized from THAT line's approved portrait, which is what the
+        // old assertion on uploadKey and style was really reaching for.
+        canonicalBytesFor(artworkIds[index]),
+        widthPx,
+        heightPx,
       );
     }
 
@@ -227,6 +274,28 @@ describe("fulfillPaidOrder: an order that goes through", () => {
     expect(sendJobSheetMock).toHaveBeenCalledTimes(1);
     expect(sendOrderConfirmationMock).toHaveBeenCalledTimes(1);
     expect((await readOrder(orderId)).status).toBe("sent_to_printer");
+  });
+
+  it("never calls the image provider, however ordinary the order", async () => {
+    // The most expensive defect this codebase has had. Fulfilment used to ask
+    // the model for a fresh print-resolution portrait, and image models are not
+    // deterministic, so the customer approved one animal and received another
+    // on a personalised, non-returnable garment.
+    const { orderId } = await orderWith(["hoodie", "tote"]);
+
+    await fulfillPaidOrder(orderId);
+
+    expect(generatePortraitMock).not.toHaveBeenCalled();
+  });
+
+  it("prints the bytes that were approved, not a fresh picture", async () => {
+    const { orderId, artworkIds } = await orderWith(["hoodie"]);
+
+    await fulfillPaidOrder(orderId);
+
+    // The exact bytes stored against the artwork, handed to the resize.
+    const [bytes] = derivePrintBytesMock.mock.calls[0];
+    expect(bytes).toEqual(canonicalBytesFor(artworkIds[0]));
   });
 
   it("keys each sent mail to the order by its message id (D4)", async () => {
@@ -280,8 +349,8 @@ describe("fulfillPaidOrder: an order that goes through", () => {
   });
 });
 
-describe("fulfillPaidOrder: not paying twice", () => {
-  it("does not regenerate or re-send when it runs again", async () => {
+describe("fulfillPaidOrder: not rebuilding a file the shop already has", () => {
+  it("does not rebuild or re-send when it runs again", async () => {
     const { orderId } = await orderWith(["hoodie"]);
 
     const first = await fulfillPaidOrder(orderId);
@@ -292,7 +361,8 @@ describe("fulfillPaidOrder: not paying twice", () => {
     // sheet to put in their inbox.
     expect(second.status).toBe("already-fulfilled");
 
-    expect(generatePrintFileMock).toHaveBeenCalledTimes(1);
+    expect(derivePrintBytesMock).toHaveBeenCalledTimes(1);
+    expect(generatePortraitMock).not.toHaveBeenCalled();
     expect(sendJobSheetMock).toHaveBeenCalledTimes(1);
     expect(sendOrderConfirmationMock).toHaveBeenCalledTimes(1);
   });
@@ -313,8 +383,56 @@ describe("fulfillPaidOrder: not paying twice", () => {
       generated: false,
       printKey: "prints/already/there.png",
     });
-    // The expensive call. Never made, because the file already exists.
-    expect(generatePrintFileMock).not.toHaveBeenCalled();
+    // Never remade, because the file already exists and the job sheet already
+    // links it.
+    expect(derivePrintBytesMock).not.toHaveBeenCalled();
+    expect(generatePortraitMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("fulfillPaidOrder: an artwork with no approved portrait", () => {
+  it("flags the order rather than drawing one at fulfilment time", async () => {
+    // Belt and braces behind the checkout guard. If a line ever reaches
+    // fulfilment with no canonical image, the only safe move is to stop: the
+    // customer approved nothing, and a garment is not returnable.
+    const { orderId, artworkIds } = await orderWith(["hoodie"]);
+    const db = await getDb();
+    await db
+      .update(artworks)
+      .set({ canonicalKey: null })
+      .where(eq(artworks.id, artworkIds[0]));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await fulfillPaidOrder(orderId);
+
+    expect(result.status).toBe("flagged");
+    expect(generatePortraitMock).not.toHaveBeenCalled();
+    expect(derivePrintBytesMock).not.toHaveBeenCalled();
+    expect(sendJobSheetMock).not.toHaveBeenCalled();
+
+    const failure = (await eventsFor(orderId)).find(
+      (event) => event.step === "generate-print-file" && event.outcome === "failed",
+    );
+    expect(failure?.detail).toContain("no approved portrait");
+  });
+
+  it("flags when the approved portrait has gone missing from storage", async () => {
+    const { orderId, artworkIds } = await orderWith(["hoodie"]);
+    const db = await getDb();
+    await db
+      .update(artworks)
+      .set({ canonicalKey: "portraits/gone/missing.png" })
+      .where(eq(artworks.id, artworkIds[0]));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await fulfillPaidOrder(orderId);
+
+    expect(result.status).toBe("flagged");
+    expect(generatePortraitMock).not.toHaveBeenCalled();
+    const failure = (await eventsFor(orderId)).find(
+      (event) => event.step === "generate-print-file" && event.outcome === "failed",
+    );
+    expect(failure?.detail).toContain("missing from storage");
   });
 });
 
@@ -332,30 +450,28 @@ describe("fulfillPaidOrder: one creature across different products (B3)", () => 
     const result = await fulfillPaidOrder(orderId);
     expect(result.status).toBe("sent_to_printer");
 
-    // One generation per garment, both off the one shared upload/style.
-    expect(generatePrintFileMock).toHaveBeenCalledTimes(2);
+    // One resize per garment, both off the one shared canonical portrait.
+    expect(derivePrintBytesMock).toHaveBeenCalledTimes(2);
+    // And still no model. Two garments must not mean two different animals.
+    expect(generatePortraitMock).not.toHaveBeenCalled();
 
     const hoodiePx = printPixels(getProduct("hoodie")!);
     const totePx = printPixels(getProduct("tote")!);
     // The two products really are different sizes, or this test proves nothing.
     expect(hoodiePx).not.toEqual(totePx);
 
-    // Each product was asked for at ITS OWN dimensions, off the shared inputs.
-    expect(generatePrintFileMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        widthPx: hoodiePx.widthPx,
-        heightPx: hoodiePx.heightPx,
-        uploadKey: `uploads/${artworkId}.jpg`,
-        style: "watercolor",
-      }),
+    // Each product was made at ITS OWN dimensions, from the one shared set of
+    // approved bytes. That the bytes are identical is the point: the same
+    // creature on two garments is the same picture at two sizes.
+    expect(derivePrintBytesMock).toHaveBeenCalledWith(
+      canonicalBytesFor(artworkId),
+      hoodiePx.widthPx,
+      hoodiePx.heightPx,
     );
-    expect(generatePrintFileMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        widthPx: totePx.widthPx,
-        heightPx: totePx.heightPx,
-        uploadKey: `uploads/${artworkId}.jpg`,
-        style: "watercolor",
-      }),
+    expect(derivePrintBytesMock).toHaveBeenCalledWith(
+      canonicalBytesFor(artworkId),
+      totePx.widthPx,
+      totePx.heightPx,
     );
 
     // Two order_items, one artwork, two DISTINCT print files.
@@ -369,24 +485,26 @@ describe("fulfillPaidOrder: one creature across different products (B3)", () => 
     expect((await readArtwork(artworkId)).printKey).toBeNull();
   });
 
-  it("is idempotent per order item: a second run regenerates nothing", async () => {
+  it("is idempotent per order item: a second run rebuilds nothing", async () => {
     const { orderId } = await orderWithSharedArtwork(["hoodie", "tote"]);
 
     await fulfillPaidOrder(orderId);
     const keysAfterFirst = (await readItems(orderId)).map((i) => i.printKey);
-    // Two generations on the first pass, one per garment.
-    expect(generatePrintFileMock).toHaveBeenCalledTimes(2);
+    // Two files on the first pass, one per garment.
+    expect(derivePrintBytesMock).toHaveBeenCalledTimes(2);
 
     // A second fulfilment is a no-op (order already at the printer): no third or
-    // fourth generation, and the keys on the rows do not change.
+    // fourth file, and the keys on the rows do not change.
     const second = await fulfillPaidOrder(orderId);
     expect(second.status).toBe("already-fulfilled");
-    expect(generatePrintFileMock).toHaveBeenCalledTimes(2);
+    expect(derivePrintBytesMock).toHaveBeenCalledTimes(2);
 
-    // And even driving the generation step directly does not re-bill: every
-    // order_item already has a key, so the provider is not called again.
+    // And even driving the generation step directly changes nothing: every
+    // order_item already has a key, so the file the print shop is holding a link
+    // to is left exactly as it is.
     await generatePrintFilesForOrder(orderId);
-    expect(generatePrintFileMock).toHaveBeenCalledTimes(2);
+    expect(derivePrintBytesMock).toHaveBeenCalledTimes(2);
+    expect(generatePortraitMock).not.toHaveBeenCalled();
 
     const keysNow = (await readItems(orderId)).map((i) => i.printKey);
     expect(keysNow).toEqual(keysAfterFirst);
@@ -395,10 +513,10 @@ describe("fulfillPaidOrder: one creature across different products (B3)", () => 
   });
 });
 
-describe("fulfillPaidOrder: a generation that fails", () => {
+describe("fulfillPaidOrder: a print file that cannot be made", () => {
   it("flags the order, sends no job sheet, and says why", async () => {
     const { orderId, artworkIds } = await orderWith(["hoodie"]);
-    generatePrintFileMock.mockRejectedValue(new Error("provider is on fire"));
+    derivePrintBytesMock.mockRejectedValue(new Error("provider is on fire"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     const result = await fulfillPaidOrder(orderId);
@@ -427,7 +545,7 @@ describe("fulfillPaidOrder: a generation that fails", () => {
 
   it("does not un-pay the order it could not print", async () => {
     const { orderId } = await orderWith(["hoodie"]);
-    generatePrintFileMock.mockRejectedValue(new Error("nope"));
+    derivePrintBytesMock.mockRejectedValue(new Error("nope"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     await fulfillPaidOrder(orderId);
@@ -438,8 +556,8 @@ describe("fulfillPaidOrder: a generation that fails", () => {
 
   it("flags the whole order when only one line of several fails", async () => {
     const { orderId, artworkIds } = await orderWith(["hoodie", "tote"]);
-    generatePrintFileMock
-      .mockResolvedValueOnce({ printBytes: PNG_BYTES })
+    derivePrintBytesMock
+      .mockResolvedValueOnce(PNG_BYTES)
       .mockRejectedValueOnce(new Error("second one failed"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -447,7 +565,7 @@ describe("fulfillPaidOrder: a generation that fails", () => {
 
     expect(result.status).toBe("flagged");
     // A half-printed order is not a shipped order. The good line keeps its file
-    // so the retry does not pay for it again.
+    // so the retry leaves it exactly as it is.
     const items = await readItems(orderId);
     const first = items.find((item) => item.artworkId === artworkIds[0]);
     const second = items.find((item) => item.artworkId === artworkIds[1]);
@@ -522,8 +640,10 @@ describe("fulfillPaidOrder: orders it will not touch", () => {
     const result = await fulfillPaidOrder(orderId);
 
     expect(result).toMatchObject({ status: "refused", reason: "not-paid:pending" });
-    // The cost principle. An unpaid order must not reach the expensive call.
-    expect(generatePrintFileMock).not.toHaveBeenCalled();
+    // An unpaid order must not reach the print shop, and must not reach the
+    // model either: nothing downstream of the state guard runs at all.
+    expect(derivePrintBytesMock).not.toHaveBeenCalled();
+    expect(generatePortraitMock).not.toHaveBeenCalled();
     expect(sendJobSheetMock).not.toHaveBeenCalled();
     expect((await readOrder(orderId)).status).toBe("pending");
   });
@@ -534,7 +654,8 @@ describe("fulfillPaidOrder: orders it will not touch", () => {
 
     // Flagged means a human has not looked yet. Retry is the way in, not this.
     expect(result).toMatchObject({ status: "refused", reason: "not-paid:flagged" });
-    expect(generatePrintFileMock).not.toHaveBeenCalled();
+    expect(derivePrintBytesMock).not.toHaveBeenCalled();
+    expect(generatePortraitMock).not.toHaveBeenCalled();
   });
 
   it.each<OrderStatus>(["sent_to_printer", "printed", "shipped"])(
@@ -568,23 +689,24 @@ describe("fulfillPaidOrder: orders it will not touch", () => {
 });
 
 describe("retryFulfillment", () => {
-  it("regenerates only the missing line and completes", async () => {
+  it("remakes only the missing line and completes", async () => {
     const { orderId } = await orderWith(["hoodie", "tote"]);
-    generatePrintFileMock
-      .mockResolvedValueOnce({ printBytes: PNG_BYTES })
+    derivePrintBytesMock
+      .mockResolvedValueOnce(PNG_BYTES)
       .mockRejectedValueOnce(new Error("the second one failed"));
     vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect((await fulfillPaidOrder(orderId)).status).toBe("flagged");
-    expect(generatePrintFileMock).toHaveBeenCalledTimes(2);
+    expect(derivePrintBytesMock).toHaveBeenCalledTimes(2);
 
-    generatePrintFileMock.mockResolvedValue({ printBytes: PNG_BYTES });
+    derivePrintBytesMock.mockResolvedValue(PNG_BYTES);
     const retried = await retryFulfillment(orderId);
 
     expect(retried.status).toBe("sent_to_printer");
-    // Three calls, not four: the line that worked the first time is not paid
-    // for a second time.
-    expect(generatePrintFileMock).toHaveBeenCalledTimes(3);
+    // Three calls, not four: the line that worked the first time keeps the file
+    // it already has, and the model is still never asked for anything.
+    expect(derivePrintBytesMock).toHaveBeenCalledTimes(3);
+    expect(generatePortraitMock).not.toHaveBeenCalled();
 
     for (const item of await readItems(orderId)) {
       expect(item.printKey).toBeTruthy();
@@ -598,7 +720,7 @@ describe("retryFulfillment", () => {
     const result = await retryFulfillment(orderId);
 
     expect(result.status).toBe("sent_to_printer");
-    expect(generatePrintFileMock).toHaveBeenCalledTimes(1);
+    expect(derivePrintBytesMock).toHaveBeenCalledTimes(1);
   });
 
   it("will not print an order that was flagged without ever being paid", async () => {
@@ -613,7 +735,8 @@ describe("retryFulfillment", () => {
       status: "refused",
       reason: "flagged-without-payment",
     });
-    expect(generatePrintFileMock).not.toHaveBeenCalled();
+    expect(derivePrintBytesMock).not.toHaveBeenCalled();
+    expect(generatePortraitMock).not.toHaveBeenCalled();
     expect((await readOrder(orderId)).status).toBe("flagged");
   });
 
@@ -629,7 +752,7 @@ describe("retryFulfillment", () => {
       status: "refused",
       reason: "not-retryable:pending",
     });
-    expect(generatePrintFileMock).not.toHaveBeenCalled();
+    expect(derivePrintBytesMock).not.toHaveBeenCalled();
   });
 });
 
@@ -645,14 +768,17 @@ describe("resendJobSheet", () => {
     expect(sendJobSheetMock).toHaveBeenCalledTimes(1);
   });
 
-  it("costs nothing: a re-send never regenerates a print file", async () => {
+  it("changes nothing: a re-send never rebuilds a print file", async () => {
     const { orderId } = await orderWith(["hoodie"]);
     await fulfillPaidOrder(orderId);
-    generatePrintFileMock.mockClear();
+    derivePrintBytesMock.mockClear();
 
     await resendJobSheet(orderId);
 
-    expect(generatePrintFileMock).not.toHaveBeenCalled();
+    // The shop is being sent the same links to the same files. A re-send that
+    // remade them would hand them a second sheet pointing at different bytes.
+    expect(derivePrintBytesMock).not.toHaveBeenCalled();
+    expect(generatePortraitMock).not.toHaveBeenCalled();
   });
 
   it("leaves a breadcrumb, which is the whole reason it lives here", async () => {
@@ -700,8 +826,8 @@ describe("resendJobSheet", () => {
     // A sheet that links three garments and two files is a sheet the shop has to
     // ring us about.
     const { orderId } = await orderWith(["hoodie", "tote"]);
-    generatePrintFileMock
-      .mockResolvedValueOnce({ printBytes: PNG_BYTES })
+    derivePrintBytesMock
+      .mockResolvedValueOnce(PNG_BYTES)
       .mockRejectedValueOnce(new Error("the second one failed"));
     vi.spyOn(console, "error").mockImplementation(() => {});
     await fulfillPaidOrder(orderId);

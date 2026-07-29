@@ -1,7 +1,10 @@
 /**
- * Sniffs an image byte payload to a file extension. Providers return raw bytes
- * (the mock draws SVG, OpenAI returns PNG); the routes use this to name the
- * storage key so the asset route can serve the right content type.
+ * Sniffs an image byte payload to a file extension. Providers and the derive
+ * step return raw bytes (PNG today, on both the real and the mock path); the
+ * routes use this to name the storage key so the asset route can serve the
+ * right content type. It still recognises SVG and JPEG because uploads and
+ * older stored files are not all PNG, and a key whose extension lies is a link
+ * a browser or a print shop cannot open.
  */
 export function sniffImageExtension(bytes: Uint8Array): string {
   if (bytes.length >= 8) {

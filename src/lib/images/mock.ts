@@ -1,5 +1,4 @@
 import sharp from "sharp";
-import { derivePreviewBytes, derivePrintBytes } from "./derive";
 import {
   ART_STYLE_LABELS,
   type ArtStyle,
@@ -118,33 +117,16 @@ export class MockImageProvider implements ImageProvider {
     return { ok: true };
   }
 
-  async generatePreview({
+  async generatePortrait({
     style,
   }: {
     uploadKey: string;
     style: ArtStyle;
-  }): Promise<{ previewBytes: Uint8Array }> {
-    await delay(latencyMs());
-    return { previewBytes: await derivePreviewBytes(await drawPortrait(style)) };
-  }
-
-  async generatePrintFile({
-    style,
-    widthPx,
-    heightPx,
-  }: {
-    uploadKey: string;
-    style: ArtStyle;
-    widthPx: number;
-    heightPx: number;
-  }): Promise<{ printBytes: Uint8Array }> {
+  }): Promise<{ portraitBytes: Uint8Array; promptVersion: string }> {
     await delay(latencyMs());
     return {
-      printBytes: await derivePrintBytes(
-        await drawPortrait(style),
-        widthPx,
-        heightPx,
-      ),
+      portraitBytes: await drawPortrait(style),
+      promptVersion: MOCK_PROMPT_VERSION,
     };
   }
 }

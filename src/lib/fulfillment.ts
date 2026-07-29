@@ -7,19 +7,27 @@
  * cannot make PayFast wait) and, later, the admin retry button. Both hand it an
  * order id and nothing else; everything it needs it reads for itself.
  *
- * THE COST PRINCIPLE. generatePrintFile is the one call in this shop that
- * spends real money, and it is the only reason this code does not run until an
- * order is genuinely `paid`. Previews are cheap and watermarked; a print file is
- * not. Everything below is arranged around not paying for the same garment
- * twice: an order_item that already has a printKey is never regenerated, no
- * matter how many times a retry, a duplicate ITN or an impatient admin arrives.
+ * NOTHING HERE DRAWS ANYTHING. The print file is a resize of the artwork's
+ * stored canonical portrait, which is to say a resize of the exact bytes the
+ * customer approved. This module does not touch the image provider and must
+ * never be given a reason to: a second call to the model would return a
+ * different picture of the same animal, and we would print a portrait nobody
+ * ever agreed to. See docs/spec-portrait-prompting.md section 1.
+ *
+ * IDEMPOTENCY IS UNCHANGED, only its reason has moved. An order_item that
+ * already has a printKey is never regenerated, no matter how many times a
+ * retry, a duplicate ITN or an impatient admin arrives. It used to be about not
+ * paying twice for the same garment. It is now about the print shop: the job
+ * sheet already links that file, and a file that changes under them is a garment
+ * printed from something nobody checked.
  *
  * PER GARMENT, NOT PER ARTWORK (retention B3). The print file lives on the
  * order_item, sized to THAT item's product at 300 DPI. The same portrait
  * re-ordered onto a different product is a different print area and so a
  * different file; keying the file on the artwork (as this once did) would ship a
  * wrong-sized print on the second order. The artwork keeps only the reusable
- * inputs (uploadKey, style); artworks.printKey is legacy and read nowhere here.
+ * inputs (uploadKey, style, canonicalKey); artworks.printKey is legacy and read
+ * nowhere here.
  *
  * THE FAILURE POLICY, stated once and enforced below.
  *
@@ -57,7 +65,7 @@ import {
   type EmailResult,
 } from "@/lib/email";
 import { recordOrderEmailSend } from "@/lib/email/monitoring";
-import { getImageProvider } from "@/lib/images";
+import { derivePrintBytes } from "@/lib/images/derive";
 import {
   imageMimeForExtension,
   sniffImageExtension,
@@ -156,7 +164,8 @@ async function record(
 }
 
 /**
- * The print file for one order_item.
+ * The print file for one order_item: the approved portrait, resized to this
+ * garment's print area. No model, no second picture, no surprises.
  *
  * The early return on an existing order_item printKey is the whole idempotency
  * story and it sits before every expensive thing in this function on purpose.
@@ -164,8 +173,8 @@ async function record(
  * order_item cannot both write a key, so the loser adopts the winner's file
  * rather than leaving a second one orphaned in storage with the row pointing
  * elsewhere. Both halves are keyed on the order_item, not the artwork, so the
- * same portrait on two garments is generated twice at two sizes on purpose,
- * while one garment is never generated twice.
+ * same portrait on two garments is resized twice to two sizes on purpose, while
+ * one garment is never rebuilt once its file is on the row.
  */
 async function generatePrintFile(
   db: Db,
@@ -181,8 +190,9 @@ async function generatePrintFile(
   };
 
   if (item.printKey) {
-    // Already paid for once. This is the retry, the duplicate ITN and the admin
-    // clicking twice, and none of them bills us again for THIS garment.
+    // Already made once, and already linked from a job sheet. This is the
+    // retry, the duplicate ITN and the admin clicking twice, and none of them
+    // rebuilds the file THIS garment is being printed from.
     await record(
       db,
       orderId,
@@ -203,9 +213,10 @@ async function generatePrintFile(
   const product = getProduct(item.productSlug);
   if (!product) return fail(`unknown product slug "${item.productSlug}"`);
 
-  // The artwork supplies only the reusable inputs (the photo and the chosen
-  // style). Its own printKey is legacy and deliberately ignored: a re-order onto
-  // a different product must not adopt a wrong-sized file made for another one.
+  // The artwork supplies the approved portrait and nothing is drawn from
+  // scratch. Its own printKey is legacy and deliberately ignored: a re-order
+  // onto a different product must not adopt a wrong-sized file made for another
+  // one.
   const [artwork] = await db
     .select()
     .from(artworks)
@@ -213,8 +224,15 @@ async function generatePrintFile(
 
   if (!artwork) return fail("the artwork row this line points at is missing");
 
-  const style = artwork.style;
-  if (!style) return fail("no art style was ever chosen for this artwork");
+  if (!artwork.style) return fail("no art style was ever chosen for this artwork");
+
+  // No canonical image means there is no approved portrait to print, and the
+  // one thing we must never do here is invent one. Flag it and let a human
+  // decide: printing something the customer has not seen is worse than a delay
+  // on a personalised, non-returnable garment.
+  if (!artwork.canonicalKey) {
+    return fail("this artwork has no approved portrait stored, so nothing can be printed");
+  }
 
   // 300 DPI across THIS item's product print area. The print shop's sheet quotes
   // the same numbers, so the two cannot drift: both come from printPixels() of
@@ -222,18 +240,21 @@ async function generatePrintFile(
   const { widthPx, heightPx } = printPixels(product);
 
   try {
-    const provider = await getImageProvider();
-    const { printBytes } = await provider.generatePrintFile({
-      uploadKey: artwork.uploadKey,
-      style,
-      widthPx,
-      heightPx,
-    });
+    const canonicalBytes = await getStorage().getBytes(artwork.canonicalKey);
+    if (!canonicalBytes) {
+      return fail(
+        `the approved portrait is missing from storage: ${artwork.canonicalKey}`,
+      );
+    }
 
-    // Providers return raw bytes and disagree about the format (the mock draws
-    // SVG, OpenAI returns PNG), so the key is named after what actually arrived.
-    // Keyed by order_item id: the file belongs to this garment, and two garments
-    // sharing one artwork must not share a storage path.
+    // The whole of the promise, in one line: the print file is these bytes at
+    // another size. Not another picture.
+    const printBytes = await derivePrintBytes(canonicalBytes, widthPx, heightPx);
+
+    // Named after what actually arrived rather than what we assume: derive
+    // outputs PNG today, and a key whose extension lies is a link a print shop
+    // cannot open. Keyed by order_item id, because the file belongs to this
+    // garment and two garments sharing one artwork must not share a path.
     const ext = sniffImageExtension(printBytes);
     const printKey = `prints/${orderItemId}/${Date.now()}.${ext}`;
     await getStorage().put(printKey, printBytes, imageMimeForExtension(ext));
@@ -246,8 +267,8 @@ async function generatePrintFile(
 
     if (claimed.length === 0) {
       // A concurrent run got there first. Theirs is the file the row names, so
-      // theirs is the file the job sheet links; ours is a few cents wasted, not
-      // a mismatch to paper over.
+      // theirs is the file the job sheet links; ours is an orphaned resize of
+      // the same portrait, not a mismatch to paper over.
       const [current] = await db
         .select()
         .from(orderItems)
@@ -292,9 +313,10 @@ export async function generatePrintFilesForOrder(
     .from(orderItems)
     .where(eq(orderItems.orderId, orderId));
 
-  // Serial, not Promise.all. These are expensive, rate-limited calls to an
-  // image provider, and a twenty-line order firing twenty at once is how a shop
-  // discovers its rate limit on the one path where failure costs a customer.
+  // Serial, not Promise.all. Each line reads a full-size portrait out of
+  // storage and upscales it to a 300 DPI print area, and a twenty-line order
+  // firing twenty of those at once is how a serverless function meets its
+  // memory limit on the one path where failure costs a customer.
   const lines: PrintFileLine[] = [];
   for (const item of items) {
     lines.push(await generatePrintFile(db, orderId, item));
@@ -350,7 +372,8 @@ export async function fulfillPaidOrder(
   }
 
   // The state guard. "pending" is the one that matters: an unpaid order must
-  // never reach the provider, because that call costs money we have not taken.
+  // never reach the print shop, because a job sheet is a garment we have not
+  // been paid for.
   if (order.status !== "paid") {
     return { status: "refused", orderId, reason: `not-paid:${order.status}` };
   }
@@ -517,9 +540,9 @@ export async function resendJobSheet(
  * Allowed from `flagged` and from `paid` (an order whose fulfilment never fired
  * at all, because the process died between the ITN and the after() callback).
  * Anything already at the printer comes back "already-fulfilled". Only what is
- * missing is regenerated: generatePrintFile skips any order_item that already
- * has a key, so a three-line order with one bad line costs one generation, not
- * three.
+ * missing is rebuilt: generatePrintFile skips any order_item that already has a
+ * key, so a three-line order with one bad line remakes one file, not three, and
+ * the two the print shop already has links to do not change under them.
  *
  * THE GUARD THAT MATTERS. `flagged` has two meanings in this shop. Fulfilment
  * flags an order that was paid and could not be printed. The ITN webhook also
