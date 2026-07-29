@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ProductConfigurator } from "./ProductConfigurator";
+import { CompanionForm } from "./CompanionForm";
 import { Customizer } from "@/components/customizer/Customizer";
+import { checkCreatureName, logBreedRequest } from "@/app/products/[slug]/actions";
+import { emptyProfile } from "@/lib/companion";
 import type { Product, Variant } from "@/lib/products";
 
 export type ProductFlowProps = {
@@ -49,6 +52,10 @@ export function ProductFlow({
 
   const active = size !== null;
   const portraitRef = useRef<HTMLDivElement>(null);
+  // ponytail: the profile is held here and not yet persisted. It lands on the
+  // artwork row when the flow is reordered around payment (spec-pipeline.md
+  // build order steps 4 and 5); until then a reload loses it.
+  const [profile, setProfile] = useState(emptyProfile());
 
   // Scroll on the transition into an active state. Seeded so a size arriving on
   // the deep link (an explicit `?size=`) scrolls on first paint, while a
@@ -96,6 +103,17 @@ export function ProductFlow({
         ref={portraitRef}
         className="mt-14 scroll-mt-24 border-t border-line pt-12 md:mt-20"
       >
+        {active ? (
+          <div className="mb-14 md:mb-20">
+            <CompanionForm
+              profile={profile}
+              onChange={setProfile}
+              checkName={checkCreatureName}
+              onBreedMiss={(query) => logBreedRequest(query, profile.species)}
+            />
+          </div>
+        ) : null}
+
         <Customizer product={product} color={color} size={size} active={active} />
       </div>
     </div>

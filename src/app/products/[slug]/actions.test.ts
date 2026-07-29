@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { breedRequests } from "@/lib/db/schema";
-import { logBreedRequest } from "./actions";
+import { checkCreatureName, logBreedRequest } from "./actions";
 
 async function rowsFor(query: string) {
   const db = await getDb();
@@ -32,5 +32,30 @@ describe("logBreedRequest", () => {
     await expect(
       logBreedRequest("x".repeat(500), "cat"),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("checkCreatureName", () => {
+  it("accepts ordinary and accented names", async () => {
+    for (const name of ["Francis", "Zoë", "Mr O'Hara", "Jean-Luc"]) {
+      expect(await checkCreatureName(name), name).toEqual({ ok: true });
+    }
+  });
+
+  it("refuses a character the font cannot print", async () => {
+    // The failure this prevents: a blank space on a garment already paid for.
+    const emoji = await checkCreatureName("Rex 🐕");
+    expect(emoji.ok).toBe(false);
+
+    const cjk = await checkCreatureName("小白");
+    expect(cjk.ok).toBe(false);
+  });
+
+  it("refuses what we would rather not print", async () => {
+    expect((await checkCreatureName("Sir Shitface")).ok).toBe(false);
+  });
+
+  it("allows an empty name, which simply omits the line", async () => {
+    expect(await checkCreatureName("   ")).toEqual({ ok: true });
   });
 });
