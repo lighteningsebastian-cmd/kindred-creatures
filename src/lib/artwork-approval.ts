@@ -2,6 +2,8 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { artworks, type Artwork } from "@/lib/db/schema";
 import { verifyApprovalToken } from "@/lib/approval";
+import { isTemperament, type Temperament } from "@/lib/breeds";
+import type { CompanionProfile, CustomField } from "@/lib/companion";
 import {
   adjustmentsFor,
   isRevisionReason,
@@ -143,4 +145,34 @@ export async function requestRevision(
 export function adjustmentsForLatest(artwork: Artwork): string[] {
   const rounds = readRevisions(artwork);
   return adjustmentsFor(rounds[rounds.length - 1]?.reasons ?? []);
+}
+
+/**
+ * The companion profile as stored on an artwork row.
+ *
+ * The JSON columns are read defensively: a row that predates a column, or one
+ * hand-edited in a console, must render a plate rather than throw. A missing
+ * value simply omits its row, which is what the plate does anyway.
+ */
+export function profileFromArtwork(artwork: Artwork): CompanionProfile {
+  const parse = <T,>(raw: string | null, fallback: T): T => {
+    if (!raw) return fallback;
+    try {
+      const value = JSON.parse(raw);
+      return Array.isArray(value) ? (value as T) : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  return {
+    name: artwork.creatureName,
+    species: artwork.species ?? "dog",
+    breedId: artwork.breedId,
+    temperament: parse<Temperament[]>(artwork.temperament, []).filter(
+      isTemperament,
+    ),
+    togetherSince: artwork.togetherSince,
+    customFields: parse<CustomField[]>(artwork.customFields, []),
+  };
 }
