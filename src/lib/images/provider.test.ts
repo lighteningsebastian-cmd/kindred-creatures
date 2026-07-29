@@ -1,4 +1,6 @@
+// @vitest-environment node
 import { describe, it, expect, afterEach, vi } from "vitest";
+import sharp from "sharp";
 import { MockImageProvider } from "./mock";
 import { sniffImageExtension } from "./detect";
 import { isArtStyle } from "./provider";
@@ -24,14 +26,38 @@ describe("mock image provider", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("generatePreview returns non-empty SVG bytes", async () => {
+  it("generatePreview returns non-empty PNG bytes", async () => {
+    // Was SVG. The mock now returns the same format the real provider does,
+    // because everything downstream of it assumes a raster image with alpha.
     const provider = new MockImageProvider();
     const { previewBytes } = await provider.generatePreview({
       uploadKey: "uploads/x.png",
       style: "watercolor",
     });
     expect(previewBytes.length).toBeGreaterThan(0);
-    expect(sniffImageExtension(previewBytes)).toBe("svg");
+    expect(sniffImageExtension(previewBytes)).toBe("png");
+  });
+
+  it("draws on a genuinely transparent background, like the real provider", async () => {
+    // The hard architectural invariant is that the whole shop runs on an empty
+    // .env, so this path is the one most of the codebase is ever tested
+    // against. If the mock were opaque, a transparency bug would reach a
+    // printed garment before anyone saw it.
+    const provider = new MockImageProvider();
+    const { printBytes } = await provider.generatePrintFile({
+      uploadKey: "uploads/x.png",
+      style: "line-sketch",
+      widthPx: 600,
+      heightPx: 800,
+    });
+
+    const { data, info } = await sharp(Buffer.from(printBytes))
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    expect(info.channels).toBe(4);
+    // Top-left corner: background, and background must be nothing at all.
+    expect(data[3]).toBe(0);
   });
 
   it("preview is watermarked, print file is not", async () => {
@@ -43,13 +69,19 @@ describe("mock image provider", () => {
     const { printBytes } = await provider.generatePrintFile({
       uploadKey: "uploads/x.png",
       style: "classic-portrait",
-      widthPx: 3307,
-      heightPx: 4134,
+      widthPx: 1024,
+      heightPx: 1536,
     });
-    const preview = new TextDecoder().decode(previewBytes);
-    const print = new TextDecoder().decode(printBytes);
-    expect(preview).toContain("kindred creatures");
-    expect(print).not.toContain("kindred creatures");
+
+    // Both are rasters now, so the watermark is asserted in pixels rather than
+    // in SVG source: the preview differs from a plain downscale of the same
+    // portrait, and the print file is byte-identical to a plain resize of it.
+    const canonical = await sharp(Buffer.from(printBytes)).png().toBuffer();
+    const plainPreview = await sharp(canonical)
+      .resize({ width: 768, height: 768, fit: "inside", withoutEnlargement: true })
+      .png()
+      .toBuffer();
+    expect(Buffer.from(previewBytes).equals(plainPreview)).toBe(false);
   });
 });
 

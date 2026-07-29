@@ -1,3 +1,5 @@
+import sharp from "sharp";
+import { derivePreviewBytes, derivePrintBytes } from "./derive";
 import {
   ART_STYLE_LABELS,
   type ArtStyle,
@@ -6,11 +8,29 @@ import {
 
 /**
  * Local, key-free provider. It draws a simple branded stand-in portrait per
- * style (an SVG, so no rasteriser dependency) after a short delay that mimics a
- * real generation, and approves any non-empty upload. Good enough for the whole
- * customizer flow to run end to end offline; swap in the OpenAI provider for
- * real portraits.
+ * style after a short delay that mimics a real generation, and approves any
+ * non-empty upload. Good enough for the whole customizer flow to run end to end
+ * offline; swap in the OpenAI provider for real portraits.
+ *
+ * IT MUST LIE ABOUT THE PICTURE, NEVER ABOUT THE FORMAT. The whole shop has to
+ * run with an empty .env, which means this path is the one most of the codebase
+ * is ever tested against. So the stand-in is a PNG with a genuinely transparent
+ * background at the same size gpt-image-1 returns, because everything
+ * downstream (the resize, the watermark, and the print compositor that will
+ * later set type over the portrait) depends on real alpha. A mock that returned
+ * an opaque rectangle would let a transparency bug reach a printed garment
+ * before anyone saw it.
  */
+
+/**
+ * The size gpt-image-1 returns for our canonical render (see openai.ts). Matched
+ * here so the mock exercises the same downscale and upscale arithmetic.
+ */
+const CANONICAL_WIDTH = 1024;
+const CANONICAL_HEIGHT = 1536;
+
+/** What the mock records in artworks.prompt_version: no prompt was ever used. */
+export const MOCK_PROMPT_VERSION = "mock";
 
 function latencyMs(): number {
   const override = process.env.MOCK_LATENCY_MS;
@@ -24,13 +44,13 @@ function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-// Warm, palette-aligned backdrops per style (hex approximations of the tokens).
-const STYLE_THEME: Record<ArtStyle, { bg: string; ink: string; accent: string }> =
-  {
-    "classic-portrait": { bg: "#efe9df", ink: "#2c2620", accent: "#7c2f2f" },
-    "line-sketch": { bg: "#f3efe7", ink: "#2c2620", accent: "#3a332b" },
-    watercolor: { bg: "#ece7dd", ink: "#2c2620", accent: "#a97f4d" },
-  };
+// Palette-aligned ink per style (hex approximations of the design tokens).
+// There is no background colour here on purpose: the background is nothing.
+const STYLE_THEME: Record<ArtStyle, { ink: string; accent: string }> = {
+  "classic-portrait": { ink: "#2c2620", accent: "#7c2f2f" },
+  "line-sketch": { ink: "#2c2620", accent: "#3a332b" },
+  watercolor: { ink: "#2c2620", accent: "#a97f4d" },
+};
 
 function pawGlyph(cx: number, cy: number, r: number, fill: string): string {
   const pad = r * 0.62;
@@ -45,36 +65,41 @@ function pawGlyph(cx: number, cy: number, r: number, fill: string): string {
     </g>`;
 }
 
-function watermarkTiles(width: number, height: number): string {
-  const text = "kindred creatures";
-  const step = 150;
-  const tiles: string[] = [];
-  for (let y = 30; y < height; y += step) {
-    for (let x = -40; x < width; x += 260) {
-      tiles.push(
-        `<text x="${x}" y="${y}" transform="rotate(-24 ${x} ${y})" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="2" fill="#2c2620" fill-opacity="0.12">${text}</text>`,
-      );
-    }
-  }
-  return tiles.join("");
+/**
+ * Rasterised stand-ins, one per style. The mock draws the same picture every
+ * time for a given style, so rasterising it once and handing the same bytes
+ * back is exactly equivalent and keeps the offline path cheap: the test suite
+ * runs this provider hundreds of times.
+ */
+const drawn = new Map<ArtStyle, Uint8Array>();
+
+/**
+ * The stand-in portrait, as PNG bytes with a transparent background.
+ *
+ * Note what is NOT here: no background rectangle and no border. Both would be
+ * opaque, and an opaque stand-in would quietly hide exactly the defect this
+ * mock exists to keep us honest about.
+ */
+async function drawPortrait(style: ArtStyle): Promise<Uint8Array> {
+  const cached = drawn.get(style);
+  if (cached) return cached;
+  const png = await rasterise(style);
+  drawn.set(style, png);
+  return png;
 }
 
-function drawPortrait(
-  style: ArtStyle,
-  size: number,
-  watermark: boolean,
-): Uint8Array {
+async function rasterise(style: ArtStyle): Promise<Uint8Array> {
   const theme = STYLE_THEME[style];
   const label = ART_STYLE_LABELS[style].toUpperCase();
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" role="img" aria-label="${ART_STYLE_LABELS[style]} sample portrait">
-  <rect width="${size}" height="${size}" fill="${theme.bg}"/>
-  <rect x="16" y="16" width="${size - 32}" height="${size - 32}" fill="none" stroke="${theme.ink}" stroke-opacity="0.35" stroke-width="2"/>
-  ${pawGlyph(size / 2, size * 0.42, size * 0.12, theme.accent)}
-  <text x="50%" y="${size * 0.68}" text-anchor="middle" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="${Math.round(size * 0.05)}" font-weight="900" letter-spacing="3" fill="${theme.ink}">${label}</text>
-  <text x="50%" y="${size * 0.75}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="${Math.round(size * 0.035)}" fill="${theme.accent}">Kindred Creatures sample</text>
-  ${watermark ? watermarkTiles(size, size) : ""}
+  const w = CANONICAL_WIDTH;
+  const h = CANONICAL_HEIGHT;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${ART_STYLE_LABELS[style]} sample portrait">
+  ${pawGlyph(w / 2, h * 0.42, w * 0.18, theme.accent)}
+  <text x="50%" y="${h * 0.62}" text-anchor="middle" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="${Math.round(w * 0.05)}" font-weight="900" letter-spacing="3" fill="${theme.ink}">${label}</text>
+  <text x="50%" y="${h * 0.68}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="${Math.round(w * 0.035)}" fill="${theme.accent}">Kindred Creatures sample</text>
 </svg>`;
-  return new TextEncoder().encode(svg);
+  const png = await sharp(Buffer.from(svg)).ensureAlpha().png().toBuffer();
+  return new Uint8Array(png);
 }
 
 export class MockImageProvider implements ImageProvider {
@@ -100,12 +125,13 @@ export class MockImageProvider implements ImageProvider {
     style: ArtStyle;
   }): Promise<{ previewBytes: Uint8Array }> {
     await delay(latencyMs());
-    return { previewBytes: drawPortrait(style, 512, true) };
+    return { previewBytes: await derivePreviewBytes(await drawPortrait(style)) };
   }
 
   async generatePrintFile({
     style,
     widthPx,
+    heightPx,
   }: {
     uploadKey: string;
     style: ArtStyle;
@@ -113,7 +139,12 @@ export class MockImageProvider implements ImageProvider {
     heightPx: number;
   }): Promise<{ printBytes: Uint8Array }> {
     await delay(latencyMs());
-    // Print file is unwatermarked; size to the print area's larger edge.
-    return { printBytes: drawPortrait(style, Math.max(widthPx, 512), false) };
+    return {
+      printBytes: await derivePrintBytes(
+        await drawPortrait(style),
+        widthPx,
+        heightPx,
+      ),
+    };
   }
 }
