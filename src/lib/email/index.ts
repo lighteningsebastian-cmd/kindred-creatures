@@ -37,6 +37,12 @@ import { shippingNotificationEmail } from "./templates/shipping-notification";
 import { jobSheetEmail, type JobSheetLine } from "./templates/job-sheet";
 import { welcomeEmail } from "./templates/welcome";
 import { magicLinkEmail } from "./templates/magic-link";
+import {
+  approvedEmail,
+  artworkReadyEmail,
+  revisionReadyEmail,
+} from "./templates/approval";
+import { signApprovalToken } from "@/lib/approval";
 
 export * from "./send";
 export { orderRef } from "./layout";
@@ -68,6 +74,17 @@ function siteUrl(): string {
 /** The customer-facing status link for an order: signed, unguessable, plain. */
 export function orderStatusUrl(orderId: string): string {
   return `${siteUrl()}/order/${signOrderToken(orderId)}`;
+}
+
+/**
+ * The link that lets somebody approve their portrait.
+ *
+ * A different token from the order-status link on purpose: holding one must
+ * never do the other's job. This one releases a garment to a press; it grants
+ * no login and exposes nothing else about the account.
+ */
+export function approvalUrl(artworkId: string): string {
+  return `${siteUrl()}/approve/${signApprovalToken(artworkId)}`;
 }
 
 /**
@@ -367,6 +384,74 @@ export async function sendJobSheet(
     text: rendered.text,
     // The shop replies to us, not into a no-reply void: a query about a job is
     // a query for a human on our side.
+    replyTo: emailReplyTo(),
+  });
+}
+
+/**
+ * "Here they are." The mail that carries the approval link.
+ *
+ * Sent once the portrait exists and before anything is printed, which is the
+ * whole of the promise this shop makes.
+ */
+export async function sendArtworkReady(
+  order: Order,
+  artworkId: string,
+  creatureName: string | null,
+): Promise<EmailResult> {
+  const rendered = artworkReadyEmail({
+    firstName: order.firstName,
+    creatureName,
+    approveUrl: approvalUrl(artworkId),
+  });
+
+  return deliver({
+    to: order.email,
+    subject: rendered.subject,
+    html: rendered.html,
+    text: rendered.text,
+    replyTo: emailReplyTo(),
+  });
+}
+
+/** The same link again, after a revision. */
+export async function sendRevisionReady(
+  order: Order,
+  artworkId: string,
+  creatureName: string | null,
+): Promise<EmailResult> {
+  const rendered = revisionReadyEmail({
+    firstName: order.firstName,
+    creatureName,
+    approveUrl: approvalUrl(artworkId),
+  });
+
+  return deliver({
+    to: order.email,
+    subject: rendered.subject,
+    html: rendered.html,
+    text: rendered.text,
+    replyTo: emailReplyTo(),
+  });
+}
+
+/** Sent when they say yes, so the approval is acknowledged and not silent. */
+export async function sendApproved(
+  order: Order,
+  creatureName: string | null,
+): Promise<EmailResult> {
+  const rendered = approvedEmail({
+    firstName: order.firstName,
+    creatureName,
+    orderRef: refFor(order),
+    orderUrl: orderStatusUrl(order.id),
+  });
+
+  return deliver({
+    to: order.email,
+    subject: rendered.subject,
+    html: rendered.html,
+    text: rendered.text,
     replyTo: emailReplyTo(),
   });
 }

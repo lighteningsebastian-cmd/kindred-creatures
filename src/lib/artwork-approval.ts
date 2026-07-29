@@ -1,6 +1,12 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { artworks, type Artwork } from "@/lib/db/schema";
+import {
+  artworks,
+  orderItems,
+  orders,
+  type Artwork,
+  type Order,
+} from "@/lib/db/schema";
 import { verifyApprovalToken } from "@/lib/approval";
 import { isTemperament, type Temperament } from "@/lib/breeds";
 import type { CompanionProfile, CustomField } from "@/lib/companion";
@@ -175,4 +181,21 @@ export function profileFromArtwork(artwork: Artwork): CompanionProfile {
     togetherSince: artwork.togetherSince,
     customFields: parse<CustomField[]>(artwork.customFields, []),
   };
+}
+
+/**
+ * The order a piece of artwork belongs to, or null.
+ *
+ * An artwork reaches an order through its line items, so this is the join the
+ * approval flow needs to tell somebody their piece is going to print.
+ */
+export async function orderForArtwork(artworkId: string): Promise<Order | null> {
+  const db = await getDb();
+  const [row] = await db
+    .select({ order: orders })
+    .from(orderItems)
+    .innerJoin(orders, eq(orderItems.orderId, orders.id))
+    .where(eq(orderItems.artworkId, artworkId))
+    .limit(1);
+  return row?.order ?? null;
 }

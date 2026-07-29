@@ -200,3 +200,31 @@ export function button(href: string, label: string): string {
 export function divider(): string {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;"><tr><td style="border-top:1px solid ${COLORS.dune200};font-size:0;line-height:0;">&nbsp;</td></tr></table>`;
 }
+
+/**
+ * How to name a customer's animal in a subject line, given we may not know it.
+ *
+ * THE RULE THESE EXIST TO KEEP (docs/spec-pipeline.md section 8): every line
+ * has to work whether the animal is asleep on the sofa or gone. A meaningful
+ * share of these orders are placed within a week of a loss. So: no future tense
+ * about the animal, ever. Nothing is going to "come to life" and nobody "can't
+ * wait to meet them". The portrait is the thing that is happening, not the
+ * creature.
+ *
+ * Fall back to "them" and "your companion" where no name was given, never to
+ * "your pet" and never to a blank.
+ */
+export function creaturePossessive(name: string | null | undefined): string {
+  const trimmed = name?.trim();
+  return trimmed ? `${trimmed}'s` : "their";
+}
+
+/** Sentence subject: "Fenn is on the way", "Your companion is on the way". */
+export function creatureSubject(name: string | null | undefined): string {
+  return name?.trim() || "Your companion";
+}
+
+/** Sentence object: "Another look at Fenn", "Another look at them". */
+export function creatureObject(name: string | null | undefined): string {
+  return name?.trim() || "them";
+}

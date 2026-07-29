@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import {
   approveArtwork,
+  orderForArtwork,
   requestRevision,
 } from "@/lib/artwork-approval";
+import { sendApproved } from "@/lib/email";
 
 /**
  * What the approval page says back to the customer.
@@ -27,6 +29,16 @@ const GENERIC =
 export async function approveAction(token: string): Promise<ApprovalState> {
   const result = await approveArtwork(token);
   if (result.status === "refused") return { state: "error", message: GENERIC };
+  // Only on the transition, so a second click does not send a second mail.
+  if (result.status === "approved") {
+    const order = await orderForArtwork(result.artwork.id);
+    // Best effort, and deliberately not awaited into the outcome: a dead
+    // mailbox must never unwind an approval the customer has already given.
+    if (order) {
+      await sendApproved(order, result.artwork.creatureName);
+    }
+  }
+
   // A second click is not an error. They said yes; it is still yes.
   revalidatePath(`/approve/${token}`);
   return { state: "approved" };
