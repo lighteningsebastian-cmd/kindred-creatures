@@ -1,5 +1,6 @@
 import { pgTable, text, integer, uuid, timestamp } from "drizzle-orm/pg-core";
 import type { ArtStyle } from "@/lib/images/provider";
+import type { Species } from "@/lib/breeds";
 
 /** Lifecycle of an artwork as it moves through the customizer pipeline. */
 export type ArtworkStatus =
@@ -54,6 +55,33 @@ export const artworks = pgTable("artworks", {
   status: text("status").$type<ArtworkStatus>().notNull().default("uploaded"),
   // The garment the portrait is being made for (products.ts slug).
   productSlug: text("product_slug").notNull(),
+
+  // --- The companion profile (docs/spec-pipeline.md section 10). Everything
+  // here is collected BEFORE payment and printed on the plate; the portrait
+  // itself is drawn after (section 1). All nullable: the plate omits any row
+  // it has no value for rather than printing an empty one.
+  creatureName: text("creature_name"),
+  species: text("species").$type<Species>(),
+  breedId: text("breed_id"),
+  // JSON array of chip ids, validated against TEMPERAMENTS on the way in.
+  temperament: text("temperament"),
+  // Year only, and there is deliberately NO end-date column here or anywhere
+  // else. Two dates under a name is a headstone, and a field that exists
+  // eventually gets filled in. See docs/spec-print-layout.md section 3.
+  togetherSince: integer("together_since"),
+  // JSON label/value pairs, "other" species only (no breed table to draw on).
+  customFields: text("custom_fields"),
+
+  // The two composited plates, drawn after payment. Canonical bytes: the print
+  // file is a resize of these and is never regenerated.
+  frontKey: text("front_key"),
+  backKey: text("back_key"),
+  // Revisions used. Never shown to the customer: a visible limit turns a
+  // service into a ration (spec section 7).
+  revisionCount: integer("revision_count").notNull().default(0),
+  // Set when the customer says yes. Nothing reaches the printer before this.
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -61,6 +89,21 @@ export const artworks = pgTable("artworks", {
 
 export type Artwork = typeof artworks.$inferSelect;
 export type NewArtwork = typeof artworks.$inferInsert;
+
+/**
+ * What people searched for in the breed picker and did not find.
+ *
+ * The list in breeds.ts grows from this, so it grows by real demand rather
+ * than guesswork. Nothing here is customer-visible.
+ */
+export const breedRequests = pgTable("breed_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  query: text("query").notNull(),
+  species: text("species").$type<Species>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 
 /**
  * A returning customer's account. Retention subsystem B (accounts) is
@@ -548,4 +591,26 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS email_bounced_at timestamptz;
 -- where the CREATE TABLE above already added them.
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS canonical_key text;
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS prompt_version text;
+
+-- The companion profile and the commission pipeline (docs/spec-pipeline.md
+-- section 10). Collected before payment, drawn after it. There is no end-date
+-- column beside together_since and there never may be: two dates under a name
+-- is a headstone, and a column that exists eventually gets populated.
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS creature_name text;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS species text;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS breed_id text;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS temperament text;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS together_since integer;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS custom_fields text;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS front_key text;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS back_key text;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS revision_count integer NOT NULL DEFAULT 0;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS approved_at timestamptz;
+
+CREATE TABLE IF NOT EXISTS breed_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  query text NOT NULL,
+  species text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 `;
