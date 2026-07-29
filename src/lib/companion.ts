@@ -119,3 +119,24 @@ export function validateProfile(
 export function isProfileComplete(profile: CompanionProfile): boolean {
   return Object.keys(validateProfile(profile)).length === 0;
 }
+
+/**
+ * The line that sits under every preview, always, in plain sight.
+ *
+ * The preview shows a real plate carrying their own data, but a STOCK
+ * illustration of the breed: their animal has not been drawn yet, and the
+ * breed library is house style only, so somebody who picked watercolour is
+ * still looking at a house-style example. Saying so is the difference between
+ * a clever preview and a complaint, and it promises something better than what
+ * they are looking at rather than less.
+ *
+ * Never collapse this behind a tooltip and never let it depend on a network
+ * call: it has to be on screen whenever a stock illustration is.
+ */
+export function stockDisclosure(breedName: string | null): string {
+  const tail =
+    "Yours will be drawn from your own photo, in the style you choose.";
+  if (!breedName) return `The illustration shown is an example. ${tail}`;
+  const article = /^[AEIOU]/i.test(breedName) ? "an" : "a";
+  return `The illustration shown is ${article} ${breedName} example. ${tail}`;
+}

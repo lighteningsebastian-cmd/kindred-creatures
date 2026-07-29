@@ -3,8 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { ProductConfigurator } from "./ProductConfigurator";
 import { CompanionForm } from "./CompanionForm";
+import { PlatePreview } from "./PlatePreview";
 import { Customizer } from "@/components/customizer/Customizer";
-import { checkCreatureName, logBreedRequest } from "@/app/products/[slug]/actions";
+import {
+  checkCreatureName,
+  logBreedRequest,
+  previewPlates,
+} from "@/app/products/[slug]/actions";
 import { emptyProfile } from "@/lib/companion";
 import type { Product, Variant } from "@/lib/products";
 
@@ -111,6 +116,15 @@ export function ProductFlow({
               checkName={checkCreatureName}
               onBreedMiss={(query) => logBreedRequest(query, profile.species)}
             />
+
+            <div className="mt-12">
+              <PlatePreview
+                profile={profile}
+                product={product}
+                color={color}
+                render={previewPlates}
+              />
+            </div>
           </div>
         ) : null}
 

@@ -55,6 +55,8 @@ describe("the data table", () => {
   it("prints One of One for an unrecorded breed", () => {
     const rows = tableRows(profile({ breedId: "one-of-one-dog-large" }));
     expect(rows.find((r) => r.label === "BREED")?.value).toBe("One of One");
+    // And it says it once. The same words in two rows read as a fault.
+    expect(rows.filter((r) => r.value === "One of One")).toHaveLength(1);
     // The phrase it replaces must appear nowhere, in any casing.
     expect(JSON.stringify(rows).toLowerCase()).not.toContain("mixed");
   });

@@ -2,9 +2,14 @@
 
 import { getDb } from "@/lib/db/client";
 import { breedRequests } from "@/lib/db/schema";
-import { SPECIES, type Species } from "@/lib/breeds";
+import { SPECIES, getBreed, stockKey, type Species } from "@/lib/breeds";
 import { loadPrintFont } from "@/lib/print/fonts";
-import { NAME_MAX } from "@/lib/companion";
+import { NAME_MAX, type CompanionProfile } from "@/lib/companion";
+import { backPlate, frontPlate } from "@/lib/print/plate";
+import { getStorage } from "@/lib/storage";
+
+/** The front plate is a small square patch, so one dimension describes it. */
+const FRONT_PX = 600;
 
 /** Longer than any real breed name; anything past this is not a search. */
 const MAX_QUERY = 60;
@@ -106,4 +111,71 @@ export async function checkCreatureName(name: string): Promise<NameCheck> {
   }
 
   return { ok: true };
+}
+
+export interface PlatePreview {
+  /** The type layer, as an SVG document of outlines. Renders anywhere. */
+  svg: string;
+  /** Where the illustration sits, as fractions of the plate, for CSS. */
+  portrait: { x: number; y: number; width: number; height: number };
+}
+
+export interface PreviewResult {
+  front: PlatePreview;
+  back: PlatePreview;
+  /**
+   * The breed's stock illustration, or null while the library is still being
+   * made. Null is an ordinary state, not an error: the preview degrades to a
+   * placeholder and the flow carries on.
+   */
+  stockUrl: string | null;
+}
+
+/** Fractions rather than pixels, so the caller can size the plate freely. */
+function asFractions(
+  rect: { x: number; y: number; width: number; height: number },
+  w: number,
+  h: number,
+) {
+  return {
+    x: rect.x / w,
+    y: rect.y / h,
+    width: rect.width / w,
+    height: rect.height / h,
+  };
+}
+
+/**
+ * Renders both plates for the pre-payment preview.
+ *
+ * Returns the SVG rather than a raster: the type is already outlines, so the
+ * browser draws it crisply at any size with no font to load and no round trip
+ * through sharp. It is the SAME layout code the print file is composed from,
+ * so what they are looking at is the plate, not a mock-up of one.
+ *
+ * No reference code is passed: no order exists yet, and inventing a number to
+ * fill the space would be the one dishonest thing on an honest plate.
+ */
+export async function previewPlates(
+  profile: CompanionProfile,
+  aspect: { width: number; height: number },
+): Promise<PreviewResult> {
+  const back = backPlate(profile, null, aspect.width, aspect.height);
+  const front = frontPlate(profile, FRONT_PX, FRONT_PX);
+
+  const breed = profile.breedId ? getBreed(profile.breedId) : undefined;
+  let stockUrl: string | null = null;
+  if (breed) {
+    const key = stockKey(breed);
+    // Ask storage rather than assuming: the library is being drawn breed by
+    // breed, so "not there yet" is the normal case for most of them.
+    const bytes = await getStorage().getBytes(key);
+    if (bytes) stockUrl = await getStorage().getSignedUrl(key, 600);
+  }
+
+  return {
+    back: { svg: back.svg, portrait: asFractions(back.portrait, aspect.width, aspect.height) },
+    front: { svg: front.svg, portrait: asFractions(front.portrait, FRONT_PX, FRONT_PX) },
+    stockUrl,
+  };
 }

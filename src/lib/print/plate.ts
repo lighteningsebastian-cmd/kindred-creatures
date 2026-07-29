@@ -166,7 +166,14 @@ export function tableRows(profile: CompanionProfile): TableRow[] {
     if (breed.origin) {
       rows.push({ label: config.originLabel, value: breed.origin });
     }
-    if (breed.group && config.groupLabel) {
+    // An unrecorded breed carries "One of One" as its group too, and printing
+    // the same words twice on a five row plate reads as a fault rather than a
+    // fact. One row says it better than two.
+    if (
+      breed.group &&
+      config.groupLabel &&
+      breed.group !== breedRowValue(breed)
+    ) {
       rows.push({ label: config.groupLabel, value: breed.group });
     }
   }
