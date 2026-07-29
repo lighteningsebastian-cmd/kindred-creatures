@@ -47,3 +47,4 @@ next-env.d.ts
 
 # design reference (large, de-escaped duplicate of the kit)
 design/ui-kit-readable.html
+.plates/
