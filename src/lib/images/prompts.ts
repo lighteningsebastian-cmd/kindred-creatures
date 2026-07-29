@@ -105,3 +105,35 @@ export const CONSTRAINTS =
   "No background scenery. No frame, no border, no text, no lettering, no signature, " +
   "no watermark, no human hands, no collar tags with writing. " +
   "Transparent background. Suitable for printing on fabric.";
+
+/**
+ * What we add to the instruction when a customer tells us what is not right.
+ *
+ * These are the ONLY words a customer can influence, and they cannot type
+ * them: they tick a box, and the box is bound to one of these sentences. What
+ * a customer WRITES to us never reaches the model at all. It goes to the admin
+ * queue for a person to read. See docs/spec-pipeline.md section 6.
+ *
+ * That is not caution about rude words. A text box wired to a prompt hands a
+ * stranger the controls on something we print and post at our expense.
+ *
+ * "Something else" is deliberately absent. It means "read my note", which is a
+ * job for a human, not for the model.
+ */
+export const REVISION_ADJUSTMENT: Record<string, string> = {
+  "not-like-them":
+    "The previous attempt did not look like this animal. Follow the photograph " +
+    "far more closely: exact markings, exact proportions, exact face.",
+  "wrong-colouring":
+    "The previous attempt had the wrong colouring. Match the coat colour, " +
+    "pattern and markings in the photograph exactly.",
+  "too-dark":
+    "The previous attempt was too dark. Lighten the overall tone and open up " +
+    "the shadows, keeping the same colours.",
+  "too-light":
+    "The previous attempt was too light. Deepen the overall tone and give the " +
+    "shadows more weight, keeping the same colours.",
+  "wrong-angle":
+    "The previous attempt had the wrong head angle. Match the pose and angle " +
+    "of the head in the photograph.",
+};

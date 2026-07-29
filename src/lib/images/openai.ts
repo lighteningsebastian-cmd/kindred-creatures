@@ -6,6 +6,7 @@ import {
   STYLE_CLAUSE,
   SUBJECT,
 } from "./prompts";
+import { adjustmentsFor, type RevisionReason } from "@/lib/revision";
 import type { ArtStyle, ImageProvider } from "./provider";
 
 /**
@@ -42,10 +43,20 @@ function toDataUrl(bytes: Uint8Array, contentType: string): string {
  * we make, which is what stops the range drifting into three unrelated
  * pictures.
  */
-export function buildPortraitPrompt(style: ArtStyle): string {
+export function buildPortraitPrompt(
+  style: ArtStyle,
+  /**
+   * Chip ids from a revision, if this is a second attempt. Typed as the closed
+   * set and filtered again by adjustmentsFor, so there is no route from a
+   * request body to these words. What a customer WRITES never arrives here at
+   * all: it goes to a person. docs/spec-pipeline.md section 6.
+   */
+  reasons: RevisionReason[] = [],
+): string {
   return [
     SUBJECT,
     STYLE_CLAUSE[style],
+    ...adjustmentsFor(reasons),
     // SEAM, deliberately empty (docs/spec-portrait-prompting.md section 5).
     // The nature fragment chosen in the customer journey slots in HERE, between
     // the style clause and the composition clause, and may modify light,
@@ -103,7 +114,11 @@ export class OpenAIImageProvider implements ImageProvider {
     return { ok: true };
   }
 
-  private async render(uploadKey: string, style: ArtStyle): Promise<Uint8Array> {
+  private async render(
+    uploadKey: string,
+    style: ArtStyle,
+    reasons: RevisionReason[],
+  ): Promise<Uint8Array> {
     const source = await getStorage().getBytes(uploadKey);
     if (!source) throw new Error(`Upload ${uploadKey} not found`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -114,7 +129,7 @@ export class OpenAIImageProvider implements ImageProvider {
     const result = await client.images.edit({
       model: "gpt-image-1",
       image,
-      prompt: buildPortraitPrompt(style),
+      prompt: buildPortraitPrompt(style, reasons),
       size: CANONICAL_SIZE,
       // A portrait printed on a Stone hoodie must be an animal, not a white
       // rectangle with an animal in it. Transparency requires a PNG or WebP
@@ -131,12 +146,14 @@ export class OpenAIImageProvider implements ImageProvider {
   async generatePortrait({
     uploadKey,
     style,
+    reasons = [],
   }: {
     uploadKey: string;
     style: ArtStyle;
+    reasons?: RevisionReason[];
   }): Promise<{ portraitBytes: Uint8Array; promptVersion: string }> {
     return {
-      portraitBytes: await this.render(uploadKey, style),
+      portraitBytes: await this.render(uploadKey, style, reasons),
       promptVersion: PROMPT_VERSION,
     };
   }

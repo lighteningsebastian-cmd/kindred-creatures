@@ -5,6 +5,8 @@
  * locally with no API keys.
  */
 
+import type { RevisionReason } from "@/lib/revision";
+
 export type ArtStyle = "classic-portrait" | "line-sketch" | "watercolor";
 
 export const ART_STYLES: ArtStyle[] = [
@@ -45,7 +47,16 @@ export interface ImageProvider {
    * defect shipped in this interface once already. See
    * docs/spec-portrait-prompting.md section 1.
    */
-  generatePortrait(input: { uploadKey: string; style: ArtStyle }): Promise<{
+  generatePortrait(input: {
+    uploadKey: string;
+    style: ArtStyle;
+    /**
+     * Revision chips, when this is a second attempt. A closed set: what the
+     * customer WROTE never reaches a prompt, only a person.
+     * docs/spec-pipeline.md section 6.
+     */
+    reasons?: RevisionReason[];
+  }): Promise<{
     portraitBytes: Uint8Array;
     /**
      * Which prompt wording drew it (images/prompts.ts PROMPT_VERSION, or "mock"
