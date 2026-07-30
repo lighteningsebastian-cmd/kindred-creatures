@@ -46,15 +46,19 @@ credential; add env vars to `.env.example`.
   row; idempotent via UNIQUE `webhook_events.payfastPaymentId`; admin has NO mark-paid.
 - Checkout re-derives every price server-side from `src/lib/products.ts`; client prices
   are never trusted. Shipping: flat R99, free >= R1000 (matches the utility-bar promise).
-- **The customer receives the portrait they approved.** ONE model call per artwork: the
-  canonical PNG (transparent, 1024x1536) is stored at `artworks.canonicalKey`, the preview
-  is a downscaled watermarked copy of THOSE EXACT BYTES, and the print file is a resize of
-  them. Fulfilment NEVER calls the image provider; a null `canonicalKey` makes it refuse
-  rather than print something unapproved, and checkout 422s on the same condition. "Try
-  another" writes a new canonical key. Regenerating at print size (the old behaviour) meant
-  the customer approved one picture and received a different one: do not reintroduce it.
-  Prompts live ONLY in `src/lib/images/prompts.ts`; `artworks.promptVersion` records which
-  prompt drew each artwork.
+- **The customer receives the portrait they approved.** Drawing happens ONCE per artwork,
+  after payment, in phase A (`fulfillPaidOrder` -> `drawArtworkPlates`), and the composited
+  back plate is stored at `artworks.canonicalKey`. The print file is a RESIZE of those exact
+  bytes. **PRINTING never draws**: `releaseApprovedOrder` and `generatePrintFilesForOrder`
+  must never touch the image provider, and tests pin it. Regenerating at print size (the old
+  behaviour) meant the customer approved one picture and received a different one: do not
+  reintroduce it. Prompts live ONLY in `src/lib/images/prompts.ts`;
+  `artworks.promptVersion` records which prompt drew each artwork.
+- **Nothing prints without an approval.** `releaseApprovedOrder` refuses unless EVERY
+  artwork on the order has `approvedAt`. It is the only path to a job sheet, used by both
+  the customer's approval link and the admin's Release to print. Checkout does NOT require a
+  portrait (there is none before payment); it requires a photo, a style and a complete
+  profile, i.e. everything the drawing will need.
 - Fulfilment runs AFTER the webhook 200 (`after()`); print files are per ORDER ITEM at
   that product's 300 DPI `printPixels` (B3 refactor), idempotent per item;
   `artworks.printKey` is legacy. `flagged` has two meanings: paid-but-print-failed
