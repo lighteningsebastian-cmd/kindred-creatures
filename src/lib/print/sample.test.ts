@@ -55,10 +55,9 @@ describe("sample plates", () => {
           breedId: null,
           temperament: [],
           togetherSince: 2019,
-          customFields: [
-            { label: "Rescued from", value: "A roadside in Knysna" },
-            { label: "Answers to", value: "Anything with food" },
-          ],
+          otherKind: "Horse",
+          otherBreed: "Nooitgedachter",
+          otherOrigin: "The Karoo",
         }),
         "KC-01251",
       ],

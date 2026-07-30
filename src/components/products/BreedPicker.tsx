@@ -3,7 +3,15 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/cn";
-import { searchBreeds, type Breed, type Species } from "@/lib/breeds";
+import {
+  breedsForSpecies,
+  searchBreeds,
+  type Breed,
+  type Species,
+} from "@/lib/breeds";
+
+/** More than this is a wall of names. The rest are reachable by typing more. */
+const MAX_VISIBLE = 8;
 
 /**
  * Picks a breed from the list we maintain, filtered by species.
@@ -39,12 +47,25 @@ export function BreedPicker({
   const [query, setQuery] = useState("");
   const [reported, setReported] = useState(false);
 
-  const matches = searchBreeds(species, query);
-  // Partition rather than sort: keeps the list's own order inside each group.
-  const results = [
+  const searching = query.trim() !== "";
+  // An empty query returns the popular shortlist, not the whole list: thirty-five
+  // names is a wall, not a menu. searchBreeds ranks matches so an exact name and
+  // a name-start beat a match buried mid-word.
+  const found = searchBreeds(species, query);
+  // popularBreeds is popular PEDIGREES and leaves One of One out. On the
+  // pre-typing shortlist that would bury the commonest case in South Africa
+  // behind six purebreds, which is the burial docs/spec-print-layout.md section 3
+  // forbids. So it is put back here, where the rule actually applies.
+  const matches = searching
+    ? found
+    : [...breedsForSpecies(species).filter((b) => b.oneOfOne), ...found];
+  // Partition rather than sort: keeps the ranking's order inside each group.
+  const ranked = [
     ...matches.filter((b) => b.oneOfOne),
     ...matches.filter((b) => !b.oneOfOne),
   ];
+  const results = ranked.slice(0, MAX_VISIBLE);
+  const hidden = ranked.length - results.length;
 
   function report() {
     onMiss(query);
@@ -66,8 +87,14 @@ export function BreedPicker({
       />
 
       <p role="status" className="sr-only">
-        {results.length} breeds match
+        {results.length} breeds shown
       </p>
+
+      {results.length > 0 ? (
+        <p className="eyebrow text-xs text-muted">
+          {searching ? "Closest matches" : "Most common"}
+        </p>
+      ) : null}
 
       {results.length > 0 ? (
         <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto">
@@ -104,6 +131,12 @@ export function BreedPicker({
           Nothing matches {`"${query}"`} yet.
         </p>
       )}
+
+      {hidden > 0 ? (
+        <p className="text-sm text-muted">
+          {hidden} more. Keep typing to narrow it down.
+        </p>
+      ) : null}
 
       {reported ? (
         <p className="text-sm text-muted">

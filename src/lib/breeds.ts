@@ -191,24 +191,62 @@ export function breedRowValue(breed: Breed): string {
   return breed.oneOfOne ? "One of One" : breed.name;
 }
 
-/**
- * Case and accent insensitive search over breed names, for the picker.
- * A miss should be logged by the caller so the list can grow by real demand.
- */
-export function searchBreeds(species: Species, query: string): Breed[] {
-  const needle = query
+/** Lowercase, strip accents, so "Dobermann" and "dobermann" both match. */
+function fold(s: string): string {
+  return s
     .trim()
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "");
-  if (needle === "") return breedsForSpecies(species);
-  return breedsForSpecies(species).filter((b) =>
-    b.name
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .includes(needle),
-  );
+}
+
+/**
+ * How well a breed name matches a query. Lower is better, null is no match.
+ *
+ * WHY THIS IS RANKED AND NOT A SUBSTRING TEST. A plain `includes` puts
+ * "Labrador Retriever" at the top when someone types "b", because there is a b
+ * in the middle of "Labrador". That is baffling to use. A person typing into a
+ * breed field is typing the START of a word, so a name beginning with the query
+ * must outrank a name that merely contains it, and a match on any word start
+ * ("collie" finding "Border Collie") must outrank a match mid-word.
+ */
+function matchRank(name: string, needle: string): number | null {
+  const n = fold(name);
+  if (n === needle) return 0; // exact
+  if (n.startsWith(needle)) return 1; // "lab" -> Labrador Retriever
+  if (n.split(/[\s-]+/).some((w) => w.startsWith(needle))) return 2; // "collie" -> Border Collie
+  if (n.includes(needle)) return 3; // last resort, mid-word
+  return null;
+}
+
+/**
+ * How many results to offer before the customer has typed anything. The full
+ * list of 35 dogs is a wall, not a menu.
+ */
+export const PICKER_PREVIEW = 6;
+
+/** The most commonly owned first, so the pre-typing list is genuinely useful. */
+export function popularBreeds(species: Species): Breed[] {
+  return breedsForSpecies(species)
+    .filter((b) => !b.oneOfOne)
+    .slice(0, PICKER_PREVIEW);
+}
+
+/**
+ * Ranked, accent insensitive search for the picker.
+ *
+ * An empty query returns the popular shortlist rather than everything. A miss
+ * should be logged by the caller so the list grows by real demand.
+ */
+export function searchBreeds(species: Species, query: string): Breed[] {
+  const needle = fold(query);
+  if (needle === "") return popularBreeds(species);
+
+  return breedsForSpecies(species)
+    .map((breed, index) => ({ breed, rank: matchRank(breed.name, needle), index }))
+    .filter((r): r is { breed: Breed; rank: number; index: number } => r.rank !== null)
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((r) => r.breed);
 }
 
 /**

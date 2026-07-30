@@ -23,19 +23,21 @@ export interface CompanionProfile {
    * docs/spec-print-layout.md section 3.
    */
   togetherSince: number | null;
-  /** "other" species only: their own label and value pairs, up to three. */
-  customFields: CustomField[];
-}
-
-export interface CustomField {
-  label: string;
-  value: string;
+  /**
+   * "other" species only: three NAMED answers, not a key/value grid.
+   *
+   * The earlier spec asked for "label and value pairs", which produced a form
+   * that asked a customer with a horse to invent a field name. These map
+   * straight onto plate rows instead: SPECIES, BREED, ORIGIN.
+   */
+  otherKind: string | null;
+  otherBreed: string | null;
+  otherOrigin: string | null;
 }
 
 export const NAME_MAX = 40;
-export const CUSTOM_LABEL_MAX = 24;
-export const CUSTOM_VALUE_MAX = 32;
-export const CUSTOM_FIELDS_MAX = 3;
+/** Free text on a plate row. Long enough for "Somewhere near Colesberg". */
+export const OTHER_MAX = 32;
 export const TEMPERAMENT_COUNT = 3;
 
 /** Nothing alive today arrived before this, and typos are usually decades out. */
@@ -45,9 +47,15 @@ export function currentYear(): number {
   return new Date().getFullYear();
 }
 
-/** Species that carry temperament chips. Birds and reptiles do not. */
+/**
+ * Species that carry temperament chips.
+ *
+ * Birds and reptiles do not: three personality words for a gecko would be us
+ * putting words in somebody's mouth. "Other" DOES, because a horse or a donkey
+ * has as much character as any dog and the owner asked for it explicitly.
+ */
 export function hasTemperament(species: Species): boolean {
-  return species === "dog" || species === "cat";
+  return species === "dog" || species === "cat" || species === "other";
 }
 
 export function emptyProfile(species: Species = "dog"): CompanionProfile {
@@ -57,7 +65,9 @@ export function emptyProfile(species: Species = "dog"): CompanionProfile {
     breedId: null,
     temperament: [],
     togetherSince: null,
-    customFields: [],
+    otherKind: null,
+    otherBreed: null,
+    otherOrigin: null,
   };
 }
 
@@ -83,16 +93,16 @@ export function validateProfile(
   }
 
   if (profile.species === "other") {
-    if (profile.customFields.length > CUSTOM_FIELDS_MAX) {
-      errors.customFields = `Up to ${CUSTOM_FIELDS_MAX} details.`;
+    // What kind of animal they are is the only thing we insist on: it takes the
+    // SPECIES row, and a plate for an unnamed sort of creature says nothing.
+    if (!profile.otherKind?.trim()) {
+      errors.otherKind = "Tell us what kind of animal they are.";
     } else if (
-      profile.customFields.some(
-        (f) =>
-          f.label.length > CUSTOM_LABEL_MAX ||
-          f.value.length > CUSTOM_VALUE_MAX,
+      [profile.otherKind, profile.otherBreed, profile.otherOrigin].some(
+        (value) => (value?.length ?? 0) > OTHER_MAX,
       )
     ) {
-      errors.customFields = "One of those details is too long to print.";
+      errors.otherKind = `Up to ${OTHER_MAX} characters each, so it fits the plate.`;
     }
   } else if (!profile.breedId) {
     errors.breedId = "Choose their breed, or One of One.";

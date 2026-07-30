@@ -30,13 +30,16 @@ function Harness({
 }
 
 describe("CompanionForm", () => {
-  it("asks for the year they arrived, never a birthday", () => {
+  it("asks a real question about the date, not a bare year", () => {
     render(<Harness />);
-    // The wording is load bearing: these orders are often placed after a loss.
+    // The wording is load bearing: these orders are often placed after a loss,
+    // so it has to work for a rescue, a purchase or an animal that has died.
     expect(
-      screen.getByLabelText(/what year did they come into your life/i),
+      screen.getByLabelText(/when did they come into your life/i),
     ).toBeVisible();
-    expect(screen.queryByLabelText(/birth|born|date of/i)).toBeNull();
+    expect(screen.getByText(/adoption day, gotcha day, or birthday/i)).toBeVisible();
+    // Never a full date, and never "date of birth" as the question itself.
+    expect(screen.queryByLabelText(/date of birth|birthday/i)).toBeNull();
   });
 
   it("takes exactly three words and refuses a fourth", async () => {
@@ -79,13 +82,27 @@ describe("CompanionForm", () => {
     expect(screen.queryByRole("button", { name: "Confident" })).toBeNull();
   });
 
-  it("swaps the breed list for free text on Other", async () => {
+  it("asks three NAMED questions on Other, never a key and value grid", async () => {
     const user = userEvent.setup();
     render(<Harness />);
     await user.click(screen.getByRole("button", { name: "Other" }));
 
     expect(screen.queryByLabelText("Their breed")).toBeNull();
-    expect(screen.getByLabelText("Detail 1")).toBeVisible();
+    expect(
+      screen.getByLabelText(/what kind of animal are they/i),
+    ).toBeVisible();
+    expect(screen.getByLabelText(/breed or type, if they have one/i)).toBeVisible();
+    expect(screen.getByLabelText(/where are they from/i)).toBeVisible();
+    // A customer with a horse must never be asked to invent a field name.
+    expect(document.body.textContent).not.toMatch(/\bDetail\b/);
+    expect(document.body.textContent).not.toMatch(/\bValue\b/);
+  });
+
+  it("still offers temperament for Other, because a horse has character too", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.click(screen.getByRole("button", { name: "Other" }));
+    expect(screen.getByRole("button", { name: "Confident" })).toBeVisible();
   });
 
   it("surfaces a name the printer cannot set", async () => {

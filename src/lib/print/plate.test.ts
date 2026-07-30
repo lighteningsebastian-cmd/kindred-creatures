@@ -71,22 +71,42 @@ describe("the data table", () => {
     expect(cat.find((r) => r.label === "COAT")?.value).toBe("Longhair");
   });
 
-  it("carries the customer's own rows for other species", () => {
+  it("gives other species three NAMED rows, not invented ones", () => {
+    // The earlier key/value grid asked a customer with a horse to make up a
+    // field name. These are the same three rows every species gets.
     const rows = tableRows(
       profile({
         species: "other",
         breedId: null,
         temperament: [],
-        customFields: [
-          { label: "Rescued from", value: "A roadside in Knysna" },
-          { label: "", value: "dropped" },
-        ],
+        otherKind: "Horse",
+        otherBreed: "Nooitgedachter",
+        otherOrigin: "The Karoo",
       }),
     );
     expect(rows.map((r) => r.label)).toEqual([
-      "RESCUED FROM",
+      "SPECIES",
+      "BREED",
+      "ORIGIN",
       "TOGETHER SINCE",
     ]);
+    expect(rows.find((r) => r.label === "SPECIES")?.value).toBe("Horse");
+  });
+
+  it("omits the optional other-species rows when they are blank", () => {
+    const rows = tableRows(
+      profile({
+        species: "other",
+        breedId: null,
+        temperament: [],
+        togetherSince: null,
+        otherKind: "Donkey",
+        otherBreed: null,
+        otherOrigin: "   ",
+      }),
+    );
+    // The table closes up, exactly as it does for a dog with no year.
+    expect(rows.map((r) => r.label)).toEqual(["SPECIES"]);
   });
 
   it("puts the only date in the table and never under the name", () => {

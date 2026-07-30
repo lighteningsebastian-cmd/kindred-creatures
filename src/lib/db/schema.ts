@@ -69,8 +69,16 @@ export const artworks = pgTable("artworks", {
   // else. Two dates under a name is a headstone, and a field that exists
   // eventually gets filled in. See docs/spec-print-layout.md section 3.
   togetherSince: integer("together_since"),
-  // JSON label/value pairs, "other" species only (no breed table to draw on).
+  // LEGACY. Was a JSON label/value grid for "other" species; that form asked a
+  // customer with a horse to invent a field name, so it was replaced by the three
+  // named columns below. Left in place so old rows are not disturbed, and read
+  // nowhere. Do not reintroduce a dependency on it.
   customFields: text("custom_fields"),
+  // "other" species only. These take the SPECIES, BREED and ORIGIN plate rows,
+  // in the same order every other species uses.
+  otherKind: text("other_kind"),
+  otherBreed: text("other_breed"),
+  otherOrigin: text("other_origin"),
 
   // The two composited plates, drawn after payment. Canonical bytes: the print
   // file is a resize of these and is never regenerated.
@@ -631,6 +639,12 @@ ALTER TABLE artworks ADD COLUMN IF NOT EXISTS revision_count integer NOT NULL DE
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS approved_at timestamptz;
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS revision_notes text;
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS personal_contact_at timestamptz;
+
+-- The "other" species answers, replacing the custom_fields grid (which stays for
+-- old rows and is read nowhere). Three named questions onto three named rows.
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS other_kind text;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS other_breed text;
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS other_origin text;
 
 CREATE TABLE IF NOT EXISTS breed_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -1,22 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { BreedPicker } from "./BreedPicker";
-import { cn } from "@/lib/cn";
 import { TEMPERAMENTS, temperamentLabel, type Species } from "@/lib/breeds";
 import {
-  CUSTOM_FIELDS_MAX,
-  CUSTOM_LABEL_MAX,
-  CUSTOM_VALUE_MAX,
   EARLIEST_YEAR,
   NAME_MAX,
+  OTHER_MAX,
   TEMPERAMENT_COUNT,
   currentYear,
   hasTemperament,
   validateProfile,
   type CompanionProfile,
-  type CustomField,
 } from "@/lib/companion";
 
 const SPECIES_OPTIONS: { value: Species; label: string }[] = [
@@ -27,19 +24,42 @@ const SPECIES_OPTIONS: { value: Species; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
-const chip =
-  "rounded-md border px-4 py-2 text-sm font-medium transition-colors " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent " +
-  "focus-visible:ring-offset-2 focus-visible:ring-offset-base";
-const chipOn = "border-ink bg-ink text-base";
-const chipOff = "border-line text-ink hover:bg-surface";
+/**
+ * A selectable chip.
+ *
+ * It is a real {@link Button}: primary when on, which is the design system's
+ * oxblood, and the hairline outline when off. Nothing bespoke. A chip with its
+ * own colours was how this ended up near-black on a parchment page, which read
+ * as a foreign object.
+ */
+function Chip({
+  on,
+  onClick,
+  children,
+}: {
+  on: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Button
+      variant={on ? "primary" : "secondary"}
+      size="sm"
+      aria-pressed={on}
+      onClick={onClick}
+    >
+      {children}
+    </Button>
+  );
+}
 
 /**
  * Everything the plate knows about their animal, asked for before payment.
  *
- * The portrait is drawn after paying; this is the part that costs nothing and
- * carries most of the feeling, so it comes first (docs/spec-pipeline.md
- * section 3.2).
+ * ORDER IS ABOUT MOMENTUM, not gating. The preview is on screen throughout, so
+ * the name comes first because it appears on the plate as they type, and the
+ * breed follows because choosing it fills in ORIGIN and GROUP on its own. That
+ * autofill is the moment that sells the product.
  *
  * @param checkName asks the server whether a name can actually be printed. Run
  * on blur rather than per keystroke: it reads the real font file, and the point
@@ -64,13 +84,15 @@ export function CompanionForm({
     onChange({ ...profile, ...patch });
 
   function chooseSpecies(species: Species) {
-    // Breed and temperament belong to the species that was chosen, so changing
-    // it clears them rather than carrying a spaniel over to a gecko.
+    // Breed and the "other" answers belong to the species that was chosen, so
+    // changing it clears them rather than carrying a spaniel over to a gecko.
     set({
       species,
       breedId: null,
       temperament: [],
-      customFields: species === "other" ? profile.customFields : [],
+      otherKind: null,
+      otherBreed: null,
+      otherOrigin: null,
     });
   }
 
@@ -84,51 +106,16 @@ export function CompanionForm({
     set({ temperament: chosen });
   }
 
-  const customRows: CustomField[] = [
-    ...profile.customFields,
-    { label: "", value: "" },
-  ].slice(0, CUSTOM_FIELDS_MAX);
-
-  function setCustomRow(index: number, patch: Partial<CustomField>) {
-    const rows = customRows.map((row, i) =>
-      i === index ? { ...row, ...patch } : row,
-    );
-    set({ customFields: rows.filter((r) => r.label || r.value) });
-  }
-
   return (
     <section className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
-        <p className="font-block text-xs font-black uppercase tracking-[0.08em] text-accent">
-          Their profile
-        </p>
+        <p className="eyebrow text-xs text-accent">Their profile</p>
         <h2 className="font-display text-3xl leading-[1.1] text-ink">
           Introduce us to your best friend
         </h2>
       </div>
 
-      <fieldset className="flex flex-col gap-3">
-        <legend className="text-sm font-medium text-ink">
-          What are they?
-        </legend>
-        <div className="flex flex-wrap gap-2">
-          {SPECIES_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={profile.species === option.value}
-              onClick={() => chooseSpecies(option.value)}
-              className={cn(
-                chip,
-                profile.species === option.value ? chipOn : chipOff,
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-
+      {/* 1. The name. First, because it lands on the plate as they type. */}
       <Input
         label="Their name"
         maxLength={NAME_MAX}
@@ -145,35 +132,53 @@ export function CompanionForm({
         error={nameError ?? errors.name}
       />
 
-      {profile.species === "other" ? (
-        <fieldset className="flex flex-col gap-3">
-          <legend className="text-sm font-medium text-ink">
-            Anything you would like on their plate
-          </legend>
-          <p className="text-sm text-muted">
-            Up to {CUSTOM_FIELDS_MAX} details, in your own words.
-          </p>
-          {customRows.map((row, index) => (
-            <div key={index} className="flex flex-wrap gap-3">
-              <Input
-                label={`Detail ${index + 1}`}
-                placeholder="Rescued from"
-                maxLength={CUSTOM_LABEL_MAX}
-                value={row.label}
-                onChange={(e) => setCustomRow(index, { label: e.target.value })}
-                className="min-w-40"
-              />
-              <Input
-                label={`Value ${index + 1}`}
-                placeholder="A roadside in Knysna"
-                maxLength={CUSTOM_VALUE_MAX}
-                value={row.value}
-                onChange={(e) => setCustomRow(index, { value: e.target.value })}
-                className="min-w-52"
-              />
-            </div>
+      {/* 2. What they are. */}
+      <fieldset className="flex flex-col gap-3">
+        <legend className="text-sm font-medium text-ink">
+          What are they?
+        </legend>
+        <div className="flex flex-wrap gap-2">
+          {SPECIES_OPTIONS.map((option) => (
+            <Chip
+              key={option.value}
+              on={profile.species === option.value}
+              onClick={() => chooseSpecies(option.value)}
+            >
+              {option.label}
+            </Chip>
           ))}
-        </fieldset>
+        </div>
+      </fieldset>
+
+      {/* 3. Their breed, or the three named questions for anything else. */}
+      {profile.species === "other" ? (
+        <div className="flex flex-col gap-4">
+          <Input
+            label="What kind of animal are they?"
+            placeholder="Horse"
+            maxLength={OTHER_MAX}
+            value={profile.otherKind ?? ""}
+            onChange={(e) => set({ otherKind: e.target.value || null })}
+            helperText="This is printed as their species."
+            error={errors.otherKind}
+          />
+          <Input
+            label="Breed or type, if they have one"
+            placeholder="Nooitgedachter"
+            maxLength={OTHER_MAX}
+            value={profile.otherBreed ?? ""}
+            onChange={(e) => set({ otherBreed: e.target.value || null })}
+            helperText="Optional. Left off the plate if you skip it."
+          />
+          <Input
+            label="Where are they from?"
+            placeholder="The Karoo"
+            maxLength={OTHER_MAX}
+            value={profile.otherOrigin ?? ""}
+            onChange={(e) => set({ otherOrigin: e.target.value || null })}
+            helperText="Optional."
+          />
+        </div>
       ) : (
         <BreedPicker
           species={profile.species}
@@ -183,26 +188,22 @@ export function CompanionForm({
         />
       )}
 
+      {/* 4. What they are like. */}
       {hasTemperament(profile.species) ? (
         <fieldset className="flex flex-col gap-3">
           <legend className="text-sm font-medium text-ink">
-            Three words for them
+            What are they like?
           </legend>
           <div className="flex flex-wrap gap-2">
-            {TEMPERAMENTS.map((word) => {
-              const on = profile.temperament.includes(word);
-              return (
-                <button
-                  key={word}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => toggleTemperament(word)}
-                  className={cn(chip, on ? chipOn : chipOff)}
-                >
-                  {temperamentLabel(word)}
-                </button>
-              );
-            })}
+            {TEMPERAMENTS.map((word) => (
+              <Chip
+                key={word}
+                on={profile.temperament.includes(word)}
+                onClick={() => toggleTemperament(word)}
+              >
+                {temperamentLabel(word)}
+              </Chip>
+            ))}
           </div>
           <p className="text-sm text-muted" role="status">
             {profile.temperament.length} of {TEMPERAMENT_COUNT} chosen
@@ -210,8 +211,9 @@ export function CompanionForm({
         </fieldset>
       ) : null}
 
+      {/* 5. The one date that will ever be on the plate. */}
       <Input
-        label="What year did they come into your life?"
+        label="When did they come into your life?"
         type="number"
         inputMode="numeric"
         min={EARLIEST_YEAR}
@@ -223,7 +225,10 @@ export function CompanionForm({
             togetherSince: e.target.value ? Number(e.target.value) : null,
           })
         }
-        helperText="Optional. We print the year you found each other, nothing else."
+        // Worded to work for a rescue, a purchase, or an animal that has died.
+        // Never "birthday" alone, and never a full date: see
+        // docs/spec-print-layout.md section 3 on why one date is the limit.
+        helperText="Adoption day, gotcha day, or birthday. The year is enough, and it is optional."
         error={errors.togetherSince}
       />
     </section>

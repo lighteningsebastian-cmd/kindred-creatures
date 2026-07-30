@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ProductConfigurator } from "./ProductConfigurator";
 import { CompanionForm } from "./CompanionForm";
-import { PlatePreview } from "./PlatePreview";
+import { LivePreview } from "./LivePreview";
 import { Customizer } from "@/components/customizer/Customizer";
 import {
   checkCreatureName,
@@ -33,17 +33,21 @@ function resolveSize(color: Variant, size?: string): string | null {
 }
 
 /**
- * The whole product-to-portrait flow on one page. This island owns the colour
- * and size selection and feeds it to both halves: the {@link ProductConfigurator}
- * up top and the portrait {@link Customizer} below. Choosing a colour and size
- * activates the portrait step in place and smooth-scrolls it into view; before
- * that it sits disabled but present, so the page never jumps. The artwork lives
- * inside the Customizer, so changing colour or size afterwards updates the
- * mockup without discarding a portrait already made.
+ * The whole product-to-portrait flow on one page: the form on the left, a live
+ * preview of the garment on the right, and nothing hidden behind anything.
  *
- * A `?color=&size=` deep link (the old /customize entry point, now redirected
- * here) is read on the server and handed in as `initialColor`/`initialSize`, so
- * a deep-linked visit renders with the portrait step already active.
+ * WHAT CHANGED AND WHY (docs/spec-flow-fixes.md section 5). The portrait half
+ * used to be gated on a colour and size choice, and the plate appeared somewhere
+ * below a form with no garment in the picture at all. The owner looked at that
+ * page twice and believed it was broken. There is no gate now: the preview
+ * renders from the first paint, showing the default colourway and an empty
+ * plate, and fills in as the customer answers. On desktop it sticks alongside
+ * the form; on mobile it sticks to the top, above it.
+ *
+ * The form's order is about momentum rather than gating: the name first because
+ * it lands on the plate as they type, then the breed, because choosing it fills
+ * in ORIGIN and GROUP on its own. That autofill is the moment that sells the
+ * product, so the preview has to be beside it, not below the fold.
  */
 export function ProductFlow({
   product,
@@ -55,19 +59,7 @@ export function ProductFlow({
   const [size, setSize] = useState<string | null>(() =>
     resolveSize(startColor, initialSize),
   );
-
-  const active = size !== null;
-  const portraitRef = useRef<HTMLDivElement>(null);
-  // The profile lives here and is persisted onto the artwork by the Customizer
-  // once there is an artwork to persist it to. A reload before that still loses
-  // it, which is the ordinary cost of not asking someone to sign in first.
   const [profile, setProfile] = useState(emptyProfile());
-
-  // Scroll on the transition into an active state. Seeded so a size arriving on
-  // the deep link (an explicit `?size=`) scrolls on first paint, while a
-  // one-size product that settles its own size on load does NOT, or the page
-  // would jump for everyone.
-  const settledOnce = useRef<boolean>(active && !initialSize);
 
   const handleColorChange = (colorName: string) => {
     const next = resolveColor(product, colorName);
@@ -77,66 +69,52 @@ export function ProductFlow({
     else if (size !== null && !next.sizes.includes(size)) setSize(null);
   };
 
-  useEffect(() => {
-    if (!active) {
-      settledOnce.current = false;
-      return;
-    }
-    const reduce = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    // Reduced motion enables the step but never auto-scrolls.
-    if (!settledOnce.current && !reduce) {
-      portraitRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }
-    settledOnce.current = true;
-  }, [active]);
-
   return (
-    <div className="flex flex-col">
-      <ProductConfigurator
-        product={product}
-        color={color}
-        size={size}
-        onColorChange={handleColorChange}
-        onSizeChange={setSize}
-      />
-
-      <div
-        ref={portraitRef}
-        className="mt-14 scroll-mt-24 border-t border-line pt-12 md:mt-20"
-      >
-        {active ? (
-          <div className="mb-14 md:mb-20">
-            <CompanionForm
-              profile={profile}
-              onChange={setProfile}
-              checkName={checkCreatureName}
-              onBreedMiss={(query) => logBreedRequest(query, profile.species)}
-            />
-
-            <div className="mt-12">
-              <PlatePreview
-                profile={profile}
-                product={product}
-                color={color}
-                render={previewPlates}
-              />
-            </div>
-          </div>
-        ) : null}
-
-        <Customizer
+    <div className="flex flex-col gap-14 lg:flex-row-reverse lg:items-start lg:gap-12">
+      {/*
+        The preview. Sticky on both layouts, so it is never scrolled away from
+        the field that is changing it. It comes FIRST in the DOM and is flipped
+        to the right on desktop with flex-row-reverse, which puts it above the
+        form on mobile with no duplication and no second render.
+      */}
+      <aside className="sticky top-0 z-10 -mx-4 bg-base px-4 py-4 shadow-sm lg:top-24 lg:mx-0 lg:w-[38%] lg:shrink-0 lg:bg-transparent lg:px-0 lg:shadow-none">
+        <LivePreview
+          profile={profile}
           product={product}
           color={color}
-          size={size}
-          active={active}
-          profile={profile}
-          save={saveArtworkDetails}
+          render={previewPlates}
         />
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-14">
+        <CompanionForm
+          profile={profile}
+          onChange={setProfile}
+          checkName={checkCreatureName}
+          onBreedMiss={(query) => logBreedRequest(query, profile.species)}
+        />
+
+        {/* Style, then the photo, then the cart. */}
+        <div className="border-t border-line pt-12">
+          <Customizer
+            product={product}
+            color={color}
+            size={size}
+            profile={profile}
+            save={saveArtworkDetails}
+          />
+        </div>
+
+        {/* Colour and size last: the preview updates live as they are changed. */}
+        <div className="border-t border-line pt-12">
+          <ProductConfigurator
+            product={product}
+            color={color}
+            size={size}
+            onColorChange={handleColorChange}
+            onSizeChange={setSize}
+          />
+        </div>
       </div>
     </div>
   );

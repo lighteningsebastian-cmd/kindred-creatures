@@ -17,13 +17,8 @@ export type CustomizerProps = {
   product: Product;
   /** The colourway chosen at the top of the flow. */
   color: Variant;
-  /** The size chosen at the top of the flow, or null until one is picked. */
+  /** The size chosen in the flow, or null until one is picked. */
   size: string | null;
-  /**
-   * True once a colour and size are both chosen. Until then the portrait step
-   * is shown but disabled, so the page does not jump when it activates.
-   */
-  active: boolean;
   /** Everything they told us about their animal, owned by the parent flow. */
   profile: CompanionProfile;
   /** Persists the style and profile onto the artwork. Nothing is drawn. */
@@ -40,7 +35,13 @@ type Phase =
   | "uploaded"; // photo accepted
 
 /**
- * The last step before paying: the photograph and the style.
+ * The style and the photograph.
+ *
+ * NOT GATED on a colour and size choice any more (docs/spec-flow-fixes.md
+ * section 5). The gate made the owner believe the page was broken, twice; a
+ * customer would simply have left. The cart is still gated, on a size and on the
+ * details having been saved, because those are real preconditions rather than a
+ * curtain over the page.
  *
  * NOTHING IS DRAWN HERE ANY MORE. Generation moved after payment
  * (docs/spec-pipeline.md section 1), because front and back at print quality is
@@ -59,7 +60,6 @@ export function Customizer({
   product,
   color,
   size,
-  active,
   profile,
   save,
 }: CustomizerProps) {
@@ -155,7 +155,7 @@ export function Customizer({
   // SAVED, not merely chosen. The artwork row is what the drawing reads after
   // payment, so a line reaching the cart without one is an order that could be
   // paid for and then stall.
-  const canAddToCart = active && saved && !!artworkId && size !== null;
+  const canAddToCart = saved && !!artworkId && size !== null;
 
   const handleAddToCart = () => {
     if (!canAddToCart || !artworkId || !size) return;
@@ -173,7 +173,7 @@ export function Customizer({
     router.push("/cart");
   };
 
-  const styleDisabled = !active || !artworkId || phase === "uploading";
+  const styleDisabled = !artworkId || phase === "uploading";
 
   return (
     <div className="flex flex-col gap-8">
@@ -183,9 +183,8 @@ export function Customizer({
           Their photo
         </h2>
         <p className="max-w-md leading-relaxed text-muted">
-          {active
-            ? "Good light and a clear look at their face is all we need. We draw them once your order is in, and you see it before anything is printed."
-            : "Choose a colour and size above to start their portrait."}
+          Good light and a clear look at their face is all we need. We draw them
+          once your order is in, and you see it before anything is printed.
         </p>
       </div>
 
@@ -196,7 +195,6 @@ export function Customizer({
             photoPreview={photoPreview}
             busy={phase === "uploading"}
             rejectReason={rejectReason}
-            disabled={!active}
             onFile={handleFile}
           />
           {uploadError ? (

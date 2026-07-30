@@ -223,7 +223,9 @@ export async function saveArtworkDetails(
       breedId: profile.breedId,
       temperament: JSON.stringify(temperament),
       togetherSince: profile.togetherSince,
-      customFields: JSON.stringify(profile.customFields),
+      otherKind: profile.otherKind?.trim() || null,
+      otherBreed: profile.otherBreed?.trim() || null,
+      otherOrigin: profile.otherOrigin?.trim() || null,
     })
     .where(eq(artworks.id, artworkId))
     .returning();

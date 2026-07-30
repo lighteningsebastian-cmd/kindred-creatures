@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { PlatePreview } from "./PlatePreview";
+import { LivePreview } from "./LivePreview";
 import { emptyProfile, type CompanionProfile } from "@/lib/companion";
 import { PRODUCTS } from "@/lib/products";
 
@@ -16,13 +16,13 @@ const plate = {
   portrait: { x: 0.1, y: 0.2, width: 0.8, height: 0.4 },
 };
 
-describe("PlatePreview", () => {
+describe("LivePreview", () => {
   it("shows the honesty line before any plate has rendered", () => {
     // It must never depend on the render arriving. A stand-in illustration on
     // screen without this line is the difference between a clever preview and
     // a complaint.
     render(
-      <PlatePreview
+      <LivePreview
         profile={profile()}
         product={product}
         color={color}
@@ -38,7 +38,7 @@ describe("PlatePreview", () => {
 
   it("drops the breed name for One of One", () => {
     render(
-      <PlatePreview
+      <LivePreview
         profile={profile({ breedId: "one-of-one-dog-large" })}
         product={product}
         color={color}
@@ -48,7 +48,27 @@ describe("PlatePreview", () => {
     expect(screen.getByText(/The illustration shown is an example/i)).toBeVisible();
   });
 
-  it("renders both plates and falls back when the library is empty", async () => {
+  it("shows the garment from the first paint, before any plate arrives", () => {
+    // The gate is gone and the preview is never blank: the owner looked at the
+    // gated page twice and thought it was broken.
+    const { container } = render(
+      <LivePreview
+        profile={profile()}
+        product={product}
+        color={color}
+        render={() => new Promise(() => {})}
+      />,
+    );
+    const garment = container.querySelector("img");
+    expect(garment).not.toBeNull();
+    // And it opens on the back, because the plate is the product.
+    expect(screen.getByRole("button", { name: "back" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("renders a plate and falls back when the library is empty", async () => {
     const renderPlates = vi.fn().mockResolvedValue({
       front: plate,
       back: plate,
@@ -56,7 +76,7 @@ describe("PlatePreview", () => {
     });
 
     render(
-      <PlatePreview
+      <LivePreview
         profile={profile()}
         product={product}
         color={color}
@@ -64,11 +84,10 @@ describe("PlatePreview", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByText("Back")).toBeVisible());
-    expect(screen.getByText("Left chest")).toBeVisible();
-    // No stock image yet, so the kit's own placeholder stands in rather than an
-    // unrelated dog.
-    expect(screen.getAllByText(/breed illustration/i).length).toBeGreaterThan(0);
+    await waitFor(() => expect(renderPlates).toHaveBeenCalled());
+    // One side at a time, with a toggle: the plate is shown ON the garment, so
+    // two of them side by side would mean two garments.
+    expect(screen.getByRole("button", { name: "front" })).toBeVisible();
   });
 
   it("asks for the plate at the garment's own print proportions", async () => {
@@ -79,7 +98,7 @@ describe("PlatePreview", () => {
     });
 
     render(
-      <PlatePreview
+      <LivePreview
         profile={profile()}
         product={product}
         color={color}

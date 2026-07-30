@@ -152,14 +152,15 @@ export function tableRows(profile: CompanionProfile): TableRow[] {
   const breed = profile.breedId ? getBreed(profile.breedId) : undefined;
 
   if (profile.species === "other") {
-    for (const field of profile.customFields) {
-      if (field.label.trim() && field.value.trim()) {
-        rows.push({
-          label: field.label.toUpperCase(),
-          value: field.value,
-        });
-      }
-    }
+    // Three named answers onto three named rows, in the same order every other
+    // species uses. No invented field names.
+    const push = (label: string, value: string | null) => {
+      const trimmed = value?.trim();
+      if (trimmed) rows.push({ label, value: trimmed });
+    };
+    push("SPECIES", profile.otherKind);
+    push("BREED", profile.otherBreed);
+    push("ORIGIN", profile.otherOrigin);
   } else if (breed) {
     const config = SPECIES[breed.species];
     rows.push({ label: "BREED", value: breedRowValue(breed) });

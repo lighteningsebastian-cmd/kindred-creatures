@@ -76,7 +76,6 @@ describe("Customizer: photo, style, and nothing drawn", () => {
         product={getProduct("hoodie")!}
         color={getProduct("hoodie")!.variants[0]}
         size="M"
-        active
         profile={fullProfile()}
         save={save}
       />,
@@ -114,7 +113,6 @@ describe("Customizer: photo, style, and nothing drawn", () => {
         product={getProduct("hoodie")!}
         color={getProduct("hoodie")!.variants[0]}
         size="M"
-        active
         profile={fullProfile()}
         save={vi.fn().mockResolvedValue({ ok: true })}
       />,
@@ -124,7 +122,7 @@ describe("Customizer: photo, style, and nothing drawn", () => {
     await waitFor(() => expect(styleButton()).toBeEnabled());
     await user.click(styleButton());
 
-    const called = fetchMock.mock.calls.map(([url]) => url);
+    const called = fetchMock.mock.calls.map((call) => (call as unknown as [string])[0]);
     expect(called).toEqual(["/api/upload"]);
     expect(called).not.toContain("/api/generate");
     // And no counter, because there are no tries to count any more.
@@ -144,7 +142,6 @@ describe("Customizer: photo, style, and nothing drawn", () => {
         product={getProduct("hoodie")!}
         color={getProduct("hoodie")!.variants[0]}
         size="M"
-        active
         // No breed and no words: the plate could not be set from this.
         profile={emptyProfile("dog")}
         save={save}
@@ -172,7 +169,6 @@ describe("Customizer: photo, style, and nothing drawn", () => {
         product={getProduct("hoodie")!}
         color={getProduct("hoodie")!.variants[0]}
         size="M"
-        active
         profile={fullProfile()}
         save={vi.fn()}
       />,
@@ -194,7 +190,6 @@ describe("Customizer: photo, style, and nothing drawn", () => {
         product={getProduct("hoodie")!}
         color={getProduct("hoodie")!.variants[0]}
         size="M"
-        active
         profile={fullProfile()}
         save={vi.fn().mockResolvedValue({ ok: true })}
       />,

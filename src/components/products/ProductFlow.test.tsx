@@ -68,37 +68,51 @@ afterEach(() => {
 });
 
 describe("ProductFlow", () => {
-  it("keeps the portrait step disabled until a size is chosen, then activates it", async () => {
-    const user = userEvent.setup();
+  it("shows the form and a garment preview with no interaction at all", () => {
+    // THE GATE IS GONE (docs/spec-flow-fixes.md section 5). The owner looked at
+    // the gated page twice and believed it was broken; a customer would leave.
+    // Landing with no query string must show a usable page.
     const hoodie = getProduct("hoodie")!;
-    render(<ProductFlow product={hoodie} />);
+    const { container } = render(<ProductFlow product={hoodie} />);
 
-    // No size yet: the portrait step is present but quiet and inert.
-    expect(
-      screen.getByText("Choose a colour and size above to start their portrait."),
-    ).toBeInTheDocument();
-    expect(dropzone()).toHaveAttribute("aria-disabled", "true");
-
-    // Choosing a size activates the step in place.
-    await user.click(screen.getByRole("button", { name: "M" }));
+    // The form is live from the first paint.
+    expect(screen.getByLabelText("Their name")).toBeEnabled();
     expect(dropzone()).toHaveAttribute("aria-disabled", "false");
     expect(
-      screen.queryByText(
-        "Choose a colour and size above to start their portrait.",
-      ),
+      screen.queryByText(/choose a colour and size above/i),
     ).toBeNull();
+
+    // And so is a garment, in its default colourway.
+    const garment = container.querySelector('img[alt*="hoodie" i]');
+    expect(garment).not.toBeNull();
   });
 
-  it("adopts a ?color=&size= deep link on load and scrolls the step into view", () => {
+  it("adopts a ?color=&size= deep link on load", () => {
     const hoodie = getProduct("hoodie")!;
     render(
       <ProductFlow product={hoodie} initialColor="Charcoal" initialSize="L" />,
     );
 
-    // The deep link activates the step and preselects the colour.
     expect(dropzone()).toHaveAttribute("aria-disabled", "false");
     expect(screen.getByText("Charcoal")).toBeInTheDocument();
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+  });
+
+  it("swaps the garment photo when the colour changes", async () => {
+    const user = userEvent.setup();
+    const hoodie = getProduct("hoodie")!;
+    const { container } = render(
+      <ProductFlow product={hoodie} initialColor="Stone" initialSize="M" />,
+    );
+
+    const src = () =>
+      container.querySelector('img[alt*="hoodie" i]')?.getAttribute("src") ?? "";
+    const before = src();
+
+    await user.click(screen.getByRole("button", { name: "Charcoal" }));
+
+    // A different photograph, and the plate is untouched: it is the same PNG
+    // over a different background.
+    expect(src()).not.toBe(before);
   });
 
   it("keeps the photo and adds to cart with the CURRENT colour after a switch", async () => {

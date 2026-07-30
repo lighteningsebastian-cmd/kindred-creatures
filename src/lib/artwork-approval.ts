@@ -9,7 +9,7 @@ import {
 } from "@/lib/db/schema";
 import { verifyApprovalToken } from "@/lib/approval";
 import { isTemperament, type Temperament } from "@/lib/breeds";
-import type { CompanionProfile, CustomField } from "@/lib/companion";
+import type { CompanionProfile } from "@/lib/companion";
 import {
   adjustmentsFor,
   isRevisionReason,
@@ -179,7 +179,9 @@ export function profileFromArtwork(artwork: Artwork): CompanionProfile {
       isTemperament,
     ),
     togetherSince: artwork.togetherSince,
-    customFields: parse<CustomField[]>(artwork.customFields, []),
+    otherKind: artwork.otherKind,
+    otherBreed: artwork.otherBreed,
+    otherOrigin: artwork.otherOrigin,
   };
 }
 
