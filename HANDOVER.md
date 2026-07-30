@@ -106,9 +106,50 @@ em/en-dashes.
   (deliberately NOT `flagged`, which stays money/print-lifecycle only) + admin chip +
   needs-attention; never auto-resend) —
   `docs/superpowers/plans/delivery-hardening-sections.md`.
+- **Commission pipeline steps 1-6 of `docs/spec-pipeline.md` section 12, plus the drawing
+  step of 7.** Companion profile columns + `breed_requests`; breed picker with miss
+  logging; the tell-us-about-them form (name printability asked of the FONT FILE via a
+  server action, not a regex); the plate compositor (`src/lib/print/`: vendored fonts +
+  opentype outlining, true text-on-arc, front/back plates); the pre-payment preview
+  rendering the SAME plate code as the print file, returned as SVG; the revision
+  vocabulary and the boundary around the model; approve/revise logic; the approval page;
+  the approval emails; the admin approval queue; and `drawArtworkPlates`.
 
-## NEXT UP (in order)
-1. **Print layout plate** [in progress]: `docs/spec-print-layout.md`. Front left-chest
+## NEXT UP: finish spec-pipeline.md step 7. THIS IS THE RISKIEST CHANGE IN THE REPO.
+Everything else in the pipeline is built. What remains is moving generation onto the money
+path, and it is deliberately NOT half-done: read this before touching `fulfillment.ts`.
+
+**What is already built and tested, waiting to be wired:**
+- `drawArtworkPlates(artworkId)` (`src/lib/artwork-drawing.ts`): draws both sides,
+  composites the plates, one retry then `status: "failed"`, never throws on a missing
+  breed reference.
+- `sendArtworkReady` / `sendRevisionReady` (`src/lib/email`): no caller yet.
+- `approveArtworkById` + the admin queue's Release to print: already set `approvedAt`.
+
+**The change itself.** `fulfillPaidOrder` currently does: generate print files -> send job
+sheet -> `sent_to_printer`. It must split in two:
+- Phase A, from the ITN hook: `drawArtworkPlates` then `sendArtworkReady`. Order STAYS
+  `paid`. No print files, no job sheet.
+- Phase B, from approval (both the customer's token path and the admin's Release): the
+  existing tail unchanged (print files -> job sheet -> `sent_to_printer`).
+Print files then derive from the approved back plate, which `canonicalKey` already points
+at, so `generatePrintFilesForOrder` needs no change.
+
+**Why it was not attempted in one sitting:** 11 test files touch this path, 35 tests in
+`fulfillment.test.ts` alone, and its comments are what stop the business paying to print
+the same garment twice. Update every assertion, delete none, and do NOT weaken a
+money-path assertion to make a red test green.
+
+**Also part of step 7** (`spec-pipeline.md` section 11): delete pre-purchase generation,
+`REGEN_CAP` (`src/app/api/generate/route.ts`), and the customizer wait state; wire
+Regenerate in the admin queue; and give `sendOrderConfirmation`/`sendShippingNotification`
+the creature's name so their subjects can become "Thank you for trusting us with
+{name}'s story" and "{name} is on the way" (section 8). The checkout guard that 422s on a
+null `canonicalKey` must INVERT: after this change a paid order legitimately has no
+portrait yet.
+
+## THEN (in order)
+1. **Print layout plate** [done, see above]: `docs/spec-print-layout.md`. Front left-chest
    (arc text-on-path + portrait + sentence-case name) and back plate (header, rules, breed,
    binomial, graphite side profile, data table, caps name, KC ref). Type is composited by
    US as outlined SVG paths over a transparent portrait: the image model draws the animal
