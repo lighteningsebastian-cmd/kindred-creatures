@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
+import { isProfileComplete } from "@/lib/companion";
+import { profileFromArtwork } from "@/lib/artwork-approval";
 import { artworks, orderItems, orders } from "@/lib/db/schema";
 import { getProduct } from "@/lib/products";
 import {
@@ -199,18 +201,29 @@ export async function POST(request: Request) {
         400,
       );
     }
-    // You cannot order a portrait that was never drawn. canonicalKey is the
-    // half of that which fulfilment needs: the print file is a resize of those
-    // exact bytes, so a line without one is an order that can be paid for and
-    // never printed. Refusing here is a message on the checkout page; letting it
-    // through is a flagged order and a customer waiting on a garment.
-    if (
-      artwork.status !== "ready" ||
-      !artwork.previewKey ||
-      !artwork.canonicalKey
-    ) {
+    // WHAT THIS GUARD IS FOR NOW. It used to demand a drawn portrait, because
+    // drawing happened before payment. It happens after (docs/spec-pipeline.md
+    // section 1), so a line legitimately has no portrait at this point and
+    // asking for one here would refuse every order in the shop.
+    //
+    // What must be true instead is that we can DRAW it the moment the money
+    // lands: a photograph, a chosen style, and a profile complete enough to set
+    // a plate. Anything missing here is an order that could be paid for and then
+    // stall, which is the same failure as before by a different route.
+    if (artwork.status === "rejected" || !artwork.uploadKey) {
       return bad(
-        "One of these portraits is not finished yet. Please generate it before ordering.",
+        "We need a photo of them before you can order. Please upload one.",
+        422,
+      );
+    }
+    if (!artwork.style) {
+      return bad("Please choose a style for one of these portraits.", 422);
+    }
+    // Re-checked server side because a browser is not a trust boundary, and
+    // these are the words that get printed on a garment.
+    if (!isProfileComplete(profileFromArtwork(artwork))) {
+      return bad(
+        "We still need a few details about them before you can order.",
         422,
       );
     }

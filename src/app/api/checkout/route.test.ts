@@ -2,7 +2,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { POST as checkout } from "./route";
-import { POST as generate } from "../generate/route";
 import { POST as upload } from "../upload/route";
 import { getDb } from "@/lib/db/client";
 import { artworks, orderItems, orders } from "@/lib/db/schema";
@@ -25,17 +24,27 @@ async function uploadArtwork(productSlug = "hoodie"): Promise<string> {
   return artworkId;
 }
 
-/** An artwork that has been through the generator, so it is ready to print. */
+/**
+ * An artwork the way it reaches checkout NOW: a photograph, a chosen style and a
+ * complete profile, and deliberately no portrait.
+ *
+ * Nothing is drawn before payment any more (docs/spec-pipeline.md section 1), so
+ * this is what a real cart line looks like. The profile is written directly
+ * because the form that collects it is not wired to persistence yet.
+ */
 async function readyArtwork(productSlug = "hoodie"): Promise<string> {
   const artworkId = await uploadArtwork(productSlug);
-  const res = await generate(
-    new Request("http://localhost/api/generate", {
-      method: "POST",
-      body: JSON.stringify({ artworkId, style: "classic-portrait" }),
-      headers: { "Content-Type": "application/json" },
-    }),
-  );
-  expect(res.status).toBe(200);
+  const db = await getDb();
+  await db
+    .update(artworks)
+    .set({
+      style: "classic-portrait",
+      creatureName: "Fenn",
+      species: "dog",
+      breedId: "one-of-one-dog-large",
+      temperament: JSON.stringify(["confident", "affectionate", "spirited"]),
+    })
+    .where(eq(artworks.id, artworkId));
   return artworkId;
 }
 
@@ -263,29 +272,31 @@ describe("POST /api/checkout", () => {
     }
   });
 
-  it("refuses an artwork that was never generated with 422", async () => {
-    // Uploaded but never sent to the generator: no preview exists to print.
+  it("refuses a line with no style chosen, with 422", async () => {
+    // Uploaded, but nobody picked how to draw it, so the drawing that happens
+    // after payment would have nothing to go on.
     const artworkId = await uploadArtwork();
     const res = await checkout(order([hoodieLine(artworkId)]));
     expect(res.status).toBe(422);
-    expect((await res.json()).error).toMatch(/not finished/i);
+    expect((await res.json()).error).toMatch(/choose a style/i);
   });
 
-  it("refuses a portrait with no canonical image, before taking any money", async () => {
-    // The print file is a resize of the canonical bytes, so a line without them
-    // is an order that can be paid for and never printed. Better a message on
-    // the checkout page than a flagged order and a customer waiting.
+  it("refuses an incomplete profile, before taking any money", async () => {
+    // The profile is what the plate is set from, and it is re-checked here
+    // because a browser is not a trust boundary. A line that cannot be drawn or
+    // typeset is an order that can be paid for and then stall, which is the same
+    // failure as an undrawn portrait used to be by a different route.
     const artworkId = await readyArtwork();
     const db = await getDb();
     await db
       .update(artworks)
-      .set({ canonicalKey: null })
+      .set({ temperament: JSON.stringify(["confident"]) })
       .where(eq(artworks.id, artworkId));
 
     const res = await checkout(order([hoodieLine(artworkId)]));
 
     expect(res.status).toBe(422);
-    expect((await res.json()).error).toMatch(/not finished/i);
+    expect((await res.json()).error).toMatch(/few details/i);
     // Nothing was opened: no pending order for this portrait to reconcile later.
     const lines = await db
       .select()
