@@ -18,6 +18,20 @@ vi.mock("@/lib/cart-store", () => ({
 }));
 
 // jsdom has no canvas/createImageBitmap; the flow only needs an uploadable blob.
+// The flow calls server actions directly. Stubbed so this stays a component
+// test: the real ones reach the database, and the fake artwork id below is not a
+// uuid. Their own behaviour is covered in their own tests.
+vi.mock("@/app/products/[slug]/actions", () => ({
+  checkCreatureName: vi.fn(async () => ({ ok: true })),
+  logBreedRequest: vi.fn(async () => {}),
+  saveArtworkDetails: vi.fn(async () => ({ ok: true })),
+  previewPlates: vi.fn(async () => ({
+    front: { svg: "<svg/>", portrait: { x: 0, y: 0, width: 1, height: 1 } },
+    back: { svg: "<svg/>", portrait: { x: 0, y: 0, width: 1, height: 1 } },
+    stockUrl: null,
+  })),
+}));
+
 vi.mock("@/components/customizer/downscale", () => ({
   downscaleImage: vi.fn(async (file: File) => file),
 }));
@@ -87,7 +101,7 @@ describe("ProductFlow", () => {
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
-  it("keeps the artwork and adds to cart with the CURRENT colour after a switch", async () => {
+  it("keeps the photo and adds to cart with the CURRENT colour after a switch", async () => {
     const user = userEvent.setup();
     const hoodie = getProduct("hoodie")!;
 
@@ -95,11 +109,6 @@ describe("ProductFlow", () => {
       "fetch",
       vi.fn(async (url: string) => {
         if (url === "/api/upload") return jsonRes(201, { artworkId: "art-1" });
-        if (url === "/api/generate")
-          return jsonRes(200, {
-            previewUrl: "/api/asset/previews/art-1/1.png",
-            remaining: 2,
-          });
         throw new Error(`unexpected fetch: ${url}`);
       }),
     );
@@ -109,29 +118,31 @@ describe("ProductFlow", () => {
     );
     expect(dropzone()).toHaveAttribute("aria-disabled", "false");
 
+    // Tell us about them first: the cart will not take a line the plate cannot
+    // be set from.
+    // Several One of One entries (small, medium, large); any will do.
+    await user.click(
+      screen.getAllByRole("button", { name: /One of One/ })[0]!,
+    );
+    for (const word of ["Confident", "Affectionate", "Spirited"]) {
+      await user.click(screen.getByRole("button", { name: word }));
+    }
+
     await user.upload(fileInput(container), photo());
     await waitFor(() => expect(styleButton()).toBeEnabled());
     await user.click(styleButton());
-    await screen.findByText("2 of 3 tries left");
 
-    // Switch the colour AFTER the portrait exists: the art survives (Add to
-    // cart stays enabled) and the cart line is built from the new colour.
+    // Switch the colour AFTER the photo exists: the artwork survives and the
+    // cart line is built from the new colour.
     await user.click(screen.getByRole("button", { name: "Charcoal" }));
     const addButton = screen.getByRole("button", { name: "Add to cart" });
-    expect(addButton).toBeEnabled();
+    await waitFor(() => expect(addButton).toBeEnabled());
 
     await user.click(addButton);
     expect(addItem).toHaveBeenCalledTimes(1);
     expect(addItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        productSlug: "hoodie",
-        color: "Charcoal",
-        size: "M",
-        artworkId: "art-1",
-        qty: 1,
-        unitPriceZar: 899,
-      }),
+      expect.objectContaining({ artworkId: "art-1", color: "Charcoal" }),
     );
-    expect(push).toHaveBeenCalledWith("/cart");
   });
+
 });

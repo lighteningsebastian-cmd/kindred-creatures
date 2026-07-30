@@ -1,22 +1,17 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { type Product, type Variant } from "@/lib/products";
 import type { ArtStyle } from "@/lib/images/provider";
 import { useCartStore } from "@/lib/cart-store";
-import {
-  trackAddToCart,
-  trackArtGenerated,
-  trackArtRegenerated,
-  trackPhotoUploaded,
-} from "@/lib/analytics";
+import { trackAddToCart, trackPhotoUploaded } from "@/lib/analytics";
+import { isProfileComplete, type CompanionProfile } from "@/lib/companion";
 import { downscaleImage } from "./downscale";
 import { UploadDropzone } from "./UploadDropzone";
 import { StylePicker } from "./StylePicker";
-import { PreviewStage } from "./PreviewStage";
 
 export type CustomizerProps = {
   product: Product;
@@ -29,25 +24,45 @@ export type CustomizerProps = {
    * is shown but disabled, so the page does not jump when it activates.
    */
   active: boolean;
+  /** Everything they told us about their animal, owned by the parent flow. */
+  profile: CompanionProfile;
+  /** Persists the style and profile onto the artwork. Nothing is drawn. */
+  save: (
+    artworkId: string,
+    style: ArtStyle,
+    profile: CompanionProfile,
+  ) => Promise<{ ok: boolean }>;
 };
 
 type Phase =
   | "idle" // no photo yet
   | "uploading" // upload + moderation in flight
-  | "uploaded" // photo accepted, awaiting a style
-  | "generating" // preview being drawn
-  | "ready" // preview ready
-  | "failed"; // generation failed
+  | "uploaded"; // photo accepted
 
 /**
- * The portrait half of the product flow: photo upload and moderation, style
- * selection and preview generation (capped at three tries), and the hand-off to
- * the cart. Colour and size are owned by the parent {@link ProductFlow} and
- * arrive as props, so switching them never disturbs an artwork already made
- * (the art is garment-agnostic) and the cart line is always built from the
- * CURRENT selection. Runs entirely against the mock provider with no keys.
+ * The last step before paying: the photograph and the style.
+ *
+ * NOTHING IS DRAWN HERE ANY MORE. Generation moved after payment
+ * (docs/spec-pipeline.md section 1), because front and back at print quality is
+ * around R7 a go and roughly a hundred people would generate for every one who
+ * bought. What used to live here (a preview, three tries, a waiting state) is
+ * gone: the customer sees the real plate carrying their own data further up the
+ * page, and their animal is drawn once the money has landed.
+ *
+ * What this step must guarantee is that the drawing can succeed the moment it
+ * runs, so the style and the profile are saved onto the artwork before the cart
+ * will take it. Colour and size are owned by the parent flow and arrive as
+ * props, so switching them never disturbs anything and the cart line is always
+ * built from the CURRENT selection.
  */
-export function Customizer({ product, color, size, active }: CustomizerProps) {
+export function Customizer({
+  product,
+  color,
+  size,
+  active,
+  profile,
+  save,
+}: CustomizerProps) {
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
 
@@ -58,58 +73,42 @@ export function Customizer({ product, color, size, active }: CustomizerProps) {
 
   const [artworkId, setArtworkId] = useState<string | null>(null);
   const [style, setStyle] = useState<ArtStyle | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [remaining, setRemaining] = useState<number | null>(null);
+  /** The exact thing last written to the artwork, so "saved" is derived. */
+  const [savedKey, setSavedKey] = useState<string | null>(null);
 
   const objectUrlRef = useRef<string | null>(null);
 
-  const generate = useCallback(
-    async (id: string, chosen: ArtStyle, kind: "generate" | "regenerate") => {
-      setPhase("generating");
-      setUploadError(null);
-      try {
-        const res = await fetch("/api/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ artworkId: id, style: chosen }),
-        });
-        const data = await res.json();
-        if (res.status === 429) {
-          // Out of tries: keep the last preview, surface the cap state.
-          setRemaining(0);
-          setPhase("ready");
-          return;
-        }
-        if (!res.ok) {
-          setPhase("failed");
-          return;
-        }
-        setPreviewUrl(data.previewUrl);
-        setRemaining(data.remaining);
-        setPhase("ready");
-        // Fired only on a portrait that actually drew: the first draw from a
-        // chosen style is a generate, the Regenerate button is a regenerate.
-        if (kind === "generate") {
-          trackArtGenerated({ slug: product.slug, style: chosen });
-        } else {
-          trackArtRegenerated({ slug: product.slug, style: chosen });
-        }
-      } catch {
-        setPhase("failed");
-      }
-    },
-    [product.slug],
-  );
+  const profileReady = isProfileComplete(profile);
+
+  // What SHOULD be on the artwork right now. Deriving "saved" from a comparison
+  // rather than resetting a flag in the effect means editing a name after
+  // picking a style makes this stale on the spot, with no render cascade and no
+  // window where a changed profile still counts as written.
+  const pending =
+    artworkId && style && profileReady
+      ? JSON.stringify([artworkId, style, profile])
+      : null;
+  const saved = pending !== null && savedKey === pending;
+
+  useEffect(() => {
+    if (!pending || !artworkId || !style) return;
+    let live = true;
+    void save(artworkId, style, profile).then((result) => {
+      if (live && result.ok) setSavedKey(pending);
+    });
+    return () => {
+      live = false;
+    };
+  }, [pending, artworkId, style, profile, save]);
 
   const handleFile = useCallback(
     async (file: File) => {
-      // A new photo resets the portrait state entirely.
+      // A new photo is a new artwork, so everything downstream resets.
       setRejectReason(null);
       setUploadError(null);
       setArtworkId(null);
       setStyle(null);
-      setPreviewUrl(null);
-      setRemaining(null);
+      setSavedKey(null);
 
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
       const localUrl = URL.createObjectURL(file);
@@ -153,23 +152,10 @@ export function Customizer({ product, color, size, active }: CustomizerProps) {
     [product.slug],
   );
 
-  // Every generation, including the first pick of a style, spends one of the
-  // three tries the server allows per photo. At zero, both entry points lock.
-  const atCap = remaining !== null && remaining <= 0;
-
-  const handleSelectStyle = (next: ArtStyle) => {
-    if (!artworkId || phase === "generating" || atCap) return;
-    setStyle(next);
-    void generate(artworkId, next, "generate");
-  };
-
-  const handleRegenerate = () => {
-    if (!artworkId || !style || phase === "generating" || atCap) return;
-    void generate(artworkId, style, "regenerate");
-  };
-
-  const canAddToCart =
-    phase === "ready" && !!previewUrl && !!artworkId && size !== null;
+  // SAVED, not merely chosen. The artwork row is what the drawing reads after
+  // payment, so a line reaching the cart without one is an order that could be
+  // paid for and then stall.
+  const canAddToCart = active && saved && !!artworkId && size !== null;
 
   const handleAddToCart = () => {
     if (!canAddToCart || !artworkId || !size) return;
@@ -187,44 +173,24 @@ export function Customizer({ product, color, size, active }: CustomizerProps) {
     router.push("/cart");
   };
 
-  const styleDisabled =
-    !active ||
-    !artworkId ||
-    phase === "uploading" ||
-    phase === "generating" ||
-    atCap;
+  const styleDisabled = !active || !artworkId || phase === "uploading";
 
   return (
-    <div className="grid gap-10 md:grid-cols-2 md:gap-14">
-      {/* Preview: garment with the portrait composited in. */}
-      <div className="order-2 flex flex-col gap-4 md:order-1">
-        <PreviewStage
-          product={product}
-          color={color.color}
-          previewUrl={previewUrl}
-          loading={phase === "generating"}
-          failed={phase === "failed"}
-          remaining={remaining}
-          onRegenerate={handleRegenerate}
-        />
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <p className="eyebrow text-xs text-accent">Make it theirs</p>
+        <h2 className="font-display text-3xl leading-[1.1] text-ink md:text-4xl">
+          Their photo
+        </h2>
+        <p className="max-w-md leading-relaxed text-muted">
+          {active
+            ? "Good light and a clear look at their face is all we need. We draw them once your order is in, and you see it before anything is printed."
+            : "Choose a colour and size above to start their portrait."}
+        </p>
       </div>
 
-      {/* Controls */}
-      <div className="order-1 flex flex-col gap-8 md:order-2">
-        <div className="flex flex-col gap-2">
-          <p className="eyebrow text-xs text-accent">Make it theirs</p>
-          <h2 className="font-display text-3xl leading-[1.1] text-ink md:text-4xl">
-            Their portrait
-          </h2>
-          <p className="max-w-md leading-relaxed text-muted">
-            {active
-              ? "Upload a favourite photo, pick a style, and see it on the piece before you order."
-              : "Choose a colour and size above to start their portrait."}
-          </p>
-        </div>
-
-        {/* Step 1: upload */}
-        <div className="flex flex-col gap-3 border-t border-line pt-6">
+      <div className="grid gap-8 md:grid-cols-2 md:gap-12">
+        <div className="flex flex-col gap-3">
           <p className="eyebrow text-xs text-muted">Step 1 · Your photo</p>
           <UploadDropzone
             photoPreview={photoPreview}
@@ -240,10 +206,9 @@ export function Customizer({ product, color, size, active }: CustomizerProps) {
           ) : null}
         </div>
 
-        {/* Step 2: style */}
         <div
           className={cn(
-            "flex flex-col gap-3 border-t border-line pt-6 transition-opacity",
+            "flex flex-col gap-3 transition-opacity",
             styleDisabled && !artworkId && "opacity-60",
           )}
         >
@@ -255,32 +220,37 @@ export function Customizer({ product, color, size, active }: CustomizerProps) {
           ) : null}
           <StylePicker
             value={style}
-            onSelect={handleSelectStyle}
+            onSelect={setStyle}
             disabled={styleDisabled}
           />
         </div>
+      </div>
 
-        {/* Step 3: add to cart */}
-        <div className="flex flex-col gap-3 border-t border-line pt-6">
-          <p className="eyebrow text-xs text-muted">Step 3 · Add to cart</p>
-          <Button
-            block
-            size="md"
-            onClick={handleAddToCart}
-            disabled={!canAddToCart}
-            aria-disabled={!canAddToCart}
-            className="w-full sm:w-auto"
-          >
-            Add to cart
-          </Button>
-          {phase === "ready" && previewUrl && size === null ? (
-            <p className="text-sm text-muted">Choose a size to add to cart.</p>
-          ) : !previewUrl ? (
-            <p className="text-sm text-muted">
-              Your portrait preview shows here once it is ready.
-            </p>
-          ) : null}
-        </div>
+      <div className="flex flex-col gap-3 border-t border-line pt-6">
+        <p className="eyebrow text-xs text-muted">Step 3 · Add to cart</p>
+        <Button
+          block
+          size="md"
+          onClick={handleAddToCart}
+          disabled={!canAddToCart}
+          aria-disabled={!canAddToCart}
+          className="w-full sm:w-auto"
+        >
+          Add to cart
+        </Button>
+        {!artworkId ? (
+          <p className="text-sm text-muted">
+            Upload a photo of them to carry on.
+          </p>
+        ) : !style ? (
+          <p className="text-sm text-muted">Pick a style to carry on.</p>
+        ) : !profileReady ? (
+          <p className="text-sm text-muted">
+            We still need a few details about them further up the page.
+          </p>
+        ) : size === null ? (
+          <p className="text-sm text-muted">Choose a size to add to cart.</p>
+        ) : null}
       </div>
     </div>
   );

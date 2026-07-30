@@ -1,10 +1,23 @@
 "use server";
 
+import { eq } from "drizzle-orm";
+
 import { getDb } from "@/lib/db/client";
-import { breedRequests } from "@/lib/db/schema";
-import { SPECIES, getBreed, stockKey, type Species } from "@/lib/breeds";
+import { artworks, breedRequests } from "@/lib/db/schema";
+import {
+  SPECIES,
+  getBreed,
+  isTemperament,
+  stockKey,
+  type Species,
+} from "@/lib/breeds";
+import { isArtStyle } from "@/lib/images/provider";
 import { loadPrintFont } from "@/lib/print/fonts";
-import { NAME_MAX, type CompanionProfile } from "@/lib/companion";
+import {
+  NAME_MAX,
+  isProfileComplete,
+  type CompanionProfile,
+} from "@/lib/companion";
 import { backPlate, frontPlate } from "@/lib/print/plate";
 import { getStorage } from "@/lib/storage";
 
@@ -178,4 +191,42 @@ export async function previewPlates(
     front: { svg: front.svg, portrait: asFractions(front.portrait, FRONT_PX, FRONT_PX) },
     stockUrl,
   };
+}
+
+/**
+ * Saves the style and the companion profile onto the artwork.
+ *
+ * This is what makes the pre-payment half durable. Nothing is drawn here: the
+ * drawing happens after the money lands, and what it needs is exactly this row
+ * plus the photograph (docs/spec-pipeline.md section 4).
+ *
+ * Validated again on the way in even though the form validates as you type,
+ * because a browser is not a trust boundary and these are the words that get
+ * printed on a garment.
+ */
+export async function saveArtworkDetails(
+  artworkId: string,
+  style: unknown,
+  profile: CompanionProfile,
+): Promise<{ ok: boolean }> {
+  if (!isArtStyle(style)) return { ok: false };
+  if (!isProfileComplete(profile)) return { ok: false };
+
+  const temperament = profile.temperament.filter(isTemperament);
+  const db = await getDb();
+  const updated = await db
+    .update(artworks)
+    .set({
+      style,
+      creatureName: profile.name?.trim() || null,
+      species: profile.species,
+      breedId: profile.breedId,
+      temperament: JSON.stringify(temperament),
+      togetherSince: profile.togetherSince,
+      customFields: JSON.stringify(profile.customFields),
+    })
+    .where(eq(artworks.id, artworkId))
+    .returning();
+
+  return { ok: updated.length > 0 };
 }

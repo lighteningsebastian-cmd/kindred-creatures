@@ -9,6 +9,7 @@ import {
   checkCreatureName,
   logBreedRequest,
   previewPlates,
+  saveArtworkDetails,
 } from "@/app/products/[slug]/actions";
 import { emptyProfile } from "@/lib/companion";
 import type { Product, Variant } from "@/lib/products";
@@ -57,9 +58,9 @@ export function ProductFlow({
 
   const active = size !== null;
   const portraitRef = useRef<HTMLDivElement>(null);
-  // ponytail: the profile is held here and not yet persisted. It lands on the
-  // artwork row when the flow is reordered around payment (spec-pipeline.md
-  // build order steps 4 and 5); until then a reload loses it.
+  // The profile lives here and is persisted onto the artwork by the Customizer
+  // once there is an artwork to persist it to. A reload before that still loses
+  // it, which is the ordinary cost of not asking someone to sign in first.
   const [profile, setProfile] = useState(emptyProfile());
 
   // Scroll on the transition into an active state. Seeded so a size arriving on
@@ -128,7 +129,14 @@ export function ProductFlow({
           </div>
         ) : null}
 
-        <Customizer product={product} color={color} size={size} active={active} />
+        <Customizer
+          product={product}
+          color={color}
+          size={size}
+          active={active}
+          profile={profile}
+          save={saveArtworkDetails}
+        />
       </div>
     </div>
   );

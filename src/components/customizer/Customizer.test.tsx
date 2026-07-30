@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Customizer } from "./Customizer";
 import { getProduct } from "@/lib/products";
+import { emptyProfile, type CompanionProfile } from "@/lib/companion";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -22,6 +23,16 @@ function deferred<T>() {
     resolve = r;
   });
   return { promise, resolve };
+}
+
+/** A profile complete enough to print, which is what the cart now requires. */
+function fullProfile(): CompanionProfile {
+  return {
+    ...emptyProfile("dog"),
+    name: "Fenn",
+    breedId: "one-of-one-dog-large",
+    temperament: ["confident", "affectionate", "spirited"],
+  };
 }
 
 /** Minimal stand-in for the fetch Response bits the Customizer reads. */
@@ -51,126 +62,148 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("Customizer state machine", () => {
-  it("walks idle -> uploading -> generating -> ready", async () => {
+describe("Customizer: photo, style, and nothing drawn", () => {
+  it("takes a photo and a style, saves them, and lets the cart have it", async () => {
     const user = userEvent.setup();
-    const hoodie = getProduct("hoodie")!;
-
-    const upload = deferred<Response>();
-    const generate = deferred<Response>();
+    const save = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal(
       "fetch",
-      vi.fn((url: string) => {
-        if (url === "/api/upload") return upload.promise;
-        if (url === "/api/generate") return generate.promise;
-        throw new Error(`unexpected fetch: ${url}`);
-      }),
+      vi.fn(async () => jsonRes(201, { artworkId: "art-1" })),
     );
 
-    const stone = hoodie.variants[0];
     const { container } = render(
-      <Customizer product={hoodie} color={stone} size="M" active />,
+      <Customizer
+        product={getProduct("hoodie")!}
+        color={getProduct("hoodie")!.variants[0]}
+        size="M"
+        active
+        profile={fullProfile()}
+        save={save}
+      />,
     );
 
-    // idle: nothing uploaded, so styles and the CTA are both locked.
-    expect(
-      screen.getByText("Upload the photo that captures them best"),
-    ).toBeInTheDocument();
-    expect(styleButton()).toBeDisabled();
+    // Nothing can be added before there is a photo.
     expect(screen.getByRole("button", { name: "Add to cart" })).toBeDisabled();
 
-    // uploading: the request is in flight, moderation not yet answered.
     await user.upload(fileInput(container), photo());
-    expect(await screen.findByText("Checking your photo")).toBeInTheDocument();
-    expect(styleButton()).toBeDisabled();
-
-    // uploaded: photo accepted, styles unlock, nothing generated yet.
-    upload.resolve(jsonRes(201, { artworkId: "art-1" }));
     await waitFor(() => expect(styleButton()).toBeEnabled());
-    expect(screen.getByRole("button", { name: "Add to cart" })).toBeDisabled();
-
-    // generating: picking a style spends a try and shows the skeleton copy.
     await user.click(styleButton());
-    expect(await screen.findByText("Drawing your portrait")).toBeInTheDocument();
-    expect(styleButton()).toBeDisabled();
 
-    // ready: preview lands, tries are counted down, cart opens up.
-    generate.resolve(
-      jsonRes(200, {
-        previewUrl: "/api/asset/previews/art-1/1.png?exp=1&sig=x",
-        regenCount: 1,
-        remaining: 2,
-      }),
+    // The style and profile are written to the artwork. This is what the
+    // drawing after payment reads, so the cart must not take a line without it.
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith("art-1", "classic-portrait", expect.objectContaining({ name: "Fenn" })),
     );
-    expect(await screen.findByText("2 of 3 tries left")).toBeInTheDocument();
-    expect(
-      screen.getByAltText("Your portrait on the The Kindred Hoodie"),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add to cart" })).toBeEnabled();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Add to cart" })).toBeEnabled(),
+    );
 
-    // The hand-off parks the selection and routes to the cart.
     await user.click(screen.getByRole("button", { name: "Add to cart" }));
     expect(push).toHaveBeenCalledWith("/cart");
   });
 
-  it("disables regeneration once the three-try cap is spent", async () => {
+  it("never asks anything to draw a portrait", async () => {
+    // The point of the whole change: browsing costs us nothing. Front and back
+    // at print quality is about R7, and most people are not buying.
     const user = userEvent.setup();
-    const hoodie = getProduct("hoodie")!;
+    const fetchMock = vi.fn(async () => jsonRes(201, { artworkId: "art-1" }));
+    vi.stubGlobal("fetch", fetchMock);
 
-    let spent = 0;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string) => {
-        if (url === "/api/upload") return jsonRes(201, { artworkId: "art-1" });
-        if (url === "/api/generate") {
-          spent += 1;
-          return jsonRes(200, {
-            previewUrl: `/api/asset/previews/art-1/${spent}.png`,
-            regenCount: spent,
-            remaining: 3 - spent,
-          });
-        }
-        throw new Error(`unexpected fetch: ${url}`);
-      }),
-    );
-
-    const stone = hoodie.variants[0];
     const { container } = render(
-      <Customizer product={hoodie} color={stone} size="M" active />,
+      <Customizer
+        product={getProduct("hoodie")!}
+        color={getProduct("hoodie")!.variants[0]}
+        size="M"
+        active
+        profile={fullProfile()}
+        save={vi.fn().mockResolvedValue({ ok: true })}
+      />,
     );
 
     await user.upload(fileInput(container), photo());
     await waitFor(() => expect(styleButton()).toBeEnabled());
-
-    // Try 1 of 3: the initial style pick.
     await user.click(styleButton());
-    expect(await screen.findByText("2 of 3 tries left")).toBeInTheDocument();
 
-    const regenerate = () => screen.getByRole("button", { name: /Regenerate/ });
+    const called = fetchMock.mock.calls.map(([url]) => url);
+    expect(called).toEqual(["/api/upload"]);
+    expect(called).not.toContain("/api/generate");
+    // And no counter, because there are no tries to count any more.
+    expect(document.body.textContent).not.toMatch(/tries left/i);
+  });
 
-    // Try 2 of 3.
-    await user.click(regenerate());
-    expect(await screen.findByText("1 of 3 tries left")).toBeInTheDocument();
-    expect(regenerate()).toBeEnabled();
+  it("holds the cart back until the profile is complete", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonRes(201, { artworkId: "art-1" })),
+    );
 
-    // Try 3 of 3 exhausts the cap.
-    await user.click(regenerate());
-    expect(await screen.findByText("0 of 3 tries left")).toBeInTheDocument();
+    const { container } = render(
+      <Customizer
+        product={getProduct("hoodie")!}
+        color={getProduct("hoodie")!.variants[0]}
+        size="M"
+        active
+        // No breed and no words: the plate could not be set from this.
+        profile={emptyProfile("dog")}
+        save={save}
+      />,
+    );
 
-    // At the cap both routes back to the provider are shut, and we say why.
-    expect(regenerate()).toBeDisabled();
+    await user.upload(fileInput(container), photo());
+    await waitFor(() => expect(styleButton()).toBeEnabled());
+    await user.click(styleButton());
+
+    expect(save).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Add to cart" })).toBeDisabled();
+    expect(screen.getByText(/few details about them/i)).toBeVisible();
+  });
+
+  it("refuses a photo the moderator rejected, and keeps the reason", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonRes(422, { error: "Please choose a clear photo of your pet." })),
+    );
+
+    const { container } = render(
+      <Customizer
+        product={getProduct("hoodie")!}
+        color={getProduct("hoodie")!.variants[0]}
+        size="M"
+        active
+        profile={fullProfile()}
+        save={vi.fn()}
+      />,
+    );
+
+    await user.upload(fileInput(container), photo());
+
+    expect(await screen.findByText(/clear photo of your pet/i)).toBeVisible();
+    expect(screen.getByRole("button", { name: "Add to cart" })).toBeDisabled();
+  });
+
+  it("waits for the upload before offering a style", async () => {
+    const user = userEvent.setup();
+    const upload = deferred<Response>();
+    vi.stubGlobal("fetch", vi.fn(() => upload.promise));
+
+    const { container } = render(
+      <Customizer
+        product={getProduct("hoodie")!}
+        color={getProduct("hoodie")!.variants[0]}
+        size="M"
+        active
+        profile={fullProfile()}
+        save={vi.fn().mockResolvedValue({ ok: true })}
+      />,
+    );
+
+    await user.upload(fileInput(container), photo());
     expect(styleButton()).toBeDisabled();
-    expect(
-      screen.getByText(
-        "You have used every try for this photo. Upload a new photo to start fresh.",
-      ),
-    ).toBeInTheDocument();
 
-    // Exactly three generate calls ever reached the API.
-    const calls = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
-    expect(calls.filter(([url]) => url === "/api/generate")).toHaveLength(3);
-
-    // The finished portrait is still purchasable after the last try.
-    expect(screen.getByRole("button", { name: "Add to cart" })).toBeEnabled();
+    upload.resolve(jsonRes(201, { artworkId: "art-1" }));
+    await waitFor(() => expect(styleButton()).toBeEnabled());
   });
 });
