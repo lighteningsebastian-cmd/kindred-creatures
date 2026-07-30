@@ -115,38 +115,30 @@ em/en-dashes.
   vocabulary and the boundary around the model; approve/revise logic; the approval page;
   the approval emails; the admin approval queue; and `drawArtworkPlates`.
 
-## NEXT UP: finish spec-pipeline.md step 7. THIS IS THE RISKIEST CHANGE IN THE REPO.
-Everything else in the pipeline is built. What remains is moving generation onto the money
-path, and it is deliberately NOT half-done: read this before touching `fulfillment.ts`.
+## NEXT UP (spec-pipeline.md step 7 is DONE apart from the three items below)
+Generation now happens after payment and nothing prints unless it is approved.
+`fulfillPaidOrder` is phase A (draw both plates, send receipt + approval link,
+order stays `paid`); `releaseApprovedOrder` is phase B (print files, job sheet,
+`sent_to_printer`) and REFUSES unless every artwork on the order is approved.
+"Paid with unapproved artwork" IS the awaiting-approval state, so there is no new
+order status. Pre-purchase generation, `REGEN_CAP` and the preview stage are
+deleted; `saveArtworkDetails` persists style + profile and the cart will not take
+a line until it has.
 
-**What is already built and tested, waiting to be wired:**
-- `drawArtworkPlates(artworkId)` (`src/lib/artwork-drawing.ts`): draws both sides,
-  composites the plates, one retry then `status: "failed"`, never throws on a missing
-  breed reference.
-- `sendArtworkReady` / `sendRevisionReady` (`src/lib/email`): no caller yet.
-- `approveArtworkById` + the admin queue's Release to print: already set `approvedAt`.
-
-**The change itself.** `fulfillPaidOrder` currently does: generate print files -> send job
-sheet -> `sent_to_printer`. It must split in two:
-- Phase A, from the ITN hook: `drawArtworkPlates` then `sendArtworkReady`. Order STAYS
-  `paid`. No print files, no job sheet.
-- Phase B, from approval (both the customer's token path and the admin's Release): the
-  existing tail unchanged (print files -> job sheet -> `sent_to_printer`).
-Print files then derive from the approved back plate, which `canonicalKey` already points
-at, so `generatePrintFilesForOrder` needs no change.
-
-**Why it was not attempted in one sitting:** 11 test files touch this path, 35 tests in
-`fulfillment.test.ts` alone, and its comments are what stop the business paying to print
-the same garment twice. Update every assertion, delete none, and do NOT weaken a
-money-path assertion to make a red test green.
-
-**Also part of step 7** (`spec-pipeline.md` section 11): delete pre-purchase generation,
-`REGEN_CAP` (`src/app/api/generate/route.ts`), and the customizer wait state; wire
-Regenerate in the admin queue; and give `sendOrderConfirmation`/`sendShippingNotification`
-the creature's name so their subjects can become "Thank you for trusting us with
-{name}'s story" and "{name} is on the way" (section 8). The checkout guard that 422s on a
-null `canonicalKey` must INVERT: after this change a paid order legitimately has no
-portrait yet.
+Still outstanding, all small and independent:
+1. **Regenerate in the admin queue.** `ApprovalQueueActions` deliberately has no
+   such button yet. The pieces exist: `drawArtworkPlates` redraws (it skips only
+   when both plates are present, so clear `front_key`/`back_key` first),
+   `adjustmentsForLatest` gives the chip wording, and `sendRevisionReady` mails
+   the new link. `sendRevisionReady` has no caller until this is wired.
+2. **Two email subjects** (`spec-pipeline.md` section 8): payment-confirmed should
+   read "Thank you for trusting us with {name}'s story" and shipped "{name} is on
+   the way". Both need the creature name plumbed into `sendOrderConfirmation` /
+   `sendShippingNotification`; `creatureNameFor` in `fulfillment.ts` already does
+   the lookup.
+3. **Re-upload in the revision panel.** Offered first in the copy but not wired;
+   it needs to replace the artwork's upload and trigger a redraw, which is the
+   same path as item 1.
 
 ## THEN (in order)
 1. **Print layout plate** [done, see above]: `docs/spec-print-layout.md`. Front left-chest
