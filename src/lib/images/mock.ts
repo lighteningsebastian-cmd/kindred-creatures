@@ -117,6 +117,8 @@ export class MockImageProvider implements ImageProvider {
     return { ok: true };
   }
 
+  // referenceKey is accepted and ignored: the stand-in draws the same paw
+  // whatever it is handed, and the point is that the seam exists.
   async generatePortrait({
     style,
   }: {

@@ -56,6 +56,13 @@ export interface ImageProvider {
      * docs/spec-pipeline.md section 6.
      */
     reasons?: RevisionReason[];
+    /**
+     * Storage key of the breed's hand-reviewed side-profile reference, used as
+     * a SECOND input for the back portrait. Null or missing is an ordinary
+     * case, not an error: One of One entries have no reference by design, and
+     * the library is drawn breed by breed. Fall back to the photograph alone.
+     */
+    referenceKey?: string | null;
   }): Promise<{
     portraitBytes: Uint8Array;
     /**
