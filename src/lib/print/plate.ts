@@ -12,7 +12,9 @@ import {
   outlineTextOnArc,
   pathElement,
   svgDocument,
+  type OutlinedText,
 } from "./text-to-path";
+import type { PrintFontRole } from "./fonts";
 
 /**
  * The composited garment plate: front and back.
@@ -50,6 +52,35 @@ export interface PlateLayout {
   svg: string;
   /** Where the portrait goes, underneath the type. */
   portrait: Rect;
+}
+
+/**
+ * Sets a line at the given size, shrunk if it would run wider than the plate.
+ *
+ * Everything on a plate is set from customer data, so every line has a worst
+ * case: a long breed name, a long binomial. Type that overflows the print area
+ * is clipped by the press, and nobody sees it until the garment arrives.
+ */
+function fitToWidth(
+  text: string,
+  role: PrintFontRole,
+  sizePx: number,
+  trackingRatio: number,
+  maxWidth: number,
+): OutlinedText {
+  const first = outlineText(text, {
+    role,
+    sizePx,
+    letterSpacingPx: sizePx * trackingRatio,
+  });
+  if (first.width <= maxWidth) return first;
+
+  const scaled = sizePx * (maxWidth / first.width);
+  return outlineText(text, {
+    role,
+    sizePx: scaled,
+    letterSpacingPx: scaled * trackingRatio,
+  });
 }
 
 /** A solid rule, drawn as a path so the plate is nothing but outlines. */
@@ -239,12 +270,11 @@ export function backPlate(
 
   // "Other" species have no breed, so the plate says what it is instead.
   const heading = breed ? breedRowValue(breed).toUpperCase() : "COMPANION PROFILE";
-  const headingSize = contentWidth * 0.082;
-  const headingRun = outlineText(heading, {
-    role: "breed",
-    sizePx: headingSize,
-    letterSpacingPx: headingSize * 0.04,
-  });
+  // Shrink to fit rather than run off the plate. "Staffordshire Bull Terrier" in
+  // caps is half again as wide as "Beagle", and a breed name clipped at the edge
+  // of the print area is a garment nobody can sell. Measured once at the ideal
+  // size, then scaled by whatever it overflows by.
+  const headingRun = fitToWidth(heading, "breed", contentWidth * 0.082, 0.04, contentWidth);
   y += contentWidth * 0.07 + headingRun.ascent;
   parts.push(
     `<g transform="translate(${x0 + (contentWidth - headingRun.width) / 2} ${y})">` +
@@ -253,8 +283,7 @@ export function backPlate(
 
   const binomial = breed ? binomialFor(breed) : undefined;
   if (binomial) {
-    const binSize = contentWidth * 0.045;
-    const binRun = outlineText(binomial, { role: "binomial", sizePx: binSize });
+    const binRun = fitToWidth(binomial, "binomial", contentWidth * 0.045, 0, contentWidth);
     y += binRun.ascent + contentWidth * 0.012;
     parts.push(
       `<g transform="translate(${x0 + (contentWidth - binRun.width) / 2} ${y})">` +

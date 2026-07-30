@@ -142,6 +142,28 @@ describe("back plate layout", () => {
     }
   });
 
+  it("keeps the longest breed name inside the plate", () => {
+    // Caught by /dev/mockups: "STAFFORDSHIRE BULL TERRIER" ran off both edges of
+    // the plate and the press would simply have clipped it. Nobody sees that
+    // until the garment arrives.
+    const margin = W * 0.08;
+
+    for (const breedId of [
+      "staffordshire-bull-terrier",
+      "american-pit-bull-terrier",
+      "yorkshire-terrier",
+      "pug",
+    ]) {
+      const svg = backPlate(profile({ breedId }), "KC-01248", W, H).svg;
+      // Every drawn path stays within the plate's content column.
+      const xs = [...svg.matchAll(/[ML](-?\d+(?:\.\d+)?) /g)].map((m) =>
+        Number(m[1]),
+      );
+      const widest = Math.max(...xs);
+      expect(widest, breedId).toBeLessThanOrEqual(W - margin + 1);
+    }
+  });
+
   it("leaves the portrait a real box inside the plate", () => {
     const { portrait } = backPlate(profile(), "KC-01248", W, H);
     expect(portrait.width).toBeGreaterThan(0);
