@@ -170,3 +170,56 @@ export function approvedEmail(data: ApprovedMailData): RenderedEmail {
     text,
   };
 }
+
+export interface DelayedMailData {
+  firstName: string;
+  creatureName: string | null;
+}
+
+/**
+ * Sent when a drawing has failed twice and a person is picking it up.
+ *
+ * A paid order must never go silent. It says less than it knows on purpose:
+ * "the model refused" is our problem, not theirs, and what they need is that
+ * somebody has it and nothing has been lost.
+ */
+export function drawingDelayedEmail(data: DelayedMailData): RenderedEmail {
+  const object = creatureObject(data.creatureName);
+
+  const body = [
+    heading("This one is taking me a little longer."),
+    paragraph(
+      `Hi ${escapeHtml(data.firstName)}, I am working on ${escapeHtml(object)} by hand rather than letting it go out not quite right.`,
+    ),
+    paragraph(
+      "Your order is safe and nothing has been printed. I will email you the portrait to look at as soon as it is ready, and you can still say no to it then.",
+    ),
+    divider(),
+    paragraph("Reply to this mail if you would like to talk to me about it."),
+  ].join("\n");
+
+  const text = [
+    `This one is taking me a little longer.`,
+    ``,
+    `Hi ${data.firstName}, I am working on ${object} by hand rather than`,
+    `letting it go out not quite right.`,
+    ``,
+    `Your order is safe and nothing has been printed. I will email you the`,
+    `portrait to look at as soon as it is ready, and you can still say no to`,
+    `it then.`,
+    ``,
+    `Reply to this mail if you would like to talk to me about it.`,
+    ``,
+    `Kindred Creatures · Jeffreys Bay, South Africa`,
+  ].join("\n");
+
+  return {
+    subject: `A little longer on ${creatureObject(data.creatureName)}`,
+    html: shell({
+      title: "Taking a little longer",
+      preheader: "Your order is safe and nothing has been printed.",
+      body,
+    }),
+    text,
+  };
+}

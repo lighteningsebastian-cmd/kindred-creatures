@@ -7,6 +7,7 @@ import {
   requestRevision,
 } from "@/lib/artwork-approval";
 import { sendApproved } from "@/lib/email";
+import { releaseApprovedOrder } from "@/lib/fulfillment";
 
 /**
  * What the approval page says back to the customer.
@@ -29,12 +30,16 @@ const GENERIC =
 export async function approveAction(token: string): Promise<ApprovalState> {
   const result = await approveArtwork(token);
   if (result.status === "refused") return { state: "error", message: GENERIC };
-  // Only on the transition, so a second click does not send a second mail.
+  // Only on the transition, so a second click neither mails twice nor releases
+  // twice.
   if (result.status === "approved") {
     const order = await orderForArtwork(result.artwork.id);
-    // Best effort, and deliberately not awaited into the outcome: a dead
-    // mailbox must never unwind an approval the customer has already given.
     if (order) {
+      // THIS is what sends the garment to the press. It refuses unless every
+      // artwork on the order is approved, so a two-garment order waits for both.
+      await releaseApprovedOrder(order.id);
+      // Best effort: a dead mailbox must never unwind an approval already given,
+      // and it must certainly not unwind the release above.
       await sendApproved(order, result.artwork.creatureName);
     }
   }

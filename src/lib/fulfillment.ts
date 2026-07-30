@@ -59,12 +59,15 @@ import {
   type OrderItem,
 } from "@/lib/db/schema";
 import {
+  sendArtworkReady,
+  sendDrawingDelayed,
   sendJobSheet,
   sendOrderConfirmation,
   orderRef,
   type EmailResult,
 } from "@/lib/email";
 import { recordOrderEmailSend } from "@/lib/email/monitoring";
+import { drawArtworkPlates } from "@/lib/artwork-drawing";
 import { derivePrintBytes } from "@/lib/images/derive";
 import {
   imageMimeForExtension,
@@ -109,6 +112,14 @@ export type FulfillmentResult =
       printKeys: string[];
       /** ok:false here needs a human: the shop does not know about this job. */
       jobSheet: EmailResult;
+    }
+  | {
+      /** Drawn and waiting on the customer. The only route out is an approval. */
+      status: "awaiting-approval";
+      orderId: string;
+      artworkIds: string[];
+      /** ok:false here means nobody can approve. Loud, but not flagged. */
+      artworkReady: EmailResult;
       /** ok:false here is a nuisance. The order is unaffected. */
       confirmation: EmailResult;
     }
@@ -348,15 +359,21 @@ async function flag(
 }
 
 /**
- * The whole post-payment story for one order: print files, then the shop and the
- * customer, then `paid` to `sent_to_printer`.
+ * Phase A, from the verified ITN: draw the artwork and ask the customer to look
+ * at it. NOTHING IS PRINTED HERE.
  *
- * Only a `paid` order may be fulfilled, and an order that has already been
- * fulfilled is a no-op rather than a second job sheet. Read the file header for
- * the failure policy; the short version is that a generation failure flags and a
- * failed email never does.
+ * This is the half of fulfilment that used to be the whole of it. Generation
+ * moved after payment (docs/spec-pipeline.md section 1), so the order of events
+ * is now: money lands, we draw, the customer approves, and only then does a job
+ * sheet exist. The order stays `paid` throughout; "paid with unapproved
+ * artwork" IS the awaiting-approval state and needs no status of its own.
  *
- * @param orderId the order to fulfil.
+ * Drawing is idempotent on the plates. An artwork that already has both plates
+ * is not redrawn, whatever arrives: a duplicate ITN, an impatient admin or a
+ * retry. Redrawing would cost another API call and, worse, replace a portrait
+ * the customer may already have approved.
+ *
+ * @param orderId the order to draw for.
  * @returns what happened, typed. Never throws for an expected failure.
  */
 export async function fulfillPaidOrder(
@@ -372,8 +389,7 @@ export async function fulfillPaidOrder(
   }
 
   // The state guard. "pending" is the one that matters: an unpaid order must
-  // never reach the print shop, because a job sheet is a garment we have not
-  // been paid for.
+  // never be drawn for, because drawing costs money we have not been given.
   if (order.status !== "paid") {
     return { status: "refused", orderId, reason: `not-paid:${order.status}` };
   }
@@ -387,6 +403,171 @@ export async function fulfillPaidOrder(
     // Checkout cannot write one of these, so if we are looking at one, something
     // upstream is wrong and a human should see it before the shop does.
     return flag(db, order, "the order has no lines to print", []);
+  }
+
+  // One drawing per artwork, however many garments carry it.
+  const artworkIds = [...new Set(items.map((item) => item.artworkId))];
+  const failures: { artworkId: string; reason: string }[] = [];
+  let drawn = 0;
+
+  for (const artworkId of artworkIds) {
+    const [existing] = await db
+      .select()
+      .from(artworks)
+      .where(eq(artworks.id, artworkId));
+
+    if (existing?.frontKey && existing.backKey) {
+      await record(db, orderId, "draw-artwork", "skipped", "plates already drawn", artworkId);
+      continue;
+    }
+
+    const result = await drawArtworkPlates(artworkId);
+    if (!result.ok) {
+      failures.push({ artworkId, reason: result.reason });
+      await record(db, orderId, "draw-artwork", "failed", result.reason, artworkId);
+      continue;
+    }
+    drawn += 1;
+    await record(db, orderId, "draw-artwork", "ok", "front and back plates", artworkId);
+  }
+
+  if (failures.length > 0) {
+    // A paid order must never go silent. The customer hears that it is taking
+    // longer BEFORE the order is flagged, so a mail failure cannot swallow the
+    // only thing they were going to be told.
+    const delayed = await sendDrawingDelayed(
+      order,
+      await creatureNameFor(db, artworkIds),
+    );
+    await record(
+      db,
+      orderId,
+      "order-confirmation",
+      delayed.ok ? "ok" : "failed",
+      delayed.ok ? `delay notice: ${delayed.id}` : delayed.error.message,
+    );
+    return flag(
+      db,
+      order,
+      failures
+        .map(({ artworkId, reason }) => `artwork ${artworkId}: ${reason}`)
+        .join("; "),
+      failures,
+    );
+  }
+
+  // The receipt, which belongs to the payment rather than to the printing.
+  const confirmation = await sendOrderConfirmation(order, items);
+  await recordOrderEmailSend(orderId, "confirmation", order.email, confirmation);
+  await record(
+    db,
+    orderId,
+    "order-confirmation",
+    confirmation.ok ? "ok" : "failed",
+    confirmation.ok ? confirmation.id : confirmation.error.message,
+  );
+
+  // The one that matters: without it nobody can approve, and nothing prints.
+  const ready = await sendArtworkReady(
+    order,
+    artworkIds[0]!,
+    await creatureNameFor(db, artworkIds),
+  );
+  await recordOrderEmailSend(orderId, "artwork-ready", order.email, ready);
+  await record(
+    db,
+    orderId,
+    "artwork-ready",
+    ready.ok ? "ok" : "failed",
+    ready.ok ? `awaiting approval (${drawn} drawn)` : ready.error.message,
+  );
+
+  if (!ready.ok) {
+    // Loud, and NOT flagged: the plates are safe and the approval link can be
+    // re-sent. But until it is, the order is stuck behind a mail nobody got.
+    console.error(
+      `[fulfillment] order ${orderRef(orderId)} has artwork but the approval mail did not send. Nobody can approve it. Re-send from the admin queue.`,
+    );
+  }
+
+  return {
+    status: "awaiting-approval",
+    orderId,
+    artworkIds,
+    artworkReady: ready,
+    confirmation,
+  };
+}
+
+/**
+ * The creature's name for the mails, or null if none was given.
+ *
+ * First named artwork wins. An order with two garments is nearly always the
+ * same animal twice, and a subject line cannot hold two names anyway.
+ */
+async function creatureNameFor(
+  db: Db,
+  artworkIds: string[],
+): Promise<string | null> {
+  for (const artworkId of artworkIds) {
+    const [artwork] = await db
+      .select()
+      .from(artworks)
+      .where(eq(artworks.id, artworkId));
+    const name = artwork?.creatureName?.trim();
+    if (name) return name;
+  }
+  return null;
+}
+
+/**
+ * Phase B, from an approval: print files, the print shop, and `sent_to_printer`.
+ *
+ * THIS IS THE ONLY PATH TO A JOB SHEET, and it refuses to run until every
+ * artwork on the order has been approved. That refusal is the whole of the
+ * promise the shop makes: nothing is printed that the customer has not seen and
+ * said yes to. Both the customer's own approval and the admin's Release to print
+ * come through here, because there is one meaning of approved.
+ *
+ * @param orderId the order whose artwork has been approved.
+ */
+export async function releaseApprovedOrder(
+  orderId: string,
+): Promise<FulfillmentResult> {
+  const db = await getDb();
+  const order = await loadOrder(db, orderId);
+
+  if (!order) return { status: "refused", orderId, reason: "order-not-found" };
+
+  if (FULFILLED_STATES.has(order.status)) {
+    return { status: "already-fulfilled", orderId };
+  }
+
+  if (order.status !== "paid") {
+    return { status: "refused", orderId, reason: `not-paid:${order.status}` };
+  }
+
+  const items = await db
+    .select()
+    .from(orderItems)
+    .where(eq(orderItems.orderId, orderId));
+
+  if (items.length === 0) {
+    return flag(db, order, "the order has no lines to print", []);
+  }
+
+  // The gate. Every artwork, not just one: an order with two garments has two
+  // portraits, and printing the approved one alongside an unapproved one is
+  // exactly the mistake this exists to prevent.
+  const artworkIds = [...new Set(items.map((item) => item.artworkId))];
+  for (const artworkId of artworkIds) {
+    const [artwork] = await db
+      .select()
+      .from(artworks)
+      .where(eq(artworks.id, artworkId));
+    if (!artwork?.approvedAt) {
+      return { status: "refused", orderId, reason: "not-approved" };
+    }
   }
 
   const print = await generatePrintFilesForOrder(orderId);
@@ -410,13 +591,11 @@ export async function fulfillPaidOrder(
     .from(orderItems)
     .where(eq(orderItems.orderId, orderId));
 
-  // Emails go before the transition, so the row only claims "sent_to_printer"
-  // once we have actually tried to send it. Neither result can stop the
-  // transition below: the print files exist, and losing them to a mailbox
-  // outage would be the expensive mistake.
+  // Email goes before the transition, so the row only claims "sent_to_printer"
+  // once we have actually tried to send it. It cannot stop the transition: the
+  // print files exist, and losing them to a mailbox outage would be the
+  // expensive mistake.
   const jobSheet = await sendJobSheet(order, printedItems);
-  // The delivery ledger (D4): keyed by the provider's message id so the Resend
-  // webhook can later say what became of it. Best-effort and never throws.
   await recordOrderEmailSend(
     orderId,
     "job-sheet",
@@ -432,21 +611,11 @@ export async function fulfillPaidOrder(
   );
   if (!jobSheet.ok) {
     // Loud on purpose. The print files are safe and the order is intact, but
-    // nobody in Cape Town knows this job exists until someone re-sends it.
+    // nobody at the print shop knows this job exists until someone re-sends it.
     console.error(
       `[fulfillment] order ${orderRef(orderId)} has print files but the job sheet did not send. The print shop has NOT been told. Re-send it from the admin queue.`,
     );
   }
-
-  const confirmation = await sendOrderConfirmation(order, items);
-  await recordOrderEmailSend(orderId, "confirmation", order.email, confirmation);
-  await record(
-    db,
-    orderId,
-    "order-confirmation",
-    confirmation.ok ? "ok" : "failed",
-    confirmation.ok ? confirmation.id : confirmation.error.message,
-  );
 
   await db
     .update(orders)
@@ -455,7 +624,7 @@ export async function fulfillPaidOrder(
 
   await record(db, orderId, "fulfil", "ok", `${printKeys.length} print file(s)`);
 
-  return { status: "sent_to_printer", orderId, printKeys, jobSheet, confirmation };
+  return { status: "sent_to_printer", orderId, printKeys, jobSheet };
 }
 
 /** What a re-send did. Same shape of honesty as FulfillmentResult. */
@@ -592,5 +761,29 @@ export async function retryFulfillment(
     return { status: "refused", orderId, reason: `not-retryable:${order.status}` };
   }
 
-  return fulfillPaidOrder(orderId);
+  // Resume where it stopped rather than starting over. An order whose artwork is
+  // already approved failed on the printing half, and sending it back through
+  // the drawing half would pay for another portrait and replace one the customer
+  // has already said yes to.
+  const items = await db
+    .select()
+    .from(orderItems)
+    .where(eq(orderItems.orderId, orderId));
+  const artworkIds = [...new Set(items.map((item) => item.artworkId))];
+
+  let allApproved = artworkIds.length > 0;
+  for (const artworkId of artworkIds) {
+    const [artwork] = await db
+      .select()
+      .from(artworks)
+      .where(eq(artworks.id, artworkId));
+    if (!artwork?.approvedAt) {
+      allApproved = false;
+      break;
+    }
+  }
+
+  return allApproved
+    ? releaseApprovedOrder(orderId)
+    : fulfillPaidOrder(orderId);
 }

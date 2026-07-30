@@ -40,6 +40,7 @@ import { magicLinkEmail } from "./templates/magic-link";
 import {
   approvedEmail,
   artworkReadyEmail,
+  drawingDelayedEmail,
   revisionReadyEmail,
 } from "./templates/approval";
 import { signApprovalToken } from "@/lib/approval";
@@ -445,6 +446,31 @@ export async function sendApproved(
     creatureName,
     orderRef: refFor(order),
     orderUrl: orderStatusUrl(order.id),
+  });
+
+  return deliver({
+    to: order.email,
+    subject: rendered.subject,
+    html: rendered.html,
+    text: rendered.text,
+    replyTo: emailReplyTo(),
+  });
+}
+
+/**
+ * Sent when a drawing has failed and a person is taking it over.
+ *
+ * A paid order must never go silent (docs/spec-pipeline.md section 4). Sent
+ * BEFORE the order is flagged, so a mail failure cannot swallow the only thing
+ * the customer was going to be told.
+ */
+export async function sendDrawingDelayed(
+  order: Order,
+  creatureName: string | null,
+): Promise<EmailResult> {
+  const rendered = drawingDelayedEmail({
+    firstName: order.firstName,
+    creatureName,
   });
 
   return deliver({

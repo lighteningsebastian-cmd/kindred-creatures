@@ -188,6 +188,9 @@ function Timeline({ events }: { events: FulfillmentEvent[] }) {
 /** What each order mail is called on screen. */
 const EMAIL_KIND_LABEL: Record<OrderEmailKind, string> = {
   confirmation: "Order confirmation",
+  // The serious one to see bounced: nobody can approve what they never got,
+  // and nothing is printed until they do.
+  "artwork-ready": "Approval link",
   "job-sheet": "Job sheet",
   shipping: "Shipping notification",
 };

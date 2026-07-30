@@ -6,8 +6,10 @@ import { markPrinted, markShipped } from "@/lib/admin/fulfillment-ops";
 import {
   approveArtworkById,
   markPersonalContact,
+  orderForArtwork,
 } from "@/lib/artwork-approval";
 import {
+  releaseApprovedOrder,
   resendJobSheet,
   retryFulfillment,
   type FulfillmentResult,
@@ -155,6 +157,21 @@ export async function retryFulfillmentAction(
               "Print files were made, but the job sheet did not send. The print shop has NOT been told. Use re-send.",
           };
 
+    case "awaiting-approval":
+      // Drawn, and now waiting on a person outside the building. Nothing is
+      // wrong and nothing prints until they say yes.
+      return result.artworkReady.ok
+        ? {
+            status: "ok",
+            message:
+              "Artwork drawn and the approval link is with the customer. Nothing prints until they approve it.",
+          }
+        : {
+            status: "warn",
+            message:
+              "Artwork was drawn, but the approval mail did not send. Nobody can approve it until it goes out.",
+          };
+
     case "already-fulfilled":
       return {
         status: "ok",
@@ -196,7 +213,18 @@ export async function releaseToPrint(
   await requireAdmin();
   const artwork = await approveArtworkById(artworkId);
   if (!artwork) return { ok: false, message: "That artwork no longer exists." };
+
+  // Same single path to a job sheet the customer's own approval uses.
+  const order = await orderForArtwork(artworkId);
+  const released = order ? await releaseApprovedOrder(order.id) : null;
   revalidatePath("/admin/approvals");
+
+  if (released?.status === "flagged") {
+    return { ok: false, message: `Approved, but printing failed: ${released.reason}` };
+  }
+  if (released?.status === "refused") {
+    return { ok: false, message: `Approved, but not released: ${released.reason}` };
+  }
   return { ok: true, message: "Released to print." };
 }
 

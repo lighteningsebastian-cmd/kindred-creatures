@@ -10,6 +10,8 @@ import { resetEmailTransport } from "@/lib/email";
 import { getStorage } from "@/lib/storage";
 import { getImageProvider } from "@/lib/images";
 import { derivePrintBytes } from "@/lib/images/derive";
+import { approveArtworkById } from "@/lib/artwork-approval";
+import { releaseApprovedOrder } from "@/lib/fulfillment";
 
 /**
  * The seam between S5 and S7: a verified ITN arrives, the order is paid, and the
@@ -165,26 +167,46 @@ async function readOrder(id: string) {
 }
 
 describe("a verified ITN, end to end", () => {
-  it("pays the order, prints it, and mails the shop a working link", async () => {
-    const { orderId, artworkId, canonicalKey } = await pendingOrderWithLine();
+  it("pays the order, draws it, and prints only once it is approved", async () => {
+    const { orderId, artworkId } = await pendingOrderWithLine();
 
     const response = await notify(post(itn(orderId)));
     expect(response.status).toBe(200);
 
-    // The 200 goes out on the payment, not on the printing: at this instant the
-    // order is paid and nothing has been generated yet. This is the property
-    // that keeps a slow provider from becoming a PayFast retry storm.
+    // The 200 goes out on the payment, not on the drawing: at this instant the
+    // order is paid and nothing has been drawn yet. This is the property that
+    // keeps a slow provider from becoming a PayFast retry storm.
+    expect((await readOrder(orderId)).status).toBe("paid");
+
+    await flushAfter();
+
+    // Drawn, and STILL PAID. "paid with unapproved artwork" is the
+    // awaiting-approval state: no print file, and above all no job sheet.
     expect((await readOrder(orderId)).status).toBe("paid");
     const [itemBefore] = await (await getDb())
       .select()
       .from(orderItems)
       .where(eq(orderItems.orderId, orderId));
-    // The print file is per garment now (B3): its key lands on the order_item,
-    // and nothing is generated until the after() callback runs.
     expect(itemBefore.printKey).toBeNull();
+    expect(
+      logged.filter((line) => line.includes("press@example.co.za")),
+    ).toHaveLength(0);
 
-    await flushAfter();
+    // The plates exist and the customer has been asked to look at them.
+    const [drawn] = await (await getDb())
+      .select()
+      .from(artworks)
+      .where(eq(artworks.id, artworkId));
+    expect(drawn.frontKey).toBeTruthy();
+    expect(drawn.backKey).toBeTruthy();
+    expect(
+      logged.some((line) => line.includes("thandi@example.co.za")),
+    ).toBeTruthy();
 
+    // Now they say yes. This is the only path to a job sheet.
+    await approveArtworkById(artworkId);
+    const released = await releaseApprovedOrder(orderId);
+    expect(released.status).toBe("sent_to_printer");
     expect((await readOrder(orderId)).status).toBe("sent_to_printer");
 
     const [item] = await (await getDb())
@@ -194,23 +216,19 @@ describe("a verified ITN, end to end", () => {
     expect(item.printKey).toMatch(new RegExp(`^prints/${item.id}/\\d+\\.`));
     // The legacy artwork.printKey is left untouched; it is no longer the source
     // of truth for a printed file.
-    const [artwork] = await (await getDb())
-      .select()
-      .from(artworks)
-      .where(eq(artworks.id, artworkId));
-    expect(artwork.printKey).toBeNull();
+    expect(drawn.printKey).toBeNull();
 
     // The file is really there, not just a key on a row.
     const bytes = await getStorage().getBytes(item.printKey!);
     expect(bytes?.length).toBeGreaterThan(0);
 
     // THE APPROVAL PROMISE, end to end and in bytes. The file the print shop is
-    // linked to is the stored canonical portrait at the hoodie's print area and
-    // nothing else. Fulfilment used to ask the model for a fresh one here, and
-    // image models are not deterministic, so what arrived was a different
-    // picture of the same animal on a non-returnable garment.
-    const canonicalBytes = await getStorage().getBytes(canonicalKey);
-    const expected = await derivePrintBytes(canonicalBytes!, 3307, 4134);
+    // linked to is the APPROVED artwork's stored bytes at the hoodie's print
+    // area and nothing else. This path used to ask the model for a fresh
+    // picture here, and image models are not deterministic, so what arrived was
+    // a different animal on a non-returnable garment.
+    const approvedBytes = await getStorage().getBytes(drawn.canonicalKey!);
+    const expected = await derivePrintBytes(approvedBytes!, 3307, 4134);
     expect(Buffer.from(bytes!).equals(Buffer.from(expected))).toBe(true);
 
     const jobSheet = logged.find((line) => line.includes("press@example.co.za"));
@@ -221,14 +239,9 @@ describe("a verified ITN, end to end", () => {
     expect(jobSheet).toMatch(/sig=[0-9a-f]{64}/);
     // And the size they cut against: the hoodie print area at 300 DPI.
     expect(jobSheet).toContain("3307");
-
-    // The customer hears about it too.
-    expect(
-      logged.some((line) => line.includes("thandi@example.co.za")),
-    ).toBeTruthy();
   });
 
-  it("does not fulfil twice when PayFast delivers the same ITN again", async () => {
+  it("does not draw twice when PayFast delivers the same ITN again", async () => {
     const { orderId } = await pendingOrderWithLine();
     const fields = itn(orderId);
 
@@ -236,15 +249,21 @@ describe("a verified ITN, end to end", () => {
     await flushAfter();
 
     // The retry. Stopped by the unique key on pf_payment_id long before it can
-    // schedule a second generation.
+    // schedule a second drawing, which would be a second API call and a
+    // portrait the customer may already have approved.
     expect((await notify(post(fields))).status).toBe(200);
     expect(afterTasks).toHaveLength(0);
 
-    expect((await readOrder(orderId)).status).toBe("sent_to_printer");
-    // One job sheet in the print shop's inbox, not two.
+    expect((await readOrder(orderId)).status).toBe("paid");
+    // ONE approval link in the customer's inbox, not two. Matched on the
+    // subject rather than the address, because phase A also sends the receipt
+    // and both go to the same person.
+    expect(
+      logged.filter((line) => /ready to see/i.test(line)),
+    ).toHaveLength(1);
     expect(
       logged.filter((line) => line.includes("press@example.co.za")),
-    ).toHaveLength(1);
+    ).toHaveLength(0);
   });
 
   it("survives a fulfilment that runs late against an already-moved order", async () => {
@@ -264,5 +283,10 @@ describe("a verified ITN, end to end", () => {
     expect(logged.filter((line) => line.includes("press@example.co.za"))).toHaveLength(
       0,
     );
+    // And nothing was drawn for it either: an order already at the press is
+    // past the point where drawing means anything.
+    expect(
+      logged.filter((line) => line.includes("thandi@example.co.za")),
+    ).toHaveLength(0);
   });
 });

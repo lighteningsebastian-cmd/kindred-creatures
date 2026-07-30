@@ -284,6 +284,10 @@ export const webhookEvents = pgTable("webhook_events", {
 
 /** The steps fulfilment takes, named so a log line reads as a sentence. */
 export type FulfillmentStep =
+  // Drawing the artwork, which happens after payment (spec-pipeline.md s1).
+  | "draw-artwork"
+  // The mail carrying the approval link. Without it nothing can be printed.
+  | "artwork-ready"
   | "generate-print-file"
   | "job-sheet"
   | "order-confirmation"
@@ -353,8 +357,19 @@ export const subscribers = pgTable("subscribers", {
 export type Subscriber = typeof subscribers.$inferSelect;
 export type NewSubscriber = typeof subscribers.$inferInsert;
 
-/** Which order mail a send was. The chip in admin is grouped by this. */
-export type OrderEmailKind = "confirmation" | "job-sheet" | "shipping";
+/**
+ * Which order mail a send was. The chip in admin is grouped by this.
+ *
+ * These must stay distinct rather than collapsing into "customer mail": a
+ * bounce report names a message id, and the only useful answer is WHICH mail
+ * that was. "artwork-ready" bouncing is the serious one, because nobody can
+ * approve what they never received and nothing prints until they do.
+ */
+export type OrderEmailKind =
+  | "confirmation"
+  | "artwork-ready"
+  | "job-sheet"
+  | "shipping";
 
 /**
  * One order-related send, keyed by the provider's message id (D4). This is the
