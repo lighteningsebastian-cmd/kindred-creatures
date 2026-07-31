@@ -32,22 +32,43 @@ export interface PlatePlacement {
  * the hem. `/dev/mockups` renders every product, colour and side at once so that
  * can be judged in one screen.
  */
+/**
+ * The shape of each product's photography, width over height.
+ *
+ * PLACEMENT IS A PERCENTAGE OF THE PHOTOGRAPH, so the box the photo is drawn in
+ * has to BE the photograph's shape. Let the box be any other shape and
+ * `object-contain` letterboxes the picture while the plate keeps measuring
+ * itself against the box, which puts the plate on the empty space beside the
+ * garment. Measured from the files: hoodie 1120x1400, tee 1144x1375,
+ * crewneck 1211x1299.
+ */
+export const PHOTO_ASPECT: Record<ProductSlug, number> = {
+  hoodie: 1120 / 1400,
+  tee: 1144 / 1375,
+  crewneck: 1211 / 1299,
+  // No photography; the plate sits on a plain colour, so any sane shape will do.
+  tote: 4 / 5,
+};
+
 export const PLACEMENT: Record<
   ProductSlug,
   Record<GarmentSide, PlatePlacement>
 > = {
   hoodie: {
     // Left chest from the WEARER's point of view, so right of centre on screen.
-    front: { top: 27, left: 55, width: 15 },
-    back: { top: 22, left: 25, width: 50 },
+    front: { top: 30, left: 56, width: 13 },
+    // BELOW THE HOOD. The hood fills roughly the top fifth of the photograph and
+    // nothing may enter it: KINDRED CREATURES was printing across it.
+    back: { top: 34, left: 27, width: 46 },
   },
   crewneck: {
-    front: { top: 26, left: 55, width: 15 },
-    back: { top: 20, left: 25, width: 50 },
+    front: { top: 28, left: 56, width: 13 },
+    // No hood, but the collar and the shoulder seams still need clearing.
+    back: { top: 29, left: 27, width: 46 },
   },
   tee: {
-    front: { top: 24, left: 55, width: 15 },
-    back: { top: 19, left: 25, width: 50 },
+    front: { top: 26, left: 56, width: 13 },
+    back: { top: 27, left: 27, width: 46 },
   },
   // The tote is deferred (docs/spec-print-layout.md) and has no photography, so
   // it has no plate to place. Kept here so the record stays exhaustive.

@@ -49,8 +49,6 @@ const photo = () => new File(["pretend-jpeg"], "pet.jpg", { type: "image/jpeg" }
 const fileInput = (container: HTMLElement) =>
   container.querySelector('input[type="file"]') as HTMLInputElement;
 
-const dropzone = () =>
-  screen.getByRole("button", { name: "Upload a photo of your pet" });
 const styleButton = () => screen.getByRole("button", { name: /Classic portrait/ });
 
 beforeEach(() => {
@@ -68,54 +66,48 @@ afterEach(() => {
 });
 
 describe("ProductFlow", () => {
-  it("shows the form and a garment preview with no interaction at all", () => {
-    // THE GATE IS GONE (docs/spec-flow-fixes.md section 5). The owner looked at
-    // the gated page twice and believed it was broken; a customer would leave.
-    // Landing with no query string must show a usable page.
+  it("opens on the first question, with the garment already showing", () => {
+    // The profile is the commission and comes first; colour and size are
+    // shopping and come last. And the preview is never gated.
     const hoodie = getProduct("hoodie")!;
     const { container } = render(<ProductFlow product={hoodie} />);
 
-    // The form is live from the first paint.
-    expect(screen.getByLabelText("Their name")).toBeEnabled();
-    expect(dropzone()).toHaveAttribute("aria-disabled", "false");
-    expect(
-      screen.queryByText(/choose a colour and size above/i),
-    ).toBeNull();
+    expect(screen.getByLabelText(/what is their name/i)).toBeEnabled();
+    expect(container.querySelector('img[alt*="hoodie" i]')).not.toBeNull();
 
-    // And so is a garment, in its default colourway.
-    const garment = container.querySelector('img[alt*="hoodie" i]');
-    expect(garment).not.toBeNull();
+    // Not a size or a swatch in sight until the questions are done.
+    expect(screen.queryByRole("button", { name: "M" })).toBeNull();
   });
 
-  it("adopts a ?color=&size= deep link on load", () => {
-    const hoodie = getProduct("hoodie")!;
-    render(
-      <ProductFlow product={hoodie} initialColor="Charcoal" initialSize="L" />,
-    );
-
-    expect(dropzone()).toHaveAttribute("aria-disabled", "false");
-    expect(screen.getByText("Charcoal")).toBeInTheDocument();
-  });
-
-  it("swaps the garment photo when the colour changes", async () => {
+  it("asks one question at a time, which is what fits beside a preview", async () => {
+    // Six stacked fields cannot live in the space left beside a sticky preview
+    // on a phone; one question comfortably can.
     const user = userEvent.setup();
-    const hoodie = getProduct("hoodie")!;
-    const { container } = render(
-      <ProductFlow product={hoodie} initialColor="Stone" initialSize="M" />,
-    );
+    render(<ProductFlow product={getProduct("hoodie")!} />);
 
-    const src = () =>
-      container.querySelector('img[alt*="hoodie" i]')?.getAttribute("src") ?? "";
-    const before = src();
+    expect(screen.getByLabelText(/what is their name/i)).toBeVisible();
+    // The next question is not merely below the fold, it is not rendered.
+    expect(screen.queryByText("What are they?")).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Charcoal" }));
+    await user.type(screen.getByLabelText(/what is their name/i), "Fenn");
+    await user.click(screen.getByRole("button", { name: "Next" }));
 
-    // A different photograph, and the plate is untouched: it is the same PNG
-    // over a different background.
-    expect(src()).not.toBe(before);
+    expect(screen.getByText("What are they?")).toBeVisible();
+    expect(screen.queryByLabelText(/what is their name/i)).toBeNull();
   });
 
-  it("keeps the photo and adds to cart with the CURRENT colour after a switch", async () => {
+  it("answers back with what was just given, and never a counter", async () => {
+    const user = userEvent.setup();
+    render(<ProductFlow product={getProduct("hoodie")!} />);
+
+    await user.type(screen.getByLabelText(/what is their name/i), "Fenn");
+    expect(screen.getByText(/getting to know fenn/i)).toBeVisible();
+
+    // Dots, not "1 of 5". A number makes it a form.
+    expect(document.body.textContent).not.toMatch(/\b\d\s*of\s*\d\b/);
+  });
+
+  it("reaches colour and size only after the profile, then adds to cart", async () => {
     const user = userEvent.setup();
     const hoodie = getProduct("hoodie")!;
 
@@ -127,36 +119,48 @@ describe("ProductFlow", () => {
       }),
     );
 
-    const { container } = render(
-      <ProductFlow product={hoodie} initialColor="Stone" initialSize="M" />,
-    );
-    expect(dropzone()).toHaveAttribute("aria-disabled", "false");
+    const { container } = render(<ProductFlow product={hoodie} />);
 
-    // Tell us about them first: the cart will not take a line the plate cannot
-    // be set from.
-    // Several One of One entries (small, medium, large); any will do.
+    await user.type(screen.getByLabelText(/what is their name/i), "Fenn");
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: "Next" })); // species: dog
+    await user.type(screen.getByLabelText("Their breed"), "one");
     await user.click(
       screen.getAllByRole("button", { name: /One of One/ })[0]!,
     );
+    await user.click(screen.getByRole("button", { name: "Next" }));
     for (const word of ["Confident", "Affectionate", "Spirited"]) {
       await user.click(screen.getByRole("button", { name: word }));
     }
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: /see their piece/i }));
 
+    // The reveal, then the shopping.
+    expect(screen.getByText(/here is fenn's piece/i)).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /choose a colour/i }));
+
+    const src = () =>
+      container.querySelector('img[alt*="hoodie" i]')?.getAttribute("src") ?? "";
+    const before = src();
+    await user.click(screen.getByRole("button", { name: "Charcoal" }));
+    // Five versions of THEIR plate, not five empty garments.
+    expect(src()).not.toBe(before);
+
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: "M" }));
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    // And finally the photograph.
     await user.upload(fileInput(container), photo());
     await waitFor(() => expect(styleButton()).toBeEnabled());
     await user.click(styleButton());
 
-    // Switch the colour AFTER the photo exists: the artwork survives and the
-    // cart line is built from the new colour.
-    await user.click(screen.getByRole("button", { name: "Charcoal" }));
-    const addButton = screen.getByRole("button", { name: "Add to cart" });
-    await waitFor(() => expect(addButton).toBeEnabled());
+    const add = screen.getByRole("button", { name: "Add to cart" });
+    await waitFor(() => expect(add).toBeEnabled());
+    await user.click(add);
 
-    await user.click(addButton);
-    expect(addItem).toHaveBeenCalledTimes(1);
     expect(addItem).toHaveBeenCalledWith(
-      expect.objectContaining({ artworkId: "art-1", color: "Charcoal" }),
+      expect.objectContaining({ artworkId: "art-1", color: "Charcoal", size: "M" }),
     );
   });
-
 });

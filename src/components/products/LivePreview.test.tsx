@@ -17,35 +17,70 @@ const plate = {
 };
 
 describe("LivePreview", () => {
-  it("shows the honesty line before any plate has rendered", () => {
-    // It must never depend on the render arriving. A stand-in illustration on
-    // screen without this line is the difference between a clever preview and
-    // a complaint.
+  it("says nothing about an illustration that is not there", async () => {
+    // Owner flagged this (docs/flow-review-2.md). While the breed library is
+    // empty the slot holds a hatched placeholder, and "the illustration shown is
+    // a Yorkshire Terrier example" over it is not a disclosure, it is a claim
+    // about something that is not on screen.
+    const renderPlates = vi.fn().mockResolvedValue({
+      front: plate,
+      back: plate,
+      stockUrl: null,
+    });
+
     render(
       <LivePreview
         profile={profile()}
         product={product}
         color={color}
-        render={() => new Promise(() => {})}
+        render={renderPlates}
+      />,
+    );
+
+    await waitFor(() => expect(renderPlates).toHaveBeenCalled());
+    expect(screen.queryByText(/example/i)).toBeNull();
+  });
+
+  it("names the breed the moment there is a real illustration to name", async () => {
+    const renderPlates = vi.fn().mockResolvedValue({
+      front: plate,
+      back: plate,
+      stockUrl: "/stock/yorkshire-terrier.png",
+    });
+
+    render(
+      <LivePreview
+        profile={profile()}
+        product={product}
+        color={color}
+        render={renderPlates}
       />,
     );
 
     expect(
-      screen.getByText(/is a Yorkshire Terrier example/i),
+      await screen.findByText(/is a Yorkshire Terrier example/i),
     ).toBeVisible();
     expect(screen.getByText(/drawn from your own photo/i)).toBeVisible();
   });
 
-  it("drops the breed name for One of One", () => {
+  it("drops the breed name for One of One", async () => {
+    const renderPlates = vi.fn().mockResolvedValue({
+      front: plate,
+      back: plate,
+      stockUrl: "/stock/one-of-one.png",
+    });
+
     render(
       <LivePreview
         profile={profile({ breedId: "one-of-one-dog-large" })}
         product={product}
         color={color}
-        render={() => new Promise(() => {})}
+        render={renderPlates}
       />,
     );
-    expect(screen.getByText(/The illustration shown is an example/i)).toBeVisible();
+    expect(
+      await screen.findByText(/The illustration shown is an example/i),
+    ).toBeVisible();
   });
 
   it("shows the garment from the first paint, before any plate arrives", () => {

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { PRODUCTS } from "@/lib/products";
 import {
+  PHOTO_ASPECT,
   PLACEMENT,
   garmentImageUrl,
   standInColours,
@@ -96,7 +97,9 @@ export default function MockupsPage() {
                     >
                       <div
                         className="relative overflow-hidden rounded-md border border-line bg-surface"
-                        style={{ aspectRatio: "4 / 5" }}
+                        // The photograph's own shape, so what is judged here is
+                        // the same geometry the customer sees.
+                        style={{ aspectRatio: PHOTO_ASPECT[product.slug] }}
                       >
                         {garment ? (
                           <Image

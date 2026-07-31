@@ -52,7 +52,7 @@ describe("ProductConfigurator", () => {
 
     // Before a size is picked the panel says so; it holds no CTA of its own.
     expect(
-      screen.getByText("Choose a size to start their portrait."),
+      screen.getByText("Choose a size to carry on."),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "Start your portrait" }),
@@ -61,7 +61,7 @@ describe("ProductConfigurator", () => {
     await user.click(screen.getByRole("button", { name: "M" }));
     expect(onSizeChange).toHaveBeenCalledWith("M");
     expect(
-      screen.queryByText("Choose a size to start their portrait."),
+      screen.queryByText("Choose a size to carry on."),
     ).toBeNull();
   });
 
@@ -71,7 +71,7 @@ describe("ProductConfigurator", () => {
 
     // One-size settles from the start, so the prompt never appears.
     expect(
-      screen.queryByText("Choose a size to start their portrait."),
+      screen.queryByText("Choose a size to carry on."),
     ).toBeNull();
     expect(screen.getByRole("button", { name: "One size" })).toHaveAttribute(
       "aria-pressed",

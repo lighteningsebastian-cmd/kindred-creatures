@@ -5,7 +5,12 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 import { getBreed } from "@/lib/breeds";
 import { stockDisclosure, type CompanionProfile } from "@/lib/companion";
-import { PLACEMENT, garmentImageUrl, type GarmentSide } from "@/lib/garments";
+import {
+  PHOTO_ASPECT,
+  PLACEMENT,
+  garmentImageUrl,
+  type GarmentSide,
+} from "@/lib/garments";
 import type { Product, Variant } from "@/lib/products";
 import type {
   PlatePreview as Plate,
@@ -43,16 +48,25 @@ function GarmentView({
   const placement = PLACEMENT[product.slug][side];
 
   return (
-    <div
-      className="relative w-full overflow-hidden rounded-md border border-line bg-surface"
-      style={{ aspectRatio: "4 / 5" }}
-    >
+    // The OUTER box takes whatever height the flow gave it; the INNER box is the
+    // photograph's own shape. Plate placement is a percentage of the photograph,
+    // so if these two disagree the plate ends up measured against letterboxing
+    // rather than against the garment.
+    <div className="flex h-full min-h-0 w-full items-center justify-center">
+      <div
+        className="relative h-full max-h-full max-w-full overflow-hidden rounded-md border border-line bg-surface"
+        style={{ aspectRatio: PHOTO_ASPECT[product.slug] }}
+      >
       {garment ? (
         <Image
           src={garment}
           alt={`${product.name} in ${color.color}, ${side}`}
           fill
           sizes="(min-width: 1024px) 40vw, 100vw"
+          // contain, not cover: a cropped garment in a short box is a hoodie with
+          // its hem cut off, and the plate placement is a percentage of the whole
+          // photograph, so cropping would move the plate off the garment.
+          // cover is exact now: the box IS the photograph's shape.
           className="object-cover"
           // The preview is the first thing worth seeing on this page.
           priority
@@ -96,6 +110,7 @@ function GarmentView({
           </div>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }
@@ -160,7 +175,7 @@ export function LivePreview({
   const plate = result ? (side === "back" ? result.back : result.front) : null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
         <p className="eyebrow text-xs text-accent">Their piece</p>
         <div className="flex gap-1" role="group" aria-label="Which side to show">
@@ -185,24 +200,32 @@ export function LivePreview({
         </div>
       </div>
 
-      <GarmentView
-        product={product}
-        color={color}
-        side={side}
-        plate={plate}
-        stockUrl={result?.stockUrl ?? null}
-      />
+      <div className="min-h-0 flex-1">
+        <GarmentView
+          product={product}
+          color={color}
+          side={side}
+          plate={plate}
+          stockUrl={result?.stockUrl ?? null}
+        />
+      </div>
 
-      <p className="text-sm text-muted">
+      <p className="hidden shrink-0 text-sm text-muted lg:block">
         {product.name} in {color.color}
       </p>
 
       {/*
-        Always on, never behind a tooltip, and never dependent on the render
-        arriving: the moment a stand-in illustration is on screen this has to be
-        readable next to it.
+        Always on whenever a stand-in illustration is, never behind a tooltip and
+        never dependent on the render arriving. Hidden only when there is no
+        illustration to be honest about: saying "the illustration shown is a
+        Yorkshire Terrier example" over a hatched placeholder is not a
+        disclosure, it is a claim about something that is not there.
       */}
-      <p className="text-sm leading-relaxed text-muted">{disclosure}</p>
+      {result?.stockUrl ? (
+        <p className="shrink-0 text-sm leading-relaxed text-muted">
+          {disclosure}
+        </p>
+      ) : null}
     </div>
   );
 }

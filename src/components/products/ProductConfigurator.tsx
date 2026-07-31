@@ -14,6 +14,12 @@ export type ProductConfiguratorProps = {
   onColorChange: (colorName: string) => void;
   /** Asks the parent to set the size. */
   onSizeChange: (size: string) => void;
+  /**
+   * Show only one half of the configurator. The flow asks for colour and size as
+   * separate questions now (docs/flow-review-2.md), and a page that shows both
+   * at once is the shopping-first page that reordering was meant to end.
+   */
+  only?: "colour" | "size";
 };
 
 /**
@@ -29,20 +35,29 @@ export function ProductConfigurator({
   size,
   onColorChange,
   onSizeChange,
+  only,
 }: ProductConfiguratorProps) {
   const sizeChosen = size !== null;
 
   return (
-    <div className="grid gap-10 md:grid-cols-2 md:gap-14">
-      {/* Photo, keyed to selected colour: the description tracks the swatch. */}
-      <PhotoFrame
+    <div
+      className={
+        only
+          ? "flex flex-col gap-6"
+          : "grid gap-10 md:grid-cols-2 md:gap-14"
+      }
+    >
+      {/* Photo, keyed to selected colour: the description tracks the swatch.
+          Suppressed when the flow asks for one control at a time, because the
+          live preview beside it is already showing the real garment. */}
+      {only ? null : <PhotoFrame
         aspect="4 / 5"
         description={`flatlay: the ${product.name.replace(/^The /, "").toLowerCase()} in ${color.color}, pressed and folded, a pet portrait print centred, soft daylight`}
-      />
+      />}
 
       {/* Selection panel */}
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-3">
+        {only ? null : <div className="flex flex-col gap-3">
           <h1 className="font-display text-3xl leading-[1.1] text-ink md:text-4xl">
             {product.name}
           </h1>
@@ -50,10 +65,10 @@ export function ProductConfigurator({
             {formatZar(color.priceZar)}
           </p>
           <p className="max-w-md leading-relaxed text-muted">{product.blurb}</p>
-        </div>
+        </div>}
 
         {/* Colour swatches */}
-        <div className="flex flex-col gap-3">
+        {only === "size" ? null : <div className="flex flex-col gap-3">
           <p className="text-sm font-medium text-ink">
             Colour: <span className="text-muted">{color.color}</span>
           </p>
@@ -78,10 +93,10 @@ export function ProductConfigurator({
               );
             })}
           </div>
-        </div>
+        </div>}
 
         {/* Size pills */}
-        <div className="flex flex-col gap-3">
+        {only === "colour" ? null : <div className="flex flex-col gap-3">
           <p className="text-sm font-medium text-ink">Size</p>
           <div className="flex flex-wrap gap-2">
             {color.sizes.map((option) => {
@@ -95,8 +110,9 @@ export function ProductConfigurator({
                   className={cn(
                     "rounded-md border px-4 py-2 text-sm font-medium transition-colors",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base",
+                    // Oxblood, like every other selected state on the site.
                     selected
-                      ? "border-ink bg-ink text-base"
+                      ? "border-btn bg-btn text-base"
                       : "border-line text-ink hover:bg-surface",
                   )}
                 >
@@ -106,11 +122,9 @@ export function ProductConfigurator({
             })}
           </div>
           {!sizeChosen && (
-            <p className="text-sm text-muted">
-              Choose a size to start their portrait.
-            </p>
+            <p className="text-sm text-muted">Choose a size to carry on.</p>
           )}
-        </div>
+        </div>}
       </div>
     </div>
   );
