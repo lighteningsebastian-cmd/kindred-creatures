@@ -80,7 +80,9 @@ export async function drawArtworkPlates(
     .where(eq(artworks.id, artworkId));
 
   if (!artwork) return { ok: false, reason: "artwork-not-found" };
-  if (!artwork.style) return { ok: false, reason: "no art style was chosen" };
+  // There is no style to check for any more: one house style, and the two
+  // portraits are the two sides of the garment. The guard that used to stand
+  // here would now refuse every order, since nothing writes artworks.style.
 
   const product = getProduct(artwork.productSlug);
   if (!product) {
@@ -97,18 +99,19 @@ export async function drawArtworkPlates(
     try {
       const provider = await getImageProvider();
 
-      // Face on, in colour, for the chest. The back is a side profile, which is
-      // why it gets the breed reference as a second input: a profile has to be
-      // invented from a face-on photograph, and the reference is what keeps it
-      // breed-accurate rather than a guess.
+      // Face on, in colour, for the chest. The back is a graphite side profile,
+      // which is why it gets the breed reference as a second input: a profile
+      // has to be invented from a face-on photograph, and the reference is what
+      // keeps it breed-accurate rather than a guess. The side is what decides
+      // both the medium and the pose (lib/images/prompts.ts).
       const front = await provider.generatePortrait({
         uploadKey: artwork.uploadKey,
-        style: artwork.style,
+        side: "front",
         reasons,
       });
       const back = await provider.generatePortrait({
         uploadKey: artwork.uploadKey,
-        style: artwork.style,
+        side: "back",
         reasons,
         referenceKey: reference,
       });

@@ -178,9 +178,12 @@ describe("when the model refuses", () => {
     expect(row!.status).toBe("failed");
   });
 
-  it("refuses an artwork with no style rather than guessing one", async () => {
+  it("draws an artwork that carries no style, because there is one house style", async () => {
+    // This used to refuse. The customer is no longer asked for a style (owner
+    // decision, 3 August) so nothing writes artworks.style, and a guard that
+    // demanded one would now refuse EVERY paid order.
     const seeded = await seedArtwork({ style: null });
     const result = await drawArtworkPlates(seeded.id);
-    expect(result.ok).toBe(false);
+    expect(result.ok).toBe(true);
   });
 });

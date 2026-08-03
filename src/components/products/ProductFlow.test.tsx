@@ -49,7 +49,6 @@ const photo = () => new File(["pretend-jpeg"], "pet.jpg", { type: "image/jpeg" }
 const fileInput = (container: HTMLElement) =>
   container.querySelector('input[type="file"]') as HTMLInputElement;
 
-const styleButton = () => screen.getByRole("button", { name: /Classic portrait/ });
 
 beforeEach(() => {
   addItem.mockClear();
@@ -150,10 +149,9 @@ describe("ProductFlow", () => {
     await user.click(screen.getByRole("button", { name: "M" }));
     await user.click(screen.getByRole("button", { name: "Next" }));
 
-    // And finally the photograph.
+    // And finally the photograph, which is the whole of the last step now that
+    // there is no style to choose.
     await user.upload(fileInput(container), photo());
-    await waitFor(() => expect(styleButton()).toBeEnabled());
-    await user.click(styleButton());
 
     const add = screen.getByRole("button", { name: "Add to cart" });
     await waitFor(() => expect(add).toBeEnabled());

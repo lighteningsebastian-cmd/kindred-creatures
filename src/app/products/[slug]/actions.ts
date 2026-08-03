@@ -11,7 +11,6 @@ import {
   stockKey,
   type Species,
 } from "@/lib/breeds";
-import { isArtStyle } from "@/lib/images/provider";
 import { loadPrintFont } from "@/lib/print/fonts";
 import {
   NAME_MAX,
@@ -206,11 +205,15 @@ export async function previewPlates(
 }
 
 /**
- * Saves the style and the companion profile onto the artwork.
+ * Saves the companion profile onto the artwork.
  *
  * This is what makes the pre-payment half durable. Nothing is drawn here: the
  * drawing happens after the money lands, and what it needs is exactly this row
  * plus the photograph (docs/spec-pipeline.md section 4).
+ *
+ * NO STYLE IS SAVED. There is one house style (owner decision, 3 August), so
+ * there is nothing to record: the two portraits are the front and the back of
+ * the garment, and lib/images/prompts.ts decides both from the side alone.
  *
  * Validated again on the way in even though the form validates as you type,
  * because a browser is not a trust boundary and these are the words that get
@@ -218,10 +221,8 @@ export async function previewPlates(
  */
 export async function saveArtworkDetails(
   artworkId: string,
-  style: unknown,
   profile: CompanionProfile,
 ): Promise<{ ok: boolean }> {
-  if (!isArtStyle(style)) return { ok: false };
   if (!isProfileComplete(profile)) return { ok: false };
 
   const temperament = profile.temperament.filter(isTemperament);
@@ -229,7 +230,6 @@ export async function saveArtworkDetails(
   const updated = await db
     .update(artworks)
     .set({
-      style,
       creatureName: profile.name?.trim() || null,
       species: profile.species,
       breedId: profile.breedId,

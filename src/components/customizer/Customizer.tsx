@@ -3,15 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { cn } from "@/lib/cn";
 import { type Product, type Variant } from "@/lib/products";
-import type { ArtStyle } from "@/lib/images/provider";
 import { useCartStore } from "@/lib/cart-store";
 import { trackAddToCart, trackPhotoUploaded } from "@/lib/analytics";
 import { isProfileComplete, type CompanionProfile } from "@/lib/companion";
 import { downscaleImage } from "./downscale";
 import { UploadDropzone } from "./UploadDropzone";
-import { StylePicker } from "./StylePicker";
 
 export type CustomizerProps = {
   product: Product;
@@ -21,10 +18,9 @@ export type CustomizerProps = {
   size: string | null;
   /** Everything they told us about their animal, owned by the parent flow. */
   profile: CompanionProfile;
-  /** Persists the style and profile onto the artwork. Nothing is drawn. */
+  /** Persists the profile onto the artwork. Nothing is drawn. */
   save: (
     artworkId: string,
-    style: ArtStyle,
     profile: CompanionProfile,
   ) => Promise<{ ok: boolean }>;
 };
@@ -50,11 +46,16 @@ type Phase =
  * gone: the customer sees the real plate carrying their own data further up the
  * page, and their animal is drawn once the money has landed.
  *
+ * THERE IS NO STYLE CHOICE EITHER (owner decision, 3 August). One house style,
+ * so this step is the photograph and nothing else. Deleting the choice took a
+ * decision out of the customer's path and a whole prompt axis out of the range;
+ * the two portraits we draw are now the front and the back of the garment.
+ *
  * What this step must guarantee is that the drawing can succeed the moment it
- * runs, so the style and the profile are saved onto the artwork before the cart
- * will take it. Colour and size are owned by the parent flow and arrive as
- * props, so switching them never disturbs anything and the cart line is always
- * built from the CURRENT selection.
+ * runs, so the profile is saved onto the artwork before the cart will take it.
+ * Colour and size are owned by the parent flow and arrive as props, so switching
+ * them never disturbs anything and the cart line is always built from the
+ * CURRENT selection.
  */
 export function Customizer({
   product,
@@ -72,7 +73,6 @@ export function Customizer({
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const [artworkId, setArtworkId] = useState<string | null>(null);
-  const [style, setStyle] = useState<ArtStyle | null>(null);
   /** The exact thing last written to the artwork, so "saved" is derived. */
   const [savedKey, setSavedKey] = useState<string | null>(null);
 
@@ -85,21 +85,19 @@ export function Customizer({
   // picking a style makes this stale on the spot, with no render cascade and no
   // window where a changed profile still counts as written.
   const pending =
-    artworkId && style && profileReady
-      ? JSON.stringify([artworkId, style, profile])
-      : null;
+    artworkId && profileReady ? JSON.stringify([artworkId, profile]) : null;
   const saved = pending !== null && savedKey === pending;
 
   useEffect(() => {
-    if (!pending || !artworkId || !style) return;
+    if (!pending || !artworkId) return;
     let live = true;
-    void save(artworkId, style, profile).then((result) => {
+    void save(artworkId, profile).then((result) => {
       if (live && result.ok) setSavedKey(pending);
     });
     return () => {
       live = false;
     };
-  }, [pending, artworkId, style, profile, save]);
+  }, [pending, artworkId, profile, save]);
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -107,7 +105,6 @@ export function Customizer({
       setRejectReason(null);
       setUploadError(null);
       setArtworkId(null);
-      setStyle(null);
       setSavedKey(null);
 
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -173,8 +170,6 @@ export function Customizer({
     router.push("/cart");
   };
 
-  const styleDisabled = !artworkId || phase === "uploading";
-
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
@@ -188,44 +183,24 @@ export function Customizer({
         </p>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2 md:gap-12">
-        <div className="flex flex-col gap-3">
-          <p className="eyebrow text-xs text-muted">Step 1 · Your photo</p>
-          <UploadDropzone
-            photoPreview={photoPreview}
-            busy={phase === "uploading"}
-            rejectReason={rejectReason}
-            onFile={handleFile}
-          />
-          {uploadError ? (
-            <p role="alert" className="text-sm font-medium text-signal-error">
-              {uploadError}
-            </p>
-          ) : null}
-        </div>
-
-        <div
-          className={cn(
-            "flex flex-col gap-3 transition-opacity",
-            styleDisabled && !artworkId && "opacity-60",
-          )}
-        >
-          <p className="eyebrow text-xs text-muted">Step 2 · Your style</p>
-          {!artworkId ? (
-            <p className="text-sm text-muted">
-              Upload a photo first, then pick a style.
-            </p>
-          ) : null}
-          <StylePicker
-            value={style}
-            onSelect={setStyle}
-            disabled={styleDisabled}
-          />
-        </div>
+      {/* One column now. The style picker used to sit alongside; with one house
+          style there is nothing to put there, and a photograph is a big enough
+          ask to deserve the whole width. */}
+      <div className="flex flex-col gap-3">
+        <UploadDropzone
+          photoPreview={photoPreview}
+          busy={phase === "uploading"}
+          rejectReason={rejectReason}
+          onFile={handleFile}
+        />
+        {uploadError ? (
+          <p role="alert" className="text-sm font-medium text-signal-error">
+            {uploadError}
+          </p>
+        ) : null}
       </div>
 
       <div className="flex flex-col gap-3 border-t border-line pt-6">
-        <p className="eyebrow text-xs text-muted">Step 3 · Add to cart</p>
         <Button
           block
           size="md"
@@ -240,8 +215,6 @@ export function Customizer({
           <p className="text-sm text-muted">
             Upload a photo of them to carry on.
           </p>
-        ) : !style ? (
-          <p className="text-sm text-muted">Pick a style to carry on.</p>
         ) : !profileReady ? (
           <p className="text-sm text-muted">
             We still need a few details about them further up the page.

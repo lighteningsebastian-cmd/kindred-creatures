@@ -72,7 +72,7 @@ and confirm the alpha channel is genuinely transparent rather than white pixels.
 
 ---
 
-## 3. Why the styles are inconsistent
+## 3. Why the portraits were inconsistent
 
 The whole prompt is currently one sentence:
 
@@ -118,19 +118,33 @@ const CONSTRAINTS =
   "Transparent background. Suitable for printing on fabric.";
 ```
 
-Style clauses, replacing `STYLE_PROMPT`:
+### There are two prompts, and they are the two sides of the garment
 
-| `ArtStyle` | Customer label | Style clause |
-|---|---|---|
-| `classic-portrait` | Timeless | `Rendered as a warm painterly oil portrait with visible soft brushwork, gentle directional light, a muted natural palette.` |
-| `line-sketch` | Understated | `Rendered as a single-weight black ink line drawing, clean continuous contour lines, no shading, no hatching, no fill.` |
-| `watercolor` | Soft | `Rendered as a loose watercolour with gentle washes and visible paper texture, soft edges, a limited muted palette.` |
+**Owner decision, 3 August 2026: one house style.** The three-way choice (Timeless,
+Understated, Soft) is gone from the interface, from `content.ts` and from the prompt file.
+What varies now is not taste but which side of the garment is being drawn, and the two
+sides genuinely need different pictures:
 
-Final prompt:
+| Side | Medium | Pose | Why |
+|---|---|---|---|
+| `front` | Colour, painterly oil | Facing the viewer | The left-chest patch, seen across a room |
+| `back` | Graphite, monochrome | Strict side profile | Sits inside an archival plate of typeset rules and data, where colour fights the type |
+
+Both the medium and the composition are keyed by side:
 
 ```ts
-const prompt = [SUBJECT, STYLE_CLAUSE[style], COMPOSITION, CONSTRAINTS].join(" ");
+const prompt = [SUBJECT, STYLE_CLAUSE[side], COMPOSITION[side], CONSTRAINTS].join(" ");
 ```
+
+**The back is the one that needs watching.** It is drawn from a face-on photograph, so the
+profile has to be inferred, which is why the back is the side that receives the breed's
+hand-reviewed side-profile reference as a second input. Ask for the profile plainly and
+more than once: a model handed a face-on photo drifts back to face-on given any room, and
+a three-quarter view inside an archival plate reads as a mistake rather than a portrait.
+
+**Before 3 August both sides were asked for the same face-on colour portrait**, differing
+only in whether the reference was attached. The back was never the profile this document
+described.
 
 **These are a hypothesis.** They are reasoned, not proven. Test and revise. Keep the
 structure, change the wording.
@@ -140,7 +154,7 @@ structure, change the wording.
 ## 5. Nature fragments
 
 When the customer journey spec ships, the nature chip inserts one fragment **between** the
-style clause and the composition clause. Fragments modify light, expression and mood only.
+style clause and the composition clause, on both sides. Fragments modify light, expression and mood only.
 They must never contradict the subject clause: likeness always wins over mood.
 
 See `docs/spec-customer-journey.md` section 6 for the mapping table.
@@ -159,7 +173,8 @@ A dog in good light · a black dog, the hardest case for any model · a cat · a
 dark-on-dark or backlit photo · two pets in one frame · a blurry phone photo, because that
 is what customers actually send.
 
-For each, in each of the three styles. Eighteen images, well under a dollar.
+For each, both sides. Twelve images, well under a dollar. (Was eighteen, when there
+were three styles.)
 
 Pass: an owner would recognise their own animal immediately.
 **The black dog and the blurry phone photo are the ones that decide whether this is a
@@ -167,7 +182,7 @@ business.** Everything works on a well-lit golden retriever.
 
 ### Test B · consistency
 
-One photograph, one style, five runs. Pass: five images that clearly belong to the same
+One photograph, one side, five runs. Pass: five images that clearly belong to the same
 range. If run three looks nothing like run one, the constraints are too loose.
 
 ### Test C · print readiness

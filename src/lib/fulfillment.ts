@@ -235,7 +235,11 @@ async function generatePrintFile(
 
   if (!artwork) return fail("the artwork row this line points at is missing");
 
-  if (!artwork.style) return fail("no art style was ever chosen for this artwork");
+  // There WAS a second guard here demanding artwork.style. It went with the
+  // style choice itself (owner decision, 3 August): nothing writes that column
+  // any more, so the guard would have flagged every paid order at print time,
+  // after the customer had approved. What actually has to be true is the check
+  // immediately below, that an approved portrait exists to resize.
 
   // No canonical image means there is no approved portrait to print, and the
   // one thing we must never do here is invent one. Flag it and let a human

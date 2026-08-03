@@ -10,7 +10,6 @@
  * S10's /faq and /how-it-works pages should read from here too rather than
  * restating any of it.
  */
-import type { ArtStyle } from "@/lib/images/provider";
 
 export interface FaqEntry {
   question: string;
@@ -84,20 +83,6 @@ export const HOW_IT_WORKS_STEPS: HowItWorksStep[] = [
     body: "Nothing is printed until you say yes.",
   },
 ];
-
-/**
- * One-line description of each portrait style, stated once.
- *
- * The customizer's StylePicker renders these next to each style, and the
- * /how-it-works styles showcase renders them again. Keeping the copy here means
- * the two surfaces cannot drift into describing the same style differently.
- * Keyed by ArtStyle so both readers stay exhaustive if a style is ever added.
- */
-export const ART_STYLE_DESCRIPTIONS: Record<ArtStyle, string> = {
-  "classic-portrait": "Warm, painterly, framed like a keepsake.",
-  "line-sketch": "Clean single-line ink, quiet and modern.",
-  watercolor: "Soft washes with a hand-painted feel.",
-};
 
 /**
  * The delivery promise, stated once.

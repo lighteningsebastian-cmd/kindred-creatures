@@ -5,13 +5,11 @@ import { AccentRule } from "@/components/ui/AccentRule";
 import { Reveal } from "@/components/motion/Reveal";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { ProcessStep } from "@/components/how-it-works/ProcessStep";
-import { StyleCard } from "@/components/how-it-works/StyleCard";
 import {
   DELIVERY_WINDOW,
   FAQS,
   HOW_IT_WORKS_PAGE_STEPS,
 } from "@/lib/content";
-import { ART_STYLES } from "@/lib/images/provider";
 import { buildFaqPage, buildHowTo } from "@/lib/seo/jsonld";
 import { BRAND_EMAIL, BRAND_NAME } from "@/lib/seo/site";
 
@@ -115,35 +113,12 @@ export default function HowItWorksPage() {
         </Container>
       </section>
 
-      {/* Styles showcase */}
-      <section className="bg-surface py-16 md:py-24">
-        <Container>
-          <div className="max-w-2xl">
-            <Reveal>
-              <p className="eyebrow text-[11px] text-accent">The styles</p>
-            </Reveal>
-            <Reveal delay={0.05}>
-              <h2 className="mt-4 font-display text-3xl leading-[1.16] text-ink md:text-4xl">
-                Three ways to draw them
-              </h2>
-            </Reveal>
-            <Reveal delay={0.1}>
-              <p className="mt-4 text-lg leading-relaxed text-muted">
-                Pick the one that suits them best. You will see the portrait in
-                your chosen style before anything is printed.
-              </p>
-            </Reveal>
-          </div>
-
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 md:mt-12 md:grid-cols-3">
-            {ART_STYLES.map((style, index) => (
-              <Reveal key={style} delay={index * 0.08}>
-                <StyleCard style={style} />
-              </Reveal>
-            ))}
-          </div>
-        </Container>
-      </section>
+      {/*
+        The styles showcase was here: three cards offering a painted portrait, a
+        line sketch and a watercolour. There is ONE HOUSE STYLE now (owner
+        decision, 3 August), so there is nothing to choose between and a page
+        offering a choice the flow does not have is worse than a shorter page.
+      */}
 
       {/* Trust / quality: a centered moment, so it carries the AccentRule. */}
       <section className="py-16 md:py-24">

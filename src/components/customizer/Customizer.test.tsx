@@ -16,15 +16,6 @@ vi.mock("./downscale", () => ({
   downscaleImage: vi.fn(async (file: File) => file),
 }));
 
-/** A promise whose resolution the test controls, to observe in-flight states. */
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((r) => {
-    resolve = r;
-  });
-  return { promise, resolve };
-}
-
 /** A profile complete enough to print, which is what the cart now requires. */
 function fullProfile(): CompanionProfile {
   return {
@@ -49,8 +40,6 @@ const photo = () => new File(["pretend-jpeg"], "pet.jpg", { type: "image/jpeg" }
 const fileInput = (container: HTMLElement) =>
   container.querySelector('input[type="file"]') as HTMLInputElement;
 
-const styleButton = () => screen.getByRole("button", { name: /Classic portrait/ });
-
 beforeEach(() => {
   push.mockClear();
   // jsdom has no object-URL support; the Customizer makes one for the preview.
@@ -62,8 +51,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("Customizer: photo, style, and nothing drawn", () => {
-  it("takes a photo and a style, saves them, and lets the cart have it", async () => {
+describe("Customizer: the photograph, and nothing drawn", () => {
+  it("takes a photo, saves the profile, and lets the cart have it", async () => {
     const user = userEvent.setup();
     const save = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal(
@@ -85,13 +74,15 @@ describe("Customizer: photo, style, and nothing drawn", () => {
     expect(screen.getByRole("button", { name: "Add to cart" })).toBeDisabled();
 
     await user.upload(fileInput(container), photo());
-    await waitFor(() => expect(styleButton()).toBeEnabled());
-    await user.click(styleButton());
 
-    // The style and profile are written to the artwork. This is what the
-    // drawing after payment reads, so the cart must not take a line without it.
+    // The profile is written to the artwork. This is what the drawing after
+    // payment reads, so the cart must not take a line without it. No style
+    // travels with it any more: there is one house style.
     await waitFor(() =>
-      expect(save).toHaveBeenCalledWith("art-1", "classic-portrait", expect.objectContaining({ name: "Fenn" })),
+      expect(save).toHaveBeenCalledWith(
+        "art-1",
+        expect.objectContaining({ name: "Fenn" }),
+      ),
     );
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Add to cart" })).toBeEnabled(),
@@ -119,8 +110,6 @@ describe("Customizer: photo, style, and nothing drawn", () => {
     );
 
     await user.upload(fileInput(container), photo());
-    await waitFor(() => expect(styleButton()).toBeEnabled());
-    await user.click(styleButton());
 
     const called = fetchMock.mock.calls.map((call) => (call as unknown as [string])[0]);
     expect(called).toEqual(["/api/upload"]);
@@ -149,8 +138,9 @@ describe("Customizer: photo, style, and nothing drawn", () => {
     );
 
     await user.upload(fileInput(container), photo());
-    await waitFor(() => expect(styleButton()).toBeEnabled());
-    await user.click(styleButton());
+    await waitFor(() =>
+      expect(screen.getByText(/few details about them/i)).toBeVisible(),
+    );
 
     expect(save).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Add to cart" })).toBeDisabled();
@@ -180,10 +170,15 @@ describe("Customizer: photo, style, and nothing drawn", () => {
     expect(screen.getByRole("button", { name: "Add to cart" })).toBeDisabled();
   });
 
-  it("waits for the upload before offering a style", async () => {
+  it("offers no style choice at all", async () => {
+    // Three cards used to sit beside the dropzone. One house style (owner
+    // decision, 3 August), so the whole step is gone rather than reduced to a
+    // single card that reads as a choice with one option.
     const user = userEvent.setup();
-    const upload = deferred<Response>();
-    vi.stubGlobal("fetch", vi.fn(() => upload.promise));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonRes(201, { artworkId: "art-1" })),
+    );
 
     const { container } = render(
       <Customizer
@@ -196,9 +191,12 @@ describe("Customizer: photo, style, and nothing drawn", () => {
     );
 
     await user.upload(fileInput(container), photo());
-    expect(styleButton()).toBeDisabled();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Add to cart" })).toBeEnabled(),
+    );
 
-    upload.resolve(jsonRes(201, { artworkId: "art-1" }));
-    await waitFor(() => expect(styleButton()).toBeEnabled());
+    for (const gone of [/Classic portrait/i, /Line sketch/i, /Watercolor/i, /pick a style/i]) {
+      expect(screen.queryByText(gone)).not.toBeInTheDocument();
+    }
   });
 });

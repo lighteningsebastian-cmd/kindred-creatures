@@ -3,22 +3,29 @@
  * EVERY WORD WE SAY TO THE PORTRAIT MODEL IS IN THIS FILE. NOTHING ELSE IS.
  * ===========================================================================
  *
- * You do not need to be a programmer to change this file. You are editing four
+ * You do not need to be a programmer to change this file. You are editing
  * pieces of ordinary English, each between the pair of quote marks after an
  * `=` sign. Change the words, leave the quote marks, the `+` signs and the
  * semicolons exactly where they are.
  *
- * The four pieces are glued together, in this order, into one instruction:
+ * THERE ARE TWO PORTRAITS PER GARMENT, NOT THREE STYLES. The customer used to
+ * choose between a painted portrait, a line sketch and a watercolour. There is
+ * one house style now (owner decision, 3 August), and the two portraits we draw
+ * are the two SIDES of the garment:
  *
- *     SUBJECT   what animal to draw and what must stay true to the photo
- *     STYLE     how to draw it, one clause per style the customer can pick
- *     COMPOSITION   where the animal sits in the picture
+ *     FRONT   the left-chest patch. Colour, facing the viewer.
+ *     BACK    the large plate. Graphite, strict side profile.
+ *
+ * They are different pictures of the same animal, not different tastes. Each is
+ * glued together, in this order, into one instruction:
+ *
+ *     SUBJECT       what animal to draw and what must stay true to the photo
+ *     STYLE         how that side is drawn
+ *     COMPOSITION   where the animal sits and which way it faces
  *     CONSTRAINTS   everything the picture must NOT contain
  *
- * SUBJECT, COMPOSITION and CONSTRAINTS are the same for every portrait. That
- * sameness is what makes the range look like a range. STYLE is the only part
- * that changes between the three choices, so keep the difference between the
- * three style clauses to how the picture is DRAWN, never to what is in it.
+ * SUBJECT and CONSTRAINTS are identical for both. That sameness is what makes
+ * the range look like a range.
  *
  * HOW TO MAKE A CHANGE
  *
@@ -27,8 +34,8 @@
  *   3. Ask for the change to be reviewed and released like any other change.
  *
  * Step 2 is not optional. Every portrait we draw records the version that drew
- * it, so months from now "the watercolours went strange in August" is a
- * question with an answer instead of an argument.
+ * it, so months from now "the backs went strange in August" is a question with
+ * an answer instead of an argument.
  *
  * TWO THINGS THAT COST US MONEY WHEN THEY GO WRONG
  *
@@ -44,7 +51,8 @@
  * is the testing protocol, and findings belong in that file.
  */
 
-import type { ArtStyle } from "./provider";
+/** Which side of the garment a portrait is being drawn for. */
+export type PortraitSide = "front" | "back";
 
 /**
  * Which wording drew a given portrait. Written to `artworks.prompt_version` on
@@ -55,7 +63,7 @@ import type { ArtStyle } from "./provider";
  * "2026-07-29.2", then "2026-08-04.1" and so on. Never reuse an old value: a
  * version that means two different sets of words is worse than no version.
  */
-export const PROMPT_VERSION = "2026-07-29.1";
+export const PROMPT_VERSION = "2026-08-03.1";
 
 /**
  * Who to draw. This clause exists to stop the model quietly drawing a
@@ -69,30 +77,46 @@ export const SUBJECT =
   "The likeness must be unmistakable to its owner.";
 
 /**
- * How to draw it, one clause per style a customer can choose. The keys are the
- * style names the code uses; the customer sees friendlier labels elsewhere.
- * Keep each clause about medium, light and palette only.
+ * How each side is drawn. Keep these clauses about medium, light and palette
+ * only: which way the animal faces belongs in the composition clauses below.
+ *
+ * The front is the house style, in colour, and it is the one most people will
+ * see across a room. The back is graphite because it sits inside an archival
+ * plate of typeset rules and data, and colour there would fight the type.
  */
-export const STYLE_CLAUSE: Record<ArtStyle, string> = {
-  "classic-portrait":
+export const STYLE_CLAUSE: Record<PortraitSide, string> = {
+  front:
     "Rendered as a warm painterly oil portrait with visible soft brushwork, " +
     "gentle directional light, a muted natural palette.",
-  "line-sketch":
-    "Rendered as a single-weight black ink line drawing, clean continuous " +
-    "contour lines, no shading, no hatching, no fill.",
-  watercolor:
-    "Rendered as a loose watercolour with gentle washes and visible paper " +
-    "texture, soft edges, a limited muted palette.",
+  back:
+    "Rendered as a fine graphite pencil drawing, monochrome, soft directional " +
+    "shading, no colour anywhere.",
 };
 
 /**
- * Where the animal sits in the picture. The generous margin is deliberate: the
- * portrait gets resized to each garment's print area, and a subject that runs
- * to the edge of the picture is a subject cropped off the edge of a hoodie.
+ * Where the animal sits in the picture, and which way it faces.
+ *
+ * The generous margin is deliberate on both: the portrait gets resized to each
+ * garment's print area, and a subject that runs to the edge of the picture is a
+ * subject cropped off the edge of a hoodie.
+ *
+ * THE BACK MUST BE A TRUE SIDE PROFILE. It is drawn from a face-on photograph,
+ * so the profile has to be inferred, which is exactly why the back gets the
+ * breed's hand-reviewed reference illustration as a second input. Ask plainly
+ * and repeatedly for the profile: a model handed a face-on photo will drift
+ * back to face-on given the slightest room, and a three-quarter view in an
+ * archival plate reads as a mistake rather than a portrait.
  */
-export const COMPOSITION =
-  "Head and shoulders, centred, generous even margin around the subject, " +
-  "facing the viewer.";
+export const COMPOSITION: Record<PortraitSide, string> = {
+  front:
+    "Head and shoulders, centred, generous even margin around the subject, " +
+    "facing the viewer.",
+  back:
+    "Head and shoulders in strict side profile, facing left, the head turned " +
+    "fully to the side so exactly one eye and one side of the muzzle are " +
+    "visible. Centred, generous even margin around the subject. Not " +
+    "three-quarter view, not facing the viewer.",
+};
 
 /**
  * Everything the picture must not contain. Every item on this list is

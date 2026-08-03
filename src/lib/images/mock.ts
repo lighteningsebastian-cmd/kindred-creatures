@@ -1,13 +1,10 @@
 import sharp from "sharp";
-import {
-  ART_STYLE_LABELS,
-  type ArtStyle,
-  type ImageProvider,
-} from "./provider";
+import type { ImageProvider } from "./provider";
+import type { PortraitSide } from "./prompts";
 
 /**
  * Local, key-free provider. It draws a simple branded stand-in portrait per
- * style after a short delay that mimics a real generation, and approves any
+ * side after a short delay that mimics a real generation, and approves any
  * non-empty upload. Good enough for the whole customizer flow to run end to end
  * offline; swap in the OpenAI provider for real portraits.
  *
@@ -43,12 +40,19 @@ function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-// Palette-aligned ink per style (hex approximations of the design tokens).
+// Palette-aligned ink per side (hex approximations of the design tokens). The
+// front is the colour portrait and the back is graphite, so the stand-ins carry
+// that difference too: a mock where both sides look identical would let a
+// front/back mix-up reach a printed garment unnoticed.
 // There is no background colour here on purpose: the background is nothing.
-const STYLE_THEME: Record<ArtStyle, { ink: string; accent: string }> = {
-  "classic-portrait": { ink: "#2c2620", accent: "#7c2f2f" },
-  "line-sketch": { ink: "#2c2620", accent: "#3a332b" },
-  watercolor: { ink: "#2c2620", accent: "#a97f4d" },
+const SIDE_THEME: Record<PortraitSide, { ink: string; accent: string }> = {
+  front: { ink: "#2c2620", accent: "#7c2f2f" },
+  back: { ink: "#2c2620", accent: "#5a5550" },
+};
+
+const SIDE_LABELS: Record<PortraitSide, string> = {
+  front: "Front portrait",
+  back: "Back profile",
 };
 
 function pawGlyph(cx: number, cy: number, r: number, fill: string): string {
@@ -65,12 +69,12 @@ function pawGlyph(cx: number, cy: number, r: number, fill: string): string {
 }
 
 /**
- * Rasterised stand-ins, one per style. The mock draws the same picture every
- * time for a given style, so rasterising it once and handing the same bytes
+ * Rasterised stand-ins, one per side. The mock draws the same picture every
+ * time for a given side, so rasterising it once and handing the same bytes
  * back is exactly equivalent and keeps the offline path cheap: the test suite
  * runs this provider hundreds of times.
  */
-const drawn = new Map<ArtStyle, Uint8Array>();
+const drawn = new Map<PortraitSide, Uint8Array>();
 
 /**
  * The stand-in portrait, as PNG bytes with a transparent background.
@@ -79,20 +83,20 @@ const drawn = new Map<ArtStyle, Uint8Array>();
  * opaque, and an opaque stand-in would quietly hide exactly the defect this
  * mock exists to keep us honest about.
  */
-async function drawPortrait(style: ArtStyle): Promise<Uint8Array> {
-  const cached = drawn.get(style);
+async function drawPortrait(side: PortraitSide): Promise<Uint8Array> {
+  const cached = drawn.get(side);
   if (cached) return cached;
-  const png = await rasterise(style);
-  drawn.set(style, png);
+  const png = await rasterise(side);
+  drawn.set(side, png);
   return png;
 }
 
-async function rasterise(style: ArtStyle): Promise<Uint8Array> {
-  const theme = STYLE_THEME[style];
-  const label = ART_STYLE_LABELS[style].toUpperCase();
+async function rasterise(side: PortraitSide): Promise<Uint8Array> {
+  const theme = SIDE_THEME[side];
+  const label = SIDE_LABELS[side].toUpperCase();
   const w = CANONICAL_WIDTH;
   const h = CANONICAL_HEIGHT;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${ART_STYLE_LABELS[style]} sample portrait">
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${SIDE_LABELS[side]} sample portrait">
   ${pawGlyph(w / 2, h * 0.42, w * 0.18, theme.accent)}
   <text x="50%" y="${h * 0.62}" text-anchor="middle" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="${Math.round(w * 0.05)}" font-weight="900" letter-spacing="3" fill="${theme.ink}">${label}</text>
   <text x="50%" y="${h * 0.68}" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="${Math.round(w * 0.035)}" fill="${theme.accent}">Kindred Creatures sample</text>
@@ -120,14 +124,14 @@ export class MockImageProvider implements ImageProvider {
   // referenceKey is accepted and ignored: the stand-in draws the same paw
   // whatever it is handed, and the point is that the seam exists.
   async generatePortrait({
-    style,
+    side,
   }: {
     uploadKey: string;
-    style: ArtStyle;
+    side: PortraitSide;
   }): Promise<{ portraitBytes: Uint8Array; promptVersion: string }> {
     await delay(latencyMs());
     return {
-      portraitBytes: await drawPortrait(style),
+      portraitBytes: await drawPortrait(side),
       promptVersion: MOCK_PROMPT_VERSION,
     };
   }

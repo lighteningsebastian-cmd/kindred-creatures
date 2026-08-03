@@ -87,7 +87,7 @@ async function pendingOrderWithLine(): Promise<{
     await getImageProvider()
   ).generatePortrait({
     uploadKey: `uploads/${artworkId}.jpg`,
-    style: "classic-portrait",
+    side: "back",
   });
   const canonicalKey = `portraits/${artworkId}/1.png`;
   await getStorage().put(canonicalKey, portraitBytes, "image/png");
@@ -95,7 +95,6 @@ async function pendingOrderWithLine(): Promise<{
   await db.insert(artworks).values({
     id: artworkId,
     uploadKey: `uploads/${artworkId}.jpg`,
-    style: "classic-portrait",
     canonicalKey,
     promptVersion,
     previewKey: `previews/${artworkId}/1.png`,

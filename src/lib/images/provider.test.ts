@@ -34,7 +34,7 @@ describe("mock image provider", () => {
     const provider = new MockImageProvider();
     const { portraitBytes } = await provider.generatePortrait({
       uploadKey: "uploads/x.png",
-      style: "watercolor",
+      side: "front",
     });
     expect(portraitBytes.length).toBeGreaterThan(0);
     expect(sniffImageExtension(portraitBytes)).toBe("png");
@@ -48,7 +48,7 @@ describe("mock image provider", () => {
     const provider = new MockImageProvider();
     const { portraitBytes } = await provider.generatePortrait({
       uploadKey: "uploads/x.png",
-      style: "line-sketch",
+      side: "back",
     });
 
     const { data, info } = await sharp(Buffer.from(portraitBytes))
@@ -64,7 +64,7 @@ describe("mock image provider", () => {
     const provider = new MockImageProvider();
     const { portraitBytes } = await provider.generatePortrait({
       uploadKey: "uploads/x.png",
-      style: "classic-portrait",
+      side: "front",
     });
     const meta = await sharp(Buffer.from(portraitBytes)).metadata();
     expect({ width: meta.width, height: meta.height }).toEqual({
@@ -82,7 +82,7 @@ describe("mock image provider", () => {
     const provider = new MockImageProvider();
     const { portraitBytes } = await provider.generatePortrait({
       uploadKey: "uploads/x.png",
-      style: "classic-portrait",
+      side: "front",
     });
 
     const preview = await derivePreviewBytes(portraitBytes);
@@ -100,7 +100,7 @@ describe("mock image provider", () => {
     const provider = new MockImageProvider();
     const { promptVersion } = await provider.generatePortrait({
       uploadKey: "uploads/x.png",
-      style: "watercolor",
+      side: "back",
     });
     // "mock" and not a real PROMPT_VERSION: no prompt was ever used, and an
     // artwork that claims a prompt version it never saw is worse than one that
@@ -139,9 +139,33 @@ describe("provider selection", () => {
 });
 
 describe("style helpers", () => {
-  it("isArtStyle validates known styles", () => {
+  it("isArtStyle still validates the styles stored on older artworks", () => {
+    // The customer is not asked any more (one house style, 3 August) and
+    // nothing new writes artworks.style. This stays because rows drawn before
+    // the change still carry a value, and the account page labels a creature's
+    // thumbnail from it.
     expect(isArtStyle("line-sketch")).toBe(true);
     expect(isArtStyle("nope")).toBe(false);
     expect(isArtStyle(42)).toBe(false);
+  });
+});
+
+describe("the two sides", () => {
+  it("draws a visibly different picture for the front and the back", async () => {
+    // Front is colour and face on, back is graphite and in profile. They came
+    // back byte-identical before 3 August, because both sides were asked for
+    // the same face-on portrait and only the reference input differed.
+    const provider = new MockImageProvider();
+    const front = await provider.generatePortrait({
+      uploadKey: "uploads/x.png",
+      side: "front",
+    });
+    const back = await provider.generatePortrait({
+      uploadKey: "uploads/x.png",
+      side: "back",
+    });
+    expect(
+      Buffer.from(front.portraitBytes).equals(Buffer.from(back.portraitBytes)),
+    ).toBe(false);
   });
 });

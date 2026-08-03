@@ -6,16 +6,27 @@
  */
 
 import type { RevisionReason } from "@/lib/revision";
+import type { PortraitSide } from "./prompts";
 
+export type { PortraitSide };
+
+/**
+ * The style an artwork was drawn in.
+ *
+ * THERE IS ONE HOUSE STYLE NOW (owner decision, 3 August). The customer is not
+ * asked, the picker is gone, and nothing new writes this. It survives only
+ * because `artworks.style` still holds it for portraits drawn before the
+ * change, and the account page labels a creature's thumbnail from it. New rows
+ * leave it null, which that label already renders as "Your portrait".
+ *
+ * Do not reintroduce this as a choice without reading docs/spec-portrait-
+ * prompting.md: the two prompts are now the two SIDES of the garment, and a
+ * style axis on top of that multiplies the prompt matrix rather than extending
+ * it.
+ */
 export type ArtStyle = "classic-portrait" | "line-sketch" | "watercolor";
 
-export const ART_STYLES: ArtStyle[] = [
-  "classic-portrait",
-  "line-sketch",
-  "watercolor",
-];
-
-/** Human-facing labels for each style (used by the UI and mock artwork). */
+/** Labels for portraits drawn before the range settled on one house style. */
 export const ART_STYLE_LABELS: Record<ArtStyle, string> = {
   "classic-portrait": "Classic portrait",
   "line-sketch": "Line sketch",
@@ -24,7 +35,7 @@ export const ART_STYLE_LABELS: Record<ArtStyle, string> = {
 
 export function isArtStyle(value: unknown): value is ArtStyle {
   return (
-    typeof value === "string" && (ART_STYLES as string[]).includes(value)
+    typeof value === "string" && value in ART_STYLE_LABELS
   );
 }
 
@@ -49,7 +60,13 @@ export interface ImageProvider {
    */
   generatePortrait(input: {
     uploadKey: string;
-    style: ArtStyle;
+    /**
+     * Which side of the garment this portrait is for, which decides both the
+     * medium and the pose: the front is colour and faces the viewer, the back
+     * is graphite and is a strict side profile. This replaced the customer's
+     * style choice; see the note on ArtStyle above.
+     */
+    side: PortraitSide;
     /**
      * Revision chips, when this is a second attempt. A closed set: what the
      * customer WROTE never reaches a prompt, only a person.

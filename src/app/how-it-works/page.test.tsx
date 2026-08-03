@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import HowItWorksPage, { metadata } from "./page";
 import { FAQS, HOW_IT_WORKS_PAGE_STEPS } from "@/lib/content";
-import { ART_STYLES, ART_STYLE_LABELS } from "@/lib/images/provider";
 
 // next/image needs config it does not have in jsdom; the page only cares that an
 // <img> (or, for the decorative shots, no accessible name) is present.
@@ -44,14 +43,12 @@ describe("how-it-works trust page", () => {
     }
   });
 
-  it("renders all three styles with their labels", () => {
+  it("offers no style choice, because there is one house style", () => {
+    // The three style cards were removed on 3 August. A page still offering a
+    // choice the flow does not have is a promise the checkout cannot keep.
     render(<HowItWorksPage />);
-    expect(ART_STYLES).toHaveLength(3);
-    for (const style of ART_STYLES) {
-      expect(
-        screen.getByRole("heading", { level: 3, name: ART_STYLE_LABELS[style] }),
-      ).toBeInTheDocument();
-    }
+    expect(screen.queryByText("The styles")).not.toBeInTheDocument();
+    expect(screen.queryByText(/ways to draw them/i)).not.toBeInTheDocument();
   });
 
   it("renders the three process FAQ entries verbatim from FAQS", () => {

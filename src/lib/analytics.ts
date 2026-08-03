@@ -38,10 +38,11 @@ export interface AnalyticsEventMap {
   purchase: { transaction_id: string; value: number; currency: "ZAR" };
   /** A pet photo passed upload + moderation in the customizer. */
   photo_uploaded: { product: string };
-  /** A portrait was drawn for the first time from a chosen style. */
-  art_generated: { product: string; style: string };
-  /** An existing portrait was redrawn (the Regenerate action). */
-  art_regenerated: { product: string; style: string };
+  // art_generated and art_regenerated were here. Both were emitted from the
+  // browser when the customer picked a style and when they hit Regenerate.
+  // Neither event exists any more: drawing moved behind payment (30 July) and
+  // the style choice was removed (3 August), so the browser is no longer
+  // present at either moment. They had already lost their last caller.
   /**
    * A new address joined the newsletter. source is the capture surface; no
    * email or other PII travels with it (the list itself is the private record).
@@ -147,20 +148,6 @@ export function trackPurchase(input: {
 
 export function trackPhotoUploaded(input: { slug: string }): void {
   track("photo_uploaded", { product: input.slug });
-}
-
-export function trackArtGenerated(input: {
-  slug: string;
-  style: string;
-}): void {
-  track("art_generated", { product: input.slug, style: input.style });
-}
-
-export function trackArtRegenerated(input: {
-  slug: string;
-  style: string;
-}): void {
-  track("art_regenerated", { product: input.slug, style: input.style });
 }
 
 /**
