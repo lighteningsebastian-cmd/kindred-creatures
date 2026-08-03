@@ -64,6 +64,24 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Walks the one-question-at-a-time run to the reveal, the way a customer does. */
+async function answerProfile(
+  user: ReturnType<typeof userEvent.setup>,
+  name = "Fenn",
+) {
+  await user.type(screen.getByLabelText(/what is their name/i), name);
+  await user.click(screen.getByRole("button", { name: "Next" }));
+  await user.click(screen.getByRole("button", { name: "Next" })); // species: dog
+  await user.type(screen.getByLabelText("Their breed"), "one");
+  await user.click(screen.getAllByRole("button", { name: /One of One/ })[0]!);
+  await user.click(screen.getByRole("button", { name: "Next" }));
+  for (const word of ["Confident", "Affectionate", "Spirited"]) {
+    await user.click(screen.getByRole("button", { name: word }));
+  }
+  await user.click(screen.getByRole("button", { name: "Next" }));
+  await user.click(screen.getByRole("button", { name: /see their piece/i }));
+}
+
 describe("ProductFlow", () => {
   it("opens on the first question, with the garment already showing", () => {
     // The profile is the commission and comes first; colour and size are
@@ -120,19 +138,7 @@ describe("ProductFlow", () => {
 
     const { container } = render(<ProductFlow product={hoodie} />);
 
-    await user.type(screen.getByLabelText(/what is their name/i), "Fenn");
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    await user.click(screen.getByRole("button", { name: "Next" })); // species: dog
-    await user.type(screen.getByLabelText("Their breed"), "one");
-    await user.click(
-      screen.getAllByRole("button", { name: /One of One/ })[0]!,
-    );
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    for (const word of ["Confident", "Affectionate", "Spirited"]) {
-      await user.click(screen.getByRole("button", { name: word }));
-    }
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    await user.click(screen.getByRole("button", { name: /see their piece/i }));
+    await answerProfile(user);
 
     // The reveal, then the shopping.
     expect(screen.getByText(/here is fenn's piece/i)).toBeVisible();
@@ -160,5 +166,35 @@ describe("ProductFlow", () => {
     expect(addItem).toHaveBeenCalledWith(
       expect.objectContaining({ artworkId: "art-1", color: "Lilac", size: "M" }),
     );
+  });
+
+  it("edits on one page instead of replaying the questions", async () => {
+    // A first run is a conversation, one question at a time. A CORRECTION is
+    // not: they have seen the piece and know the one thing they want to change,
+    // so walking them past every other answer to reach it is friction applied
+    // to somebody already disappointed.
+    const user = userEvent.setup();
+    render(<ProductFlow product={getProduct("hoodie")!} />);
+
+    await answerProfile(user);
+    await user.click(screen.getByRole("button", { name: /change something/i }));
+
+    // Every field at once, not question one again.
+    expect(screen.getByLabelText("Their name")).toBeVisible();
+    expect(
+      screen.getByLabelText(/when did they come into your life/i),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: /back to their piece/i })).toBeVisible();
+
+    // And a change made here survives the trip back.
+    const name = screen.getByLabelText("Their name");
+    await user.clear(name);
+    await user.type(name, "Bartholomew");
+    await user.click(
+      screen.getByRole("button", { name: /back to their piece/i }),
+    );
+    expect(
+      screen.getByRole("heading", { name: /Bartholomew's piece/i }),
+    ).toBeVisible();
   });
 });

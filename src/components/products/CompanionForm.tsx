@@ -54,28 +54,41 @@ function Chip({
 }
 
 /**
- * Everything the plate knows about their animal, asked for before payment.
+ * Everything the plate knows about their animal, on one page.
+ *
+ * THIS IS THE CORRECTION VIEW, not the first run. Asking one question at a time
+ * is right the first time through: each answer is a small reward and the plate
+ * fills in as they go (see ProfileQuestions for why that shape is also what
+ * makes a live preview possible on a phone). A correction is the opposite
+ * situation. They have already seen the piece, they know the one thing they
+ * want to change, and walking them through every question again to reach it is
+ * friction applied to somebody who is already disappointed.
+ *
+ * So: every field visible, change what you like, go straight back.
  *
  * ORDER IS ABOUT MOMENTUM, not gating. The preview is on screen throughout, so
  * the name comes first because it appears on the plate as they type, and the
- * breed follows because choosing it fills in ORIGIN and GROUP on its own. That
- * autofill is the moment that sells the product.
+ * breed follows because choosing it fills in ORIGIN and GROUP on its own.
  *
  * @param checkName asks the server whether a name can actually be printed. Run
  * on blur rather than per keystroke: it reads the real font file, and the point
  * is to catch an unprintable character before payment, not within a keystroke.
  * @param onBreedMiss records a breed we do not carry yet.
+ * @param onDone returns to the piece. Never disabled: they arrived here with a
+ * complete profile, and anything they can do on this page leaves it complete.
  */
 export function CompanionForm({
   profile,
   onChange,
   checkName,
   onBreedMiss,
+  onDone,
 }: {
   profile: CompanionProfile;
   onChange: (next: CompanionProfile) => void;
   checkName: (name: string) => Promise<{ ok: boolean; reason?: string }>;
   onBreedMiss: (query: string) => void;
+  onDone?: () => void;
 }) {
   const [nameError, setNameError] = useState<string | null>(null);
   const errors = validateProfile(profile);
@@ -106,14 +119,25 @@ export function CompanionForm({
     set({ temperament: chosen });
   }
 
+  const complete = Object.keys(errors).length === 0;
+
   return (
-    <section className="flex flex-col gap-8">
-      <div className="flex flex-col gap-2">
+    // A bounded column, like the question run: the fields scroll inside their
+    // own space and the button that gets them back out never scrolls away.
+    <section className="flex h-full min-h-0 flex-col gap-5">
+      <div className="shrink-0 flex flex-col gap-2">
         <p className="eyebrow text-xs text-accent">Their profile</p>
-        <h2 className="font-display text-3xl leading-[1.1] text-ink">
-          Introduce us to your best friend
+        <h2 className="font-display text-2xl leading-[1.15] text-ink md:text-3xl">
+          {onDone ? "Change what you like" : "Introduce us to your best friend"}
         </h2>
+        {onDone ? (
+          <p className="max-w-md leading-relaxed text-muted">
+            Everything is here. Their piece updates as you go.
+          </p>
+        ) : null}
       </div>
+
+      <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto">
 
       {/* 1. The name. First, because it lands on the plate as they type. */}
       <Input
@@ -238,6 +262,20 @@ export function CompanionForm({
         helperText="Adoption day, gotcha day, or birthday. The year is enough, and it is optional."
         error={errors.togetherSince}
       />
+      </div>
+
+      {onDone ? (
+        <div className="flex shrink-0 items-center gap-3 pb-1">
+          <Button size="sm" disabled={!complete} onClick={onDone}>
+            Back to their piece
+          </Button>
+          {!complete ? (
+            <p className="text-sm text-muted">
+              One thing is still missing above.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ProductConfigurator } from "./ProductConfigurator";
 import { ProfileQuestions } from "./ProfileQuestions";
+import { CompanionForm } from "./CompanionForm";
 import { LivePreview } from "./LivePreview";
 import { Customizer } from "@/components/customizer/Customizer";
 import { Button } from "@/components/ui/Button";
@@ -46,7 +47,7 @@ function resolveSize(color: Variant, size?: string): string | null {
 }
 
 /** Where in the commission they are. Colour and size come AFTER the profile. */
-type Stage = "profile" | "reveal" | "colour" | "size" | "photo";
+type Stage = "profile" | "edit" | "reveal" | "colour" | "size" | "photo";
 
 /**
  * The commission, in order, with the piece on screen the whole way.
@@ -148,6 +149,16 @@ export function ProductFlow({
           />
         ) : null}
 
+        {stage === "edit" ? (
+          <CompanionForm
+            profile={profile}
+            onChange={setProfile}
+            checkName={checkCreatureName}
+            onBreedMiss={(query) => logBreedRequest(query, profile.species)}
+            onDone={() => setStage("reveal")}
+          />
+        ) : null}
+
         {stage === "reveal" ? (
           <section className="flex flex-col gap-5">
             <div className="flex flex-col gap-2">
@@ -166,10 +177,17 @@ export function ProductFlow({
               <Button size="sm" onClick={() => setStage("colour")}>
                 Choose a colour
               </Button>
+              {/*
+                EDITING IS NOT THE QUESTION RUN AGAIN. This used to send them
+                back to "profile", which restarts the one-at-a-time questions at
+                question one, so somebody who wanted to fix a year had to walk
+                past every other answer to reach it. A first run is a
+                conversation; a correction wants everything on screen at once.
+              */}
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setStage("profile")}
+                onClick={() => setStage("edit")}
               >
                 Change something
               </Button>
