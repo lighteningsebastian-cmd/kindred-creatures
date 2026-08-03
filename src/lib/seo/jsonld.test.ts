@@ -124,7 +124,7 @@ describe("buildProduct", () => {
 
     expect(offer["@type"]).toBe("Offer");
     expect(offer.priceCurrency).toBe("ZAR");
-    expect(offer.price).toBe(899);
+    expect(offer.price).toBe(999);
     expect(typeof offer.price).toBe("number");
     expect(offer.availability).toBe("https://schema.org/InStock");
   });

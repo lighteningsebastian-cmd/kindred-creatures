@@ -249,10 +249,11 @@ async function generatePrintFile(
     return fail("this artwork has no approved portrait stored, so nothing can be printed");
   }
 
-  // 300 DPI across THIS item's product print area. The print shop's sheet quotes
-  // the same numbers, so the two cannot drift: both come from printPixels() of
-  // the same product.
-  const { widthPx, heightPx } = printPixels(product);
+  // 300 DPI across THIS item's BACK print area, which is what the print file
+  // is: a resize of the approved back plate. The print shop's sheet quotes the
+  // same numbers, so the two cannot drift: both come from printPixels() of the
+  // same product and the same side.
+  const { widthPx, heightPx } = printPixels(product, "back");
 
   try {
     const canonicalBytes = await getStorage().getBytes(artwork.canonicalKey);

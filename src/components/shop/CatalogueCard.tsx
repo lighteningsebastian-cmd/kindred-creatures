@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { PhotoFrame } from "@/components/ui/PhotoFrame";
-import { fromPriceZar, formatZar, type Product } from "@/lib/products";
+import {
+  FIT_LABELS,
+  formatZar,
+  fromPriceZar,
+  type Product,
+} from "@/lib/products";
 
 /** Art-directed flatlay per product, reserved until the real shoot. */
 const catalogueShot: Record<string, string> = {
   hoodie:
-    "flatlay: the stone kindred hoodie pressed and squared to camera, a dog portrait print on the chest, soft daylight on a warm parchment backdrop",
-  tee: "flatlay: the ecru kindred tee pressed flat, a cat portrait print centred, gentle overhead light, warm parchment backdrop",
+    "flatlay: the blue kindred hoodie pressed and squared to camera, a dog portrait print on the chest, soft daylight on a warm parchment backdrop",
+  tee: "flatlay: the white kindred tee pressed flat, a cat portrait print centred, gentle overhead light, warm parchment backdrop",
   crewneck:
-    "flatlay: the charcoal kindred crewneck laid flat, a pet portrait print centred, soft daylight, warm parchment backdrop",
+    "flatlay: the peach kindred crewneck laid flat, a pet portrait print centred, soft daylight, warm parchment backdrop",
   tote: "flatlay: the natural canvas kindred tote squared to camera, a pet portrait print centred, soft daylight, warm parchment backdrop",
 };
 
@@ -73,6 +78,12 @@ export function CatalogueCard({ product }: { product: Product }) {
             ))}
           </div>
           <span className="text-sm text-muted">Sizes {sizesHint}</span>
+          {/* The crewneck is the women's cut and runs one size shorter, so the
+              fit belongs next to the size range rather than buried in the
+              blurb: it is the thing that decides whether someone orders. */}
+          {product.fit ? (
+            <span className="text-sm text-muted">{FIT_LABELS[product.fit]}</span>
+          ) : null}
         </div>
 
         <div className="mt-auto flex flex-col gap-2 pt-2">

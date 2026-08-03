@@ -46,11 +46,16 @@ export default async function ApprovePage({ params }: ApprovePageProps) {
 
   const profile = profileFromArtwork(artwork);
   const product = getProduct(artwork.productSlug);
-  const printArea = product?.printArea ?? { widthMm: 280, heightMm: 350 };
-  const backH = Math.round((BACK_W * printArea.heightMm) / printArea.widthMm);
+  const backArea = product?.printArea.back ?? { widthMm: 280, heightMm: 350 };
+  const backH = Math.round((BACK_W * backArea.heightMm) / backArea.widthMm);
+
+  // The front is its own shape now, 110 by 150mm, not the square it was drawn
+  // as before the owner's measurements arrived.
+  const frontArea = product?.printArea.front ?? { widthMm: 110, heightMm: 150 };
+  const frontH = Math.round((FRONT_PX * frontArea.heightMm) / frontArea.widthMm);
 
   const back = backPlate(profile, null, BACK_W, backH);
-  const front = frontPlate(profile, FRONT_PX, FRONT_PX);
+  const front = frontPlate(profile, FRONT_PX, frontH);
 
   // The portrait itself. frontKey and backKey are written once generation moves
   // after payment; until then the canonical portrait stands in for both sides.
@@ -80,8 +85,12 @@ export default async function ApprovePage({ params }: ApprovePageProps) {
 
         <div className="grid gap-8 sm:grid-cols-[2fr_1fr] sm:items-start">
           {[
-            { plate: back, label: "Back", aspect: `${printArea.widthMm} / ${printArea.heightMm}` },
-            { plate: front, label: "Left chest", aspect: "1 / 1" },
+            { plate: back, label: "Back", aspect: `${backArea.widthMm} / ${backArea.heightMm}` },
+            {
+              plate: front,
+              label: "Left chest",
+              aspect: `${frontArea.widthMm} / ${frontArea.heightMm}`,
+            },
           ].map(({ plate, label, aspect }) => (
             <figure key={label} className="flex flex-col gap-2">
               <div

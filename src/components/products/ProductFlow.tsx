@@ -26,14 +26,13 @@ export type ProductFlowProps = {
 /**
  * The colourway shown while they are still answering questions.
  *
- * A mid-tone that flatters graphite, chosen once and never changed under them
+ * The product's own first colourway, chosen once and never changed under them
  * mid-flow: the plate should not appear to shift because we swapped the garment
- * beneath it while they were reading.
+ * beneath it while they were reading. This used to name "Stone", which stopped
+ * existing when the catalogue took the photographed colours.
  */
 function defaultColor(product: Product): Variant {
-  return (
-    product.variants.find((v) => v.color === "Stone") ?? product.variants[0]
-  );
+  return product.variants[0];
 }
 
 function resolveColor(product: Product, name?: string): Variant {

@@ -21,10 +21,10 @@ const cellSpan: Record<ProductSlug, string> = {
 /** The shot each tile reserves. Art-directed flatlays, one per product. */
 const tileShot: Record<ProductSlug, string> = {
   hoodie:
-    "flatlay: the stone kindred hoodie laid flat with a dog portrait printed on the chest, soft daylight, warm parchment backdrop",
-  tee: "flatlay: the ecru kindred tee laid flat with a cat portrait print, gentle overhead light, warm parchment backdrop",
+    "flatlay: the blue kindred hoodie laid flat with a dog portrait printed on the chest, soft daylight, warm parchment backdrop",
+  tee: "flatlay: the white kindred tee laid flat with a cat portrait print, gentle overhead light, warm parchment backdrop",
   crewneck:
-    "flatlay: the charcoal kindred crewneck folded, pet portrait print centred, soft daylight",
+    "flatlay: the peach kindred crewneck folded, pet portrait print centred, soft daylight",
   tote: "flatlay: the natural canvas kindred tote with a pet portrait print, propped upright, soft daylight",
 };
 

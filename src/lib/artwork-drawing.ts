@@ -33,9 +33,6 @@ export type DrawResult =
 /** How many times we ask the model before handing it to a person. */
 export const DRAW_ATTEMPTS = 2;
 
-/** The left-chest plate as a fraction of the garment's full print width. */
-export const FRONT_FRACTION = 1 / 3;
-
 /**
  * Resolves the breed reference, or nothing at all.
  *
@@ -117,19 +114,18 @@ export async function drawArtworkPlates(
       });
 
       const profile = profileFromArtwork(artwork);
-      const { widthPx, heightPx } = printPixels(product);
-      // The front is a left-chest patch, not a second full-size plate. There is
-      // no chest dimension in products.ts yet, so it is expressed as a fraction
-      // of the print width: about 93mm across on a hoodie, which is the usual
-      // left-chest size. Confirm with the printer and move it into products.ts
-      // when they give real numbers.
-      const frontSize = Math.round(widthPx * FRONT_FRACTION);
+      const { widthPx, heightPx } = printPixels(product, "back");
+      // The front is a left-chest patch with its OWN measured area, 110 by
+      // 150mm (docs/spec-print-layout.md section 1). It used to be derived as a
+      // third of the back's print width, which was both a different number and
+      // a square, so the chest print was the wrong size and the wrong shape.
+      const frontPx = printPixels(product, "front");
 
       const frontBytes = await composePlate(
-        frontPlate(profile, frontSize, frontSize),
+        frontPlate(profile, frontPx.widthPx, frontPx.heightPx),
         front.portraitBytes,
-        frontSize,
-        frontSize,
+        frontPx.widthPx,
+        frontPx.heightPx,
       );
       const backBytes = await composePlate(
         backPlate(profile, null, widthPx, heightPx),

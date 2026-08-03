@@ -6,9 +6,9 @@ import { cn } from "@/lib/cn";
 import { getBreed } from "@/lib/breeds";
 import { stockDisclosure, type CompanionProfile } from "@/lib/companion";
 import {
-  PHOTO_ASPECT,
   PLACEMENT,
   garmentImageUrl,
+  photoAspect,
   type GarmentSide,
 } from "@/lib/garments";
 import type { Product, Variant } from "@/lib/products";
@@ -55,7 +55,7 @@ function GarmentView({
     <div className="flex h-full min-h-0 w-full items-center justify-center">
       <div
         className="relative h-full max-h-full max-w-full overflow-hidden rounded-md border border-line bg-surface"
-        style={{ aspectRatio: PHOTO_ASPECT[product.slug] }}
+        style={{ aspectRatio: photoAspect(product.slug, color.color) }}
       >
       {garment ? (
         <Image
@@ -148,7 +148,9 @@ export function LivePreview({
   const [result, setResult] = useState<PreviewResult | null>(null);
   const [side, setSide] = useState<GarmentSide>("back");
 
-  const { widthMm, heightMm } = product.printArea;
+  // The BACK plate's shape drives the render request: it is the large plate,
+  // and the front is set from its own measured area inside previewPlates.
+  const { widthMm, heightMm } = product.printArea.back;
 
   useEffect(() => {
     let live = true;

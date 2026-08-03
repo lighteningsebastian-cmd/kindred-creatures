@@ -190,7 +190,7 @@ async function unapprovedOrder(
     city: "Cape Town",
     province: "Western Cape",
     postalCode: "8001",
-    subtotalZar: 899,
+    subtotalZar: 999,
     shippingZar: 99,
     totalZar: 998,
   });
@@ -202,10 +202,10 @@ async function unapprovedOrder(
     await db.insert(orderItems).values({
       orderId,
       productSlug: slug,
-      color: "Stone",
+      color: "Blue",
       size: "M",
       qty: 1,
-      unitPriceZar: 899,
+      unitPriceZar: 999,
       artworkId,
     });
   }
@@ -234,7 +234,7 @@ async function orderWith(
     city: "Cape Town",
     province: "Western Cape",
     postalCode: "8001",
-    subtotalZar: 899,
+    subtotalZar: 999,
     shippingZar: 99,
     totalZar: 998,
   });
@@ -246,10 +246,10 @@ async function orderWith(
     await db.insert(orderItems).values({
       orderId,
       productSlug: slug,
-      color: "Stone",
+      color: "Blue",
       size: "M",
       qty: 1,
-      unitPriceZar: 899,
+      unitPriceZar: 999,
       artworkId,
     });
   }
@@ -283,7 +283,7 @@ async function orderWithSharedArtwork(
     city: "Cape Town",
     province: "Western Cape",
     postalCode: "8001",
-    subtotalZar: 899,
+    subtotalZar: 999,
     shippingZar: 99,
     totalZar: 998,
   });
@@ -292,10 +292,10 @@ async function orderWithSharedArtwork(
     await db.insert(orderItems).values({
       orderId,
       productSlug: slug,
-      color: "Stone",
+      color: "Blue",
       size: "M",
       qty: 1,
-      unitPriceZar: 899,
+      unitPriceZar: 999,
       artworkId,
     });
   }
@@ -342,7 +342,7 @@ describe("fulfillPaidOrder: an order that goes through", () => {
     // picture already exists and only its size is still in question.
     expect(derivePrintBytesMock).toHaveBeenCalledTimes(2);
     for (const [index, slug] of ["hoodie", "tote"].entries()) {
-      const { widthPx, heightPx } = printPixels(getProduct(slug)!);
+      const { widthPx, heightPx } = printPixels(getProduct(slug)!, "back");
       expect(derivePrintBytesMock).toHaveBeenCalledWith(
         // ...and resized from THAT line's approved portrait, which is what the
         // old assertion on uploadKey and style was really reaching for.
@@ -433,7 +433,7 @@ describe("fulfillPaidOrder: an order that goes through", () => {
   it("hoodie print pixels are the 300 DPI conversion, not a guess", async () => {
     // 280mm / 25.4 * 300 = 3307, 350mm / 25.4 * 300 = 4134. Pinned here because
     // this is the number the print shop cuts against.
-    expect(printPixels(getProduct("hoodie")!)).toEqual({
+    expect(printPixels(getProduct("hoodie")!, "back")).toEqual({
       widthPx: 3307,
       heightPx: 4134,
     });
@@ -547,8 +547,8 @@ describe("fulfillPaidOrder: one creature across different products (B3)", () => 
     // And still no model. Two garments must not mean two different animals.
     expect(generatePortraitMock).not.toHaveBeenCalled();
 
-    const hoodiePx = printPixels(getProduct("hoodie")!);
-    const totePx = printPixels(getProduct("tote")!);
+    const hoodiePx = printPixels(getProduct("hoodie")!, "back");
+    const totePx = printPixels(getProduct("tote")!, "back");
     // The two products really are different sizes, or this test proves nothing.
     expect(hoodiePx).not.toEqual(totePx);
 

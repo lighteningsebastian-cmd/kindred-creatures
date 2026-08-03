@@ -68,7 +68,7 @@ describe("ReorderFlow", () => {
     const hoodie = getProduct("hoodie")!;
     expect(items[0]).toEqual({
       productSlug: "hoodie",
-      color: "Stone",
+      color: "Blue",
       size: "L",
       qty: 1,
       artworkId: ARTWORK_ID,

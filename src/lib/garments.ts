@@ -33,22 +33,44 @@ export interface PlatePlacement {
  * can be judged in one screen.
  */
 /**
- * The shape of each product's photography, width over height.
+ * The shape of each photograph, width over height, keyed by product and
+ * colourway.
  *
  * PLACEMENT IS A PERCENTAGE OF THE PHOTOGRAPH, so the box the photo is drawn in
- * has to BE the photograph's shape. Let the box be any other shape and
- * `object-contain` letterboxes the picture while the plate keeps measuring
- * itself against the box, which puts the plate on the empty space beside the
- * garment. Measured from the files: hoodie 1120x1400, tee 1144x1375,
- * crewneck 1211x1299.
+ * has to BE the photograph's shape. Let the box be any other shape and the
+ * picture is letterboxed while the plate keeps measuring itself against the
+ * box, which puts the plate on the empty space beside the garment.
+ *
+ * THIS IS PER COLOURWAY, NOT PER PRODUCT, because the shoot was not consistent.
+ * A single per-product ratio was wrong for half the range and badly wrong for
+ * the tee, whose Heritage Blue and Olive shots are LANDSCAPE while its White is
+ * portrait. Measured from the files rather than assumed.
+ *
+ * Worth reshooting or recropping to one ratio per product eventually; until
+ * then the code has to tell the truth about what is on disk.
  */
-export const PHOTO_ASPECT: Record<ProductSlug, number> = {
-  hoodie: 1120 / 1400,
-  tee: 1144 / 1375,
-  crewneck: 1211 / 1299,
-  // No photography; the plate sits on a plain colour, so any sane shape will do.
-  tote: 4 / 5,
+const PHOTO_SHAPE: Record<string, number> = {
+  "hoodie/blue": 1120 / 1400,
+  "hoodie/lilac": 1120 / 1400,
+  "hoodie/white": 1120 / 1400,
+  "crewneck/white": 1120 / 1400,
+  "crewneck/peach": 1120 / 1400,
+  "crewneck/grey": 1211 / 1299,
+  "crewneck/olive": 1212 / 1298,
+  "tee/white": 1144 / 1375,
+  "tee/heritage-blue": 1400 / 1114,
+  "tee/olive": 1400 / 1050,
 };
+
+/** Fallback shape for a garment with no photograph, such as the tote. */
+const DEFAULT_SHAPE = 4 / 5;
+
+/** The shape of the photograph shown for a product and colourway. */
+export function photoAspect(slug: ProductSlug, color: string): number {
+  const photo = garmentPhoto(slug, color);
+  if (!photo) return DEFAULT_SHAPE;
+  return PHOTO_SHAPE[`${slug}/${photo.dir}`] ?? DEFAULT_SHAPE;
+}
 
 export const PLACEMENT: Record<
   ProductSlug,
@@ -81,58 +103,50 @@ export const PLACEMENT: Record<
 /**
  * Catalogue colourway to photographed colourway.
  *
- * THE PHOTOGRAPHY DOES NOT MATCH THE CATALOGUE and that is an open owner
- * decision (docs/spec-garment-mockups.md section 5). Six of the eleven
- * colourways have no photograph of their own. Rather than show an empty box on a
- * R899 product, each falls back to the nearest shot we do have, and every one of
- * those is marked `standIn` below so the list of what still needs shooting is
- * readable from the code rather than guessed at.
+ * EVERY COLOURWAY IS ITS OWN PHOTOGRAPH NOW. This map used to carry a whole
+ * stand-in layer, where six of eleven colourways showed the nearest shot we had
+ * of a different colour, because the catalogue still listed Stone, Charcoal,
+ * Olive and Ecru while the shoot had produced Blue, Lilac, White, Peach, Grey,
+ * Olive and Heritage Blue. The catalogue was the thing that was wrong; once it
+ * named the colours we actually photographed, the stand-ins had nothing left to
+ * stand in for.
  *
- * The recommendation in that spec stands: launch on the colours that have real
- * photographs, and add the rest as photography allows. Washed Black cannot
- * launch at all until the printer says how dark garments are handled.
+ * Keep it that way. If a colourway is added to products.ts without a shot
+ * behind it, add the shot rather than pointing it at a neighbour: a swatch that
+ * shows the wrong garment is a returned parcel.
  */
 interface PhotoChoice {
   /** Directory under public/garments/<product>/. */
   dir: string;
-  /** True when this is the nearest shot rather than this actual colourway. */
-  standIn: boolean;
 }
 
 const PHOTOS: Record<ProductSlug, Record<string, PhotoChoice>> = {
   hoodie: {
-    Stone: { dir: "white", standIn: false },
-    Charcoal: { dir: "blue", standIn: true },
-    Olive: { dir: "lilac", standIn: true },
+    Blue: { dir: "blue" },
+    Lilac: { dir: "lilac" },
+    White: { dir: "white" },
   },
   crewneck: {
-    Stone: { dir: "grey", standIn: false },
-    Charcoal: { dir: "grey", standIn: true },
+    White: { dir: "white" },
+    Peach: { dir: "peach" },
+    Grey: { dir: "grey" },
+    Olive: { dir: "olive" },
   },
   tee: {
-    Stone: { dir: "white", standIn: false },
-    Charcoal: { dir: "heritage-blue", standIn: true },
-    Olive: { dir: "olive", standIn: false },
-    Ecru: { dir: "white", standIn: true },
+    White: { dir: "white" },
+    Olive: { dir: "olive" },
+    "Heritage Blue": { dir: "heritage-blue" },
   },
-  // No tote photography, and no plate for it either.
+  // No tote photography, and no plate for it either. It is deferred.
   tote: {},
 };
 
-/** The photo directory a colourway shows, and whether it is really that colour. */
+/** The photo directory a colourway shows, or null where there is none. */
 export function garmentPhoto(
   slug: ProductSlug,
   color: string,
 ): PhotoChoice | null {
-  const forProduct = PHOTOS[slug];
-  const exact = forProduct[color];
-  if (exact) return exact;
-
-  // An unmapped colour still has to show a garment: the preview is on screen
-  // from the first paint and an empty frame reads as a broken page. The first
-  // mapped colour is the product's own neutral, which is the least wrong option.
-  const [fallback] = Object.values(forProduct);
-  return fallback ? { dir: fallback.dir, standIn: true } : null;
+  return PHOTOS[slug][color] ?? null;
 }
 
 /**
@@ -151,11 +165,17 @@ export function garmentImageUrl(
   return `/garments/${slug}/${photo.dir}/${side}.webp`;
 }
 
-/** Every colourway whose photograph is a stand-in, for the owner's shot list. */
-export function standInColours(
+/**
+ * Colourways in the catalogue with no photograph of their own: the shot list.
+ *
+ * Empty for the three garments today, and the tote's whole range for as long as
+ * it stays deferred. It is kept because the failure it catches is silent: a
+ * colour added to products.ts before its shoot renders an empty frame, and the
+ * page looks broken rather than incomplete.
+ */
+export function unphotographedColours(
   slug: ProductSlug,
-): { color: string; showing: string }[] {
-  return Object.entries(PHOTOS[slug])
-    .filter(([, photo]) => photo.standIn)
-    .map(([color, photo]) => ({ color, showing: photo.dir }));
+  colors: string[],
+): string[] {
+  return colors.filter((color) => !garmentPhoto(slug, color));
 }

@@ -20,8 +20,18 @@ export interface JobSheetLine {
   color: string;
   size: string;
   qty: number;
-  /** Print area from the catalogue, in millimetres. */
-  printAreaMm: { widthMm: number; heightMm: number };
+  /**
+   * Both print areas from the catalogue, in millimetres.
+   *
+   * The garment carries TWO prints and the shop needs both measurements: the
+   * large back plate and the 110 by 150mm left-chest patch. The sheet used to
+   * quote one number, which was the back's, so the chest print had no stated
+   * size on the only document the printer works from.
+   */
+  printAreaMm: {
+    front: { widthMm: number; heightMm: number };
+    back: { widthMm: number; heightMm: number };
+  };
   /** Pixel dimensions of the print file, when we know them. */
   printPx?: { widthPx: number; heightPx: number } | null;
   /**
@@ -52,7 +62,10 @@ export interface JobSheetData {
 }
 
 function dimsText(line: JobSheetLine): string {
-  const area = `${line.printAreaMm.widthMm} x ${line.printAreaMm.heightMm} mm`;
+  const { front, back } = line.printAreaMm;
+  const area =
+    `back ${back.widthMm} x ${back.heightMm} mm · ` +
+    `front ${front.widthMm} x ${front.heightMm} mm`;
   if (!line.printPx) return `${area} (print file pixel size not recorded)`;
   return `${area} · file ${line.printPx.widthPx} x ${line.printPx.heightPx} px`;
 }

@@ -3,10 +3,10 @@ import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { PRODUCTS } from "@/lib/products";
 import {
-  PHOTO_ASPECT,
+  photoAspect,
   PLACEMENT,
   garmentImageUrl,
-  standInColours,
+  unphotographedColours,
   type GarmentSide,
 } from "@/lib/garments";
 import { backPlate, frontPlate } from "@/lib/print/plate";
@@ -56,7 +56,10 @@ export default function MockupsPage() {
       </div>
 
       {PRODUCTS.map((product) => {
-        const standIns = standInColours(product.slug);
+        const missing = unphotographedColours(
+          product.slug,
+          product.variants.map((variant) => variant.color),
+        );
         return (
           <section key={product.slug} className="mt-12 flex flex-col gap-4">
             <div className="flex flex-col gap-1">
@@ -65,12 +68,10 @@ export default function MockupsPage() {
                 front {JSON.stringify(PLACEMENT[product.slug].front)} · back{" "}
                 {JSON.stringify(PLACEMENT[product.slug].back)}
               </p>
-              {standIns.length > 0 ? (
+              {missing.length > 0 ? (
                 <p className="text-xs text-btn">
-                  No photography of its own:{" "}
-                  {standIns
-                    .map((s) => `${s.color} (showing ${s.showing})`)
-                    .join(", ")}
+                  No photograph at all, so these render on a flat swatch:{" "}
+                  {missing.join(", ")}
                 </p>
               ) : null}
             </div>
@@ -99,7 +100,7 @@ export default function MockupsPage() {
                         className="relative overflow-hidden rounded-md border border-line bg-surface"
                         // The photograph's own shape, so what is judged here is
                         // the same geometry the customer sees.
-                        style={{ aspectRatio: PHOTO_ASPECT[product.slug] }}
+                        style={{ aspectRatio: photoAspect(product.slug, variant.color) }}
                       >
                         {garment ? (
                           <Image

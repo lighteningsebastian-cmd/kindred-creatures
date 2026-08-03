@@ -331,10 +331,13 @@ async function toJobSheetLines(items: OrderItem[]): Promise<JobSheetLine[]> {
         color: item.color,
         size: item.size,
         qty: item.qty,
-        printAreaMm: product?.printArea ?? { widthMm: 0, heightMm: 0 },
-        // The print file is generated to the product's print area at 300 DPI,
-        // so these are its dimensions. Unknown product slug, unknown size.
-        printPx: product ? printPixels(product) : null,
+        printAreaMm: product?.printArea ?? {
+          front: { widthMm: 0, heightMm: 0 },
+          back: { widthMm: 0, heightMm: 0 },
+        },
+        // The print FILE is the back plate at 300 DPI, so these are its
+        // dimensions. Unknown product slug, unknown size.
+        printPx: product ? printPixels(product, "back") : null,
         printFileUrl,
       };
     }),

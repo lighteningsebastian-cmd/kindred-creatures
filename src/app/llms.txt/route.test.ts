@@ -42,7 +42,7 @@ describe("GET /llms.txt", () => {
   it("quotes real prices in rands, read from the catalogue", async () => {
     const { text } = await read();
     // The full range, cheapest to dearest, plus a per-product "from" price.
-    expect(text).toContain("R 349 to R 899");
+    expect(text).toContain("R 349 to R 999");
     for (const product of PRODUCTS) {
       expect(text).toContain(product.name);
     }

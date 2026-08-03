@@ -141,7 +141,7 @@ describe("ProductFlow", () => {
     const src = () =>
       container.querySelector('img[alt*="hoodie" i]')?.getAttribute("src") ?? "";
     const before = src();
-    await user.click(screen.getByRole("button", { name: "Charcoal" }));
+    await user.click(screen.getByRole("button", { name: "Lilac" }));
     // Five versions of THEIR plate, not five empty garments.
     expect(src()).not.toBe(before);
 
@@ -158,7 +158,7 @@ describe("ProductFlow", () => {
     await user.click(add);
 
     expect(addItem).toHaveBeenCalledWith(
-      expect.objectContaining({ artworkId: "art-1", color: "Charcoal", size: "M" }),
+      expect.objectContaining({ artworkId: "art-1", color: "Lilac", size: "M" }),
     );
   });
 });

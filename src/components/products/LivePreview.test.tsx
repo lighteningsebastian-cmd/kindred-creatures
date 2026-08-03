@@ -144,7 +144,7 @@ describe("LivePreview", () => {
     await waitFor(() => expect(renderPlates).toHaveBeenCalled());
     const aspect = renderPlates.mock.calls[0]![1];
     expect(aspect.width / aspect.height).toBeCloseTo(
-      product.printArea.widthMm / product.printArea.heightMm,
+      product.printArea.back.widthMm / product.printArea.back.heightMm,
       2,
     );
   });

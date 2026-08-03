@@ -125,8 +125,8 @@ function EmptyCheckout() {
         There is no portrait here to send you.
       </h2>
       <p className="max-w-lg leading-relaxed text-muted">
-        Choose a garment, upload a photo of your creature, and we will draw them
-        before you part with anything.
+        Choose a garment, tell us about your creature, and see their piece before
+        you order.
       </p>
       <Button block href="/products/hoodie" size="md">
         Start a portrait

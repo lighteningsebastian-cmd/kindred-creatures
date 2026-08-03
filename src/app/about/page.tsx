@@ -141,8 +141,8 @@ export default function AboutPage() {
             Put someone you love where you can see them.
           </h2>
           <p className="max-w-xl leading-relaxed text-on-inverse/80">
-            Upload a favourite photo and we will draw them before you part with
-            anything.
+            Tell us about them, and nothing is printed until you have seen the
+            portrait and said yes.
           </p>
           <Button href="/products/hoodie" block>
             Start your portrait

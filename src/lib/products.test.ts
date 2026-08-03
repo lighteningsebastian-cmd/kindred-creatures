@@ -27,17 +27,40 @@ describe("formatZar", () => {
 });
 
 describe("printPixels", () => {
-  it("converts mm to px at 300 DPI, rounded", () => {
+  it("converts the back area to px at 300 DPI, rounded", () => {
     // 280 / 25.4 * 300 = 3307.09.. -> 3307; 350 -> 4133.86 -> 4134
-    expect(printPixels(getProduct("hoodie")!)).toEqual({
+    expect(printPixels(getProduct("hoodie")!, "back")).toEqual({
       widthPx: 3307,
       heightPx: 4134,
     });
     // 250 -> 2952.76 -> 2953; 300 -> 3543.31 -> 3543
-    expect(printPixels(getProduct("tee")!)).toEqual({
+    expect(printPixels(getProduct("tee")!, "back")).toEqual({
       widthPx: 2953,
       heightPx: 3543,
     });
+  });
+
+  it("gives the front its own measured area, not a slice of the back", () => {
+    // 110 by 150mm, the owner's measurement. The front used to be derived as a
+    // third of the back's WIDTH and rendered square, so it was both the wrong
+    // size and the wrong shape on every garment.
+    // 110 -> 1299.2 -> 1299; 150 -> 1771.65 -> 1772
+    for (const slug of ["hoodie", "tee", "crewneck"]) {
+      expect(printPixels(getProduct(slug)!, "front"), slug).toEqual({
+        widthPx: 1299,
+        heightPx: 1772,
+      });
+    }
+  });
+
+  it("keeps the front and the back genuinely different shapes", () => {
+    const product = getProduct("hoodie")!;
+    const front = product.printArea.front;
+    const back = product.printArea.back;
+    expect(front.widthMm / front.heightMm).not.toBeCloseTo(
+      back.widthMm / back.heightMm,
+      2,
+    );
   });
 });
 
@@ -62,9 +85,31 @@ describe("catalog seed", () => {
   });
 
   it("exposes from-prices matching the lowest variant", () => {
-    expect(fromPriceZar(getProduct("hoodie")!)).toBe(899);
-    expect(fromPriceZar(getProduct("tee")!)).toBe(449);
+    expect(fromPriceZar(getProduct("hoodie")!)).toBe(999);
+    expect(fromPriceZar(getProduct("tee")!)).toBe(599);
+    expect(fromPriceZar(getProduct("crewneck")!)).toBe(799);
     expect(fromPriceZar(getProduct("tote")!)).toBe(349);
+  });
+
+  it("cuts the crewneck to XL and the rest to XXL", () => {
+    // The crewneck is the women's cut and does not run to XXL. A size offered
+    // that the printer cannot supply is a cancelled order.
+    for (const variant of getProduct("crewneck")!.variants) {
+      expect(variant.sizes).toEqual(["XS", "S", "M", "L", "XL"]);
+    }
+    for (const slug of ["hoodie", "tee"]) {
+      for (const variant of getProduct(slug)!.variants) {
+        expect(variant.sizes, slug).toContain("XXL");
+      }
+    }
+  });
+
+  it("names the fit of everything that is worn", () => {
+    expect(getProduct("hoodie")!.fit).toBe("unisex");
+    expect(getProduct("tee")!.fit).toBe("unisex");
+    expect(getProduct("crewneck")!.fit).toBe("womens");
+    // The tote is carried, not worn, so it has no fit to state.
+    expect(getProduct("tote")!.fit).toBeUndefined();
   });
 
   it("gives the tote a single 'One size' variant", () => {

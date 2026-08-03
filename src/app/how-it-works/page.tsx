@@ -204,8 +204,8 @@ export default function HowItWorksPage() {
               Ready to start their portrait?
             </h2>
             <p className="text-lg leading-relaxed text-muted">
-              Upload a favourite photo and see them drawn before you part with
-              anything.
+              Tell us about them, see their piece on the garment, and nothing is
+              printed until you say yes.
             </p>
             <Button href="/products/hoodie" block>
               Start your portrait

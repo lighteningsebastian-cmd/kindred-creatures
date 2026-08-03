@@ -84,7 +84,7 @@ describe("ProductConfigurator", () => {
     const hoodie = getProduct("hoodie")!;
     render(<Harness product={hoodie} />);
 
-    await user.click(screen.getByRole("button", { name: "Charcoal" }));
-    expect(screen.getByText("Charcoal")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Lilac" }));
+    expect(screen.getByText("Lilac")).toBeInTheDocument();
   });
 });

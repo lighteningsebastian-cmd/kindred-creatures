@@ -82,7 +82,7 @@ function order(items: Line[], overrides: Record<string, unknown> = {}) {
 function hoodieLine(artworkId: string, overrides: Line = {}): Line {
   return {
     productSlug: "hoodie",
-    color: "Stone",
+    color: "Blue",
     size: "M",
     qty: 1,
     artworkId,
@@ -98,8 +98,8 @@ describe("POST /api/checkout", () => {
     expect(res.status).toBe(201);
     const { orderId, totalZar } = await res.json();
 
-    // 2 x R 899 + R 99 shipping.
-    expect(totalZar).toBe(orderTotals(2 * 899).totalZar);
+    // 2 x R 999 + R 99 shipping.
+    expect(totalZar).toBe(orderTotals(2 * 999).totalZar);
 
     const db = await getDb();
     const [row] = await db.select().from(orders).where(eq(orders.id, orderId));
@@ -107,8 +107,8 @@ describe("POST /api/checkout", () => {
     expect(row.email).toBe("thandi@example.co.za");
     expect(row.city).toBe("Cape Town");
     expect(row.payfastPaymentId).toBeNull();
-    expect(row.subtotalZar).toBe(1798);
-    expect(row.shippingZar).toBe(orderTotals(1798).shippingZar);
+    expect(row.subtotalZar).toBe(1998);
+    expect(row.shippingZar).toBe(orderTotals(1998).shippingZar);
     // Totals math: subtotal + shipping is the total, on the row itself.
     expect(row.subtotalZar + row.shippingZar).toBe(row.totalZar);
 
@@ -117,7 +117,7 @@ describe("POST /api/checkout", () => {
       .from(orderItems)
       .where(eq(orderItems.orderId, orderId));
     expect(lines).toHaveLength(1);
-    expect(lines[0].unitPriceZar).toBe(899);
+    expect(lines[0].unitPriceZar).toBe(999);
     expect(lines[0].qty).toBe(2);
     expect(lines[0].artworkId).toBe(artworkId);
   });
@@ -177,18 +177,18 @@ describe("POST /api/checkout", () => {
 
     expect(res.status).toBe(201);
     const { orderId, totalZar } = await res.json();
-    expect(totalZar).toBe(orderTotals(899).totalZar);
+    expect(totalZar).toBe(orderTotals(999).totalZar);
 
     const db = await getDb();
     const [row] = await db.select().from(orders).where(eq(orders.id, orderId));
-    expect(row.totalZar).toBe(orderTotals(899).totalZar);
-    expect(row.subtotalZar).toBe(899);
+    expect(row.totalZar).toBe(orderTotals(999).totalZar);
+    expect(row.subtotalZar).toBe(999);
 
     const lines = await db
       .select()
       .from(orderItems)
       .where(eq(orderItems.orderId, orderId));
-    expect(lines[0].unitPriceZar).toBe(899);
+    expect(lines[0].unitPriceZar).toBe(999);
   });
 
   it("sums a multi-line cart across products", async () => {
@@ -210,8 +210,8 @@ describe("POST /api/checkout", () => {
 
     expect(res.status).toBe(201);
     const { totalZar } = await res.json();
-    // 899 + (3 x 349) + 99 shipping.
-    expect(totalZar).toBe(orderTotals(899 + 1047).totalZar);
+    // 999 + (3 x 349) + 99 shipping.
+    expect(totalZar).toBe(orderTotals(999 + 1047).totalZar);
   });
 
   it("rejects an empty cart", async () => {
@@ -391,7 +391,7 @@ describe("POST /api/checkout: the PayFast payload", () => {
     withCredentials();
     const artworkId = await readyArtwork();
 
-    // A hostile cart claiming the hoodie is R 1. The row says R 899 + R 99.
+    // A hostile cart claiming the hoodie is R 1. The row says R 999 + R 99.
     const res = await checkout(
       order([hoodieLine(artworkId, { unitPriceZar: 1 })], {
         totalZar: 1,
@@ -407,11 +407,11 @@ describe("POST /api/checkout: the PayFast payload", () => {
     const [row] = await db.select().from(orders).where(eq(orders.id, orderId));
 
     // The number the customer is asked for is the number in the table.
-    // One R 899 hoodie sits below the R 1000 free-shipping threshold, so it pays
-    // the flat R 99 courier: R 998.
-    expect(row.totalZar).toBe(orderTotals(899).totalZar);
+    // One R 999 hoodie sits below the R 1000 free-shipping threshold, so it pays
+    // the flat R 99 courier: R 1 098.
+    expect(row.totalZar).toBe(orderTotals(999).totalZar);
     expect(fields.amount).toBe(toAmountString(row.totalZar));
-    expect(fields.amount).toBe("998.00");
+    expect(fields.amount).toBe("1098.00");
     expect(fields.amount).not.toBe("1.00");
   });
 
@@ -478,9 +478,9 @@ describe("POST /api/checkout: the PayFast payload", () => {
 
     expect(res.status).toBe(201);
     expect(json.mock).toBe(true);
-    // The order is still real, still priced, still signed. One R 899 hoodie is
+    // The order is still real, still priced, still signed. One R 999 hoodie is
     // below the R 1000 free-shipping line, so it carries the flat R 99 courier.
-    expect(json.fields.amount).toBe("998.00");
+    expect(json.fields.amount).toBe("1098.00");
     expect(json.fields.signature).toMatch(/^[0-9a-f]{32}$/);
   });
 

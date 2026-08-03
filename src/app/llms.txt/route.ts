@@ -63,7 +63,7 @@ Nothing is printed until you approve the portrait, and the garment arrives withi
 
 ${productLines}
 
-Every garment carries a portrait made from your own photo. Apparel comes in XS to XXL; the tote is one size.
+Every garment carries a portrait made from your own photo. The hoodie and the tee come in XS to XXL; the crewneck is a women's cut and runs XS to XL; the tote is one size.
 
 ## Delivery and payment
 

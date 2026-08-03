@@ -18,10 +18,19 @@ import {
   type CompanionProfile,
 } from "@/lib/companion";
 import { backPlate, frontPlate } from "@/lib/print/plate";
+import { FRONT_PRINT } from "@/lib/products";
 import { getStorage } from "@/lib/storage";
 
-/** The front plate is a small square patch, so one dimension describes it. */
-const FRONT_PX = 600;
+/**
+ * The front plate's preview size. Its SHAPE comes from the real print area
+ * (110 by 150mm), not from a square: the front was drawn square here while the
+ * print file was about to be made at the owner's measured proportions, so the
+ * preview and the garment disagreed.
+ */
+const FRONT_PREVIEW_W = 600;
+const FRONT_PREVIEW_H = Math.round(
+  (FRONT_PREVIEW_W * FRONT_PRINT.heightMm) / FRONT_PRINT.widthMm,
+);
 
 /** Longer than any real breed name; anything past this is not a search. */
 const MAX_QUERY = 60;
@@ -173,7 +182,7 @@ export async function previewPlates(
   aspect: { width: number; height: number },
 ): Promise<PreviewResult> {
   const back = backPlate(profile, null, aspect.width, aspect.height);
-  const front = frontPlate(profile, FRONT_PX, FRONT_PX);
+  const front = frontPlate(profile, FRONT_PREVIEW_W, FRONT_PREVIEW_H);
 
   const breed = profile.breedId ? getBreed(profile.breedId) : undefined;
   let stockUrl: string | null = null;
@@ -199,7 +208,10 @@ export async function previewPlates(
 
   return {
     back: { svg: back.svg, portrait: asFractions(back.portrait, aspect.width, aspect.height) },
-    front: { svg: front.svg, portrait: asFractions(front.portrait, FRONT_PX, FRONT_PX) },
+    front: {
+      svg: front.svg,
+      portrait: asFractions(front.portrait, FRONT_PREVIEW_W, FRONT_PREVIEW_H),
+    },
     stockUrl,
   };
 }

@@ -161,7 +161,7 @@ describe("job sheet", () => {
         size: "L",
         qty: 2,
         printAreaMm: HOODIE.printArea,
-        printPx: printPixels(HOODIE),
+        printPx: printPixels(HOODIE, "back"),
         printFileUrl: printUrl,
       },
     ],
@@ -193,6 +193,15 @@ describe("job sheet", () => {
       expect(body).toContain("3307 x 4134 px");
     }
     expect(rendered.text).toContain("qty 2");
+  });
+
+  it("states BOTH print areas, because the garment carries two prints", () => {
+    // The sheet quoted one measurement, which was the back's, so the left-chest
+    // patch had no stated size on the only document the printer works from.
+    for (const body of [rendered.html, rendered.text]) {
+      expect(body).toContain("280 x 350 mm");
+      expect(body).toContain("110 x 150 mm");
+    }
   });
 
   it("carries the signed print-file link", () => {

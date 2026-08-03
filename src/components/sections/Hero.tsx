@@ -37,7 +37,7 @@ export function Hero() {
         <div className="relative mx-auto w-full max-w-md md:mx-0 md:ml-auto">
           <PhotoFrame
             aspect="9 / 11"
-            description="lifestyle hero: a person outdoors hugging their golden retriever close, wearing the stone kindred hoodie with the dog's portrait print, soft warm morning light"
+            description="lifestyle hero: a person outdoors hugging their golden retriever close, wearing the blue kindred hoodie with the dog's portrait print, soft warm morning light"
           />
           {/* Small overlapping second frame, in the kit's stacked style. Purely
               decorative composition; hidden on the narrowest screens so the hero
