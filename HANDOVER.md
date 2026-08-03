@@ -64,6 +64,16 @@ credential; add env vars to `.env.example`.
   `artworks.printKey` is legacy. `flagged` has two meanings: paid-but-print-failed
   (retryable) vs never-reconciled payment (`payfastPaymentId` null; retry REFUSES it or
   you print a free garment).
+- **One house style; there is no style choice** (owner, 3 Aug). `ArtStyle` survives in the
+  data layer ONLY for artworks drawn before that date and the account thumbnail label;
+  nothing writes `artworks.style` and two guards that demanded it were removed, one of them
+  in the PRINT path where it would have flagged every paid order after approval. The two
+  prompts are keyed by SIDE (`lib/images/prompts.ts`): front is colour and faces the viewer,
+  back is graphite and a strict side profile.
+- **`printArea` is `{ front, back }`** and `printPixels(product, side)` requires the side.
+  Front is 110x150mm (owner measurement); the back is the large plate. `FRONT_FRACTION` is
+  gone: the chest patch used to be derived as a third of the back's width and rendered
+  square, which was the wrong size and the wrong shape. The job sheet states both.
 - Auth is custom HMAC (NO Auth.js): admin cookie keyed off ADMIN_PASSWORD_HASH
   (`src/lib/admin/{session,auth}.ts`; scrypt hash uses `:` separators because dotenv eats
   `$`); customer magic-link (`src/lib/account/*`): single-use hashed tokens, ~15 min,
@@ -110,6 +120,16 @@ em/en-dashes.
   (deliberately NOT `flagged`, which stays money/print-lifecycle only) + admin chip +
   needs-attention; never auto-resend) —
   `docs/superpowers/plans/delivery-hardening-sections.md`.
+- **Week 2, 3 Aug (this session).** P0: the live preview froze the moment a breed was
+  chosen, because the Blob adapter's `getBytes` threw on a missing key instead of
+  returning null, so `previewPlates` rejected and `setResult` never ran. Both the adapter
+  and the caller are fixed and a contract test pins the difference. Then: copy rewritten to
+  describe the post-30-July product (no pre-payment drawing, no three tries); the ART STYLE
+  CHOICE IS GONE (one house style) and the two prompts are now the two SIDES of the garment,
+  front colour/face-on and back graphite/side-profile; `products.ts` carries the real
+  photographed colourways, prices, fits and size runs, plus a SEPARATE front print area;
+  the breed picker lets a customer write their own breed and prints it; and editing the
+  profile is one page instead of a replay of the question run.
 - **Commission pipeline steps 1-6 of `docs/spec-pipeline.md` section 12, plus the drawing
   step of 7.** Companion profile columns + `breed_requests`; breed picker with miss
   logging; the tell-us-about-them form (name printability asked of the FONT FILE via a
@@ -118,6 +138,15 @@ em/en-dashes.
   rendering the SAME plate code as the print file, returned as SVG; the revision
   vocabulary and the boundary around the model; approve/revise logic; the approval page;
   the approval emails; the admin approval queue; and `drawArtworkPlates`.
+
+## KNOWN GAP FOUND 3 AUG, NOT YET FIXED
+`OpenAIImageProvider.generatePortrait` accepts `{ uploadKey, side, reasons }` and SILENTLY
+IGNORES `referenceKey`, which the `ImageProvider` interface declares and which
+`drawArtworkPlates` passes for the back. So the breed's hand-reviewed side-profile
+reference never reaches the real model. It matters more now that the back is specified as a
+true side profile inferred from a face-on photograph: the reference is what keeps that
+profile breed-accurate rather than a guess. Needs the multi-image `images.edit` path and a
+live key to test.
 
 ## NEXT UP (spec-pipeline.md step 7 is DONE apart from the three items below)
 Generation now happens after payment and nothing prints unless it is approved.
@@ -188,6 +217,13 @@ Still outstanding, all small and independent:
   is not coming back). Raise with the print shop, and revisit at the gpt-image-1
   deprecation (23 Oct 2026). The previous code asked for `1536x1536`, which is not a valid
   size for the model at all, so the print path would have 400'd on the first real order.
+- **The garment photography is not one shape.** Aspect is stored PER COLOURWAY in
+  `lib/garments.ts` because the shoot varied: the tee's Heritage Blue and Olive shots are
+  LANDSCAPE while its White is portrait. Placement is a percentage of the photograph, so a
+  wrong ratio puts the plate beside the garment; a test measures the real files. Worth
+  reshooting or recropping to one ratio per product.
+- **The tote is knowingly incomplete**: no photography, no plate placement, no print layout.
+  Kept in the range by owner decision, 3 Aug, because the site is not live yet.
 - One pre-existing lint warning (`welcome.ts` unused `FONT_BODY`; the old `login-tokens.ts`
   unused `sql` warning was cleared by the D3 rewrite). Untracked owner files at repo root (`AI_PHOTO_SYSTEM.md`,
   `CUSTOMER_JOURNEY_REDESIGN.md`): leave them alone.
