@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  OTHER_MAX,
   emptyProfile,
   stockDisclosure,
   validateProfile,
@@ -61,6 +62,26 @@ describe("validateProfile", () => {
         profile({ species: "other", breedId: null, temperament: [] }),
       ),
     ).not.toHaveProperty("breedId");
+  });
+
+  it("accepts a breed the customer wrote in their own words", () => {
+    // The escape hatch has to actually let them through, or it is a dead end
+    // dressed up as a way out.
+    expect(
+      validateProfile(profile({ breedId: null, otherBreed: "Boerboel cross" })),
+    ).not.toHaveProperty("breedId");
+  });
+
+  it("will not take words too long to fit the plate", () => {
+    expect(
+      validateProfile(
+        profile({ breedId: null, otherBreed: "x".repeat(OTHER_MAX + 1) }),
+      ),
+    ).toHaveProperty("breedId");
+    // Nor whitespace pretending to be an answer.
+    expect(
+      validateProfile(profile({ breedId: null, otherBreed: "   " })),
+    ).toHaveProperty("breedId");
   });
 });
 

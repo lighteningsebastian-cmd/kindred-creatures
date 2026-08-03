@@ -31,6 +31,21 @@ export interface CompanionProfile {
    * straight onto plate rows instead: SPECIES, BREED, ORIGIN.
    */
   otherKind: string | null;
+  /**
+   * The breed in the customer's own words.
+   *
+   * TWO JOBS, ONE FIELD, because it is literally the same answer. For "other"
+   * species it is the BREED row of the three named answers. For a dog or a cat
+   * whose breed is not on our list, it is what they typed into "Can't find
+   * them?", and it prints on the plate exactly as typed with ORIGIN and GROUP
+   * omitted, because we know the words and not the pedigree.
+   *
+   * Printing what somebody typed is a decision with a cost: it is also how a
+   * misspelling reaches a garment. It is taken knowingly (owner, 3 August)
+   * because every job sheet is read by a person before anything is printed,
+   * and being told "we have noted it" while your dog stays unnamed on the plate
+   * is the worse outcome for the largest group of dog owners in the country.
+   */
   otherBreed: string | null;
   otherOrigin: string | null;
 }
@@ -105,7 +120,14 @@ export function validateProfile(
       errors.otherKind = `Up to ${OTHER_MAX} characters each, so it fits the plate.`;
     }
   } else if (!profile.breedId) {
-    errors.breedId = "Choose their breed, or One of One.";
+    // A breed they typed themselves counts. It is the escape hatch for an
+    // animal our list does not have, and it prints.
+    const typed = profile.otherBreed?.trim();
+    if (!typed) {
+      errors.breedId = "Choose their breed, or tell us in your own words.";
+    } else if (typed.length > OTHER_MAX) {
+      errors.breedId = `Up to ${OTHER_MAX} characters, so it fits the plate.`;
+    }
   }
 
   if (hasTemperament(profile.species)) {

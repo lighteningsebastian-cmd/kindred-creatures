@@ -192,6 +192,12 @@ export function tableRows(profile: CompanionProfile): TableRow[] {
     push("SPECIES", profile.otherKind);
     push("BREED", profile.otherBreed);
     push("ORIGIN", profile.otherOrigin);
+  } else if (!breed && profile.otherBreed?.trim()) {
+    // A breed they typed themselves, because ours did not have it. Printed as
+    // written, and ORIGIN and GROUP are simply left off: we know what they call
+    // their dog, not where the line came from, and inventing either would be
+    // the one dishonest row on an honest plate. The table closes up on its own.
+    rows.push({ label: "BREED", value: profile.otherBreed.trim() });
   } else if (breed) {
     const config = SPECIES[breed.species];
     rows.push({ label: "BREED", value: breedRowValue(breed) });

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/cn";
+import { OTHER_MAX } from "@/lib/companion";
 import {
   getBreed,
   searchBreeds,
@@ -35,26 +36,36 @@ const MAX_VISIBLE = 8;
  * render this component.
  * @param value the selected breed id, or null.
  * @param onChange called with the chosen breed.
- * @param onMiss called with the current query when the customer says the breed
- * is not listed. The parent logs it.
+ * @param onMiss called with the current query when the customer gives up on
+ * the list. The parent logs it, so the list grows by demand.
+ * @param typedBreedValue the breed in their own words, when they have written
+ * one instead of picking.
+ * @param onTypeBreed called with their words. Empty string clears it.
  */
 export function BreedPicker({
   species,
   value,
   onChange,
   onMiss,
+  typedBreedValue,
+  onTypeBreed,
 }: {
   species: Exclude<Species, "other">;
   value: string | null;
   onChange: (breed: Breed) => void;
   onMiss: (query: string) => void;
+  typedBreedValue: string | null;
+  onTypeBreed: (words: string) => void;
 }) {
   const selected = value ? getBreed(value) : undefined;
   // Seeded from the selection so the field reads back what they chose, both on
   // first render and after they come back to the question later.
   const [query, setQuery] = useState(selected?.name ?? "");
   const [open, setOpen] = useState(false);
-  const [reported, setReported] = useState(false);
+  // Seeded from the profile so coming back to this question shows their words
+  // still there, rather than an empty field over a plate that already has them.
+  const [typedBreed, setTypedBreed] = useState(typedBreedValue ?? "");
+  const [ownWords, setOwnWords] = useState(Boolean(typedBreedValue?.trim()));
 
   const typed = query.trim();
   // Only ever a list while they are typing something that is not simply the
@@ -75,11 +86,11 @@ export function BreedPicker({
     // Read it back, and get out of the way.
     setQuery(breed.name);
     setOpen(false);
-    setReported(false);
   }
 
   return (
     <div className="flex flex-col gap-3">
+      {ownWords ? null : (
       <Input
         label="Their breed"
         type="search"
@@ -87,7 +98,6 @@ export function BreedPicker({
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);
-          setReported(false);
         }}
         onFocus={() => setOpen(true)}
         placeholder="Start typing"
@@ -98,13 +108,14 @@ export function BreedPicker({
             : undefined
         }
       />
+      )}
 
       <p role="status" className="sr-only">
         {showList ? `${results.length} breeds match` : ""}
         {selected && !showList ? `${selected.name} selected` : ""}
       </p>
 
-      {showList ? (
+      {showList && !ownWords ? (
         <>
           {results.length > 0 ? (
             <ul className="flex max-h-72 flex-col gap-1 overflow-y-auto">
@@ -150,30 +161,63 @@ export function BreedPicker({
         </>
       ) : null}
 
-      {/* Permanently under the field, whether or not anything is showing. */}
-      {reported ? (
-        <p className="text-sm text-muted">
-          Thank you, we have noted it. Choose One of One for now and their plate
-          will still be right.
-        </p>
+      {/*
+        THE ESCAPE HATCH IS ALWAYS AVAILABLE. It used to be greyed out until you
+        had typed something, which hid it from exactly the people most likely to
+        need it: someone whose dog has no breed name to type does not start
+        typing one. And it used to end in "thank you, we have noted it", which
+        collected data for us and gave the customer nothing back.
+
+        It resolves now. They write the breed in their own words, it goes on the
+        plate as written, and it is still logged so the list grows towards what
+        people actually own.
+      */}
+      {ownWords ? (
+        <div className="flex flex-col gap-2 border-t border-line pt-3">
+          <Input
+            label="What do you call their breed?"
+            value={typedBreed}
+            autoFocus
+            maxLength={OTHER_MAX}
+            placeholder="Boerboel cross"
+            onChange={(e) => {
+              const words = e.target.value;
+              setTypedBreed(words);
+              // Their words replace any earlier pick: two breeds on one plate is
+              // not a state the plate can print.
+              onTypeBreed(words);
+            }}
+            helperText={`This is printed on the plate exactly as you write it, up to ${OTHER_MAX} characters.`}
+          />
+          <p className="text-sm text-muted">
+            {typedBreed.trim()
+              ? `We will print ${typedBreed.trim()}. Their origin and group are left off, which the plate does neatly.`
+              : "We will print whatever you write here."}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setOwnWords(false);
+              setTypedBreed("");
+              onTypeBreed("");
+            }}
+            className="self-start text-sm text-accent underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base"
+          >
+            Search the list instead
+          </button>
+        </div>
       ) : (
         <button
           type="button"
           onClick={() => {
-            onMiss(query);
-            setReported(true);
+            setOwnWords(true);
+            // Log what they had typed when they gave up on the list. It is the
+            // best signal we get for which breed to add next.
+            if (typed) onMiss(typed);
           }}
-          disabled={typed === ""}
-          className={cn(
-            "self-start text-sm underline underline-offset-2",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-            "focus-visible:ring-offset-2 focus-visible:ring-offset-base",
-            typed === ""
-              ? "cursor-not-allowed text-muted opacity-60"
-              : "text-accent",
-          )}
+          className="self-start text-sm text-accent underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base"
         >
-          Can&apos;t find them?
+          Can&apos;t find them? Write it yourself
         </button>
       )}
     </div>

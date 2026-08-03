@@ -121,6 +121,25 @@ describe("previewPlates", () => {
     );
   });
 
+  it("puts a breed written in the customer's own words on the plate", async () => {
+    getBytes.mockResolvedValue(null);
+    const typed = { ...profile, breedId: null, otherBreed: "Boerboel cross" };
+
+    const withWords = await previewPlates(typed, aspect);
+    const withoutWords = await previewPlates(
+      { ...typed, otherBreed: null },
+      aspect,
+    );
+    expect(withWords.back.svg).not.toEqual(withoutWords.back.svg);
+
+    // And the words are what changed it, not merely that something did.
+    const otherWords = await previewPlates(
+      { ...typed, otherBreed: "Africanis mix" },
+      aspect,
+    );
+    expect(withWords.back.svg).not.toEqual(otherWords.back.svg);
+  });
+
   it("shows the illustration when there is one", async () => {
     getBytes.mockResolvedValue(new Uint8Array([1, 2, 3]));
 

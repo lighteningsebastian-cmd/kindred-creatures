@@ -61,6 +61,37 @@ describe("the data table", () => {
     expect(JSON.stringify(rows).toLowerCase()).not.toContain("mixed");
   });
 
+  it("prints a breed the customer wrote themselves, and omits what we cannot know", () => {
+    // The escape hatch for a dog our list does not have. Their words go on the
+    // plate as written (owner decision, 3 August); ORIGIN and GROUP are simply
+    // left off, because we know what they call their dog and not where the
+    // line came from. Inventing either would be the one dishonest row here.
+    const rows = tableRows(
+      profile({ breedId: null, otherBreed: "Boerboel cross" }),
+    );
+    expect(rows.find((r) => r.label === "BREED")?.value).toBe("Boerboel cross");
+    expect(rows.map((r) => r.label)).not.toContain("ORIGIN");
+    expect(rows.map((r) => r.label)).not.toContain("GROUP");
+    // The rest of the plate is unaffected and the table closes up.
+    expect(rows.map((r) => r.label)).toEqual([
+      "BREED",
+      "TEMPERAMENT",
+      "TOGETHER SINCE",
+    ]);
+  });
+
+  it("prefers the chosen breed when somehow both are set", () => {
+    // The picker clears one when the other is given, so this is only reachable
+    // by a tampered payload. A real breed beats free text.
+    const rows = tableRows(
+      profile({ breedId: "yorkshire-terrier", otherBreed: "Nonsense" }),
+    );
+    expect(rows.find((r) => r.label === "BREED")?.value).toBe(
+      "Yorkshire Terrier",
+    );
+    expect(JSON.stringify(rows)).not.toContain("Nonsense");
+  });
+
   it("labels rows by species, not by dog", () => {
     const cat = tableRows(
       profile({ species: "cat", breedId: "ragdoll", temperament: [] }),

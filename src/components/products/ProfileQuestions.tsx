@@ -241,8 +241,15 @@ export function ProfileQuestions({
             <BreedPicker
               species={profile.species}
               value={profile.breedId}
-              onChange={(breed) => set({ breedId: breed.id })}
+              // Picking from the list and writing your own are the same answer
+              // given two ways, so each clears the other. Two breeds is not a
+              // state the plate can print.
+              onChange={(breed) => set({ breedId: breed.id, otherBreed: null })}
               onMiss={onBreedMiss}
+              typedBreedValue={profile.otherBreed}
+              onTypeBreed={(words) =>
+                set({ otherBreed: words || null, breedId: null })
+              }
             />
           )
         ) : null}
