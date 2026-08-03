@@ -3,6 +3,14 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+// The Blob adapter reaches @vercel/blob through a dynamic import, so `head` is
+// replaced at the module boundary: an ESM namespace object cannot be spied on.
+const { head } = vi.hoisted(() => ({ head: vi.fn() }));
+vi.mock("@vercel/blob", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/blob")>()),
+  head,
+}));
+
 // Point the local adapter at a throwaway directory before importing it.
 let workDir: string;
 let originalCwd: () => string;
@@ -33,6 +41,41 @@ describe("local storage adapter", () => {
     const { getStorage } = await import("./storage");
     const read = await getStorage().getBytes("uploads/missing.png");
     expect(read).toBeNull();
+  });
+});
+
+/**
+ * The Blob adapter's contract, against a key that is not there.
+ *
+ * This is the difference that has bitten three times: the local adapter is
+ * tolerant of a missing key and the Blob adapter was not, so the whole shop
+ * behaved one way in development and another in production, and nothing between
+ * the two ever ran. `getStorage` picks the adapter by environment, so the class
+ * is constructed directly here rather than by pretending to be production.
+ */
+describe("vercel blob adapter", () => {
+  it("returns null for a key the store does not have", async () => {
+    const { BlobNotFoundError } = await vi.importActual<
+      typeof import("@vercel/blob")
+    >("@vercel/blob");
+    head.mockRejectedValue(new BlobNotFoundError());
+
+    const { VercelBlobAdapter } = await import("./storage");
+    await expect(
+      new VercelBlobAdapter().getBytes("stock/yorkshire-terrier.png"),
+    ).resolves.toBeNull();
+  });
+
+  it("still throws when the store itself is the problem", async () => {
+    // A missing key is an answer; a broken store is not. Swallowing both would
+    // make a bad token look exactly like an empty library, which is how a
+    // production outage gets mistaken for work not yet done.
+    head.mockRejectedValue(new Error("No token found"));
+
+    const { VercelBlobAdapter } = await import("./storage");
+    await expect(
+      new VercelBlobAdapter().getBytes("stock/yorkshire-terrier.png"),
+    ).rejects.toThrow("No token found");
   });
 });
 

@@ -180,10 +180,22 @@ export async function previewPlates(
   let stockUrl: string | null = null;
   if (breed) {
     const key = stockKey(breed);
-    // Ask storage rather than assuming: the library is being drawn breed by
-    // breed, so "not there yet" is the normal case for most of them.
-    const bytes = await getStorage().getBytes(key);
-    if (bytes) stockUrl = await getStorage().getSignedUrl(key, 600);
+    try {
+      // Ask storage rather than assuming: the library is being drawn breed by
+      // breed, so "not there yet" is the normal case for most of them.
+      const bytes = await getStorage().getBytes(key);
+      if (bytes) stockUrl = await getStorage().getSignedUrl(key, 600);
+    } catch {
+      // THE PLATE IS TYPESET TEXT AND DOES NOT NEED THE PICTURE. Storage having
+      // a bad day must never be the reason somebody stops seeing their own
+      // creature's plate: the preview simply degrades to no illustration, which
+      // is a state it already renders honestly.
+      //
+      // This is belt and braces over the adapter fix in lib/storage.ts, kept
+      // because the two failures look identical from here and the cost of being
+      // wrong is the whole flow silently freezing.
+      stockUrl = null;
+    }
   }
 
   return {

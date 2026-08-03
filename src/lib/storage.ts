@@ -93,7 +93,13 @@ class LocalStorageAdapter implements StorageAdapter {
 // the token is present, so the dev/test bundle never needs @vercel/blob.
 // ---------------------------------------------------------------------------
 
-class VercelBlobAdapter implements StorageAdapter {
+/**
+ * Exported for its contract test only. `getStorage` picks it by environment, so
+ * a test that cannot construct it directly can only reach it by pretending to be
+ * production, and the one behaviour worth pinning here (a missing key is null,
+ * not a throw) is exactly the one that has never been reachable in development.
+ */
+export class VercelBlobAdapter implements StorageAdapter {
   async put(key: string, bytes: Uint8Array, contentType: string): Promise<void> {
     const specifier = "@vercel/blob";
     const blob = await import(/* @vite-ignore */ specifier);
@@ -114,7 +120,25 @@ class VercelBlobAdapter implements StorageAdapter {
   async getBytes(key: string): Promise<Uint8Array | null> {
     const specifier = "@vercel/blob";
     const blob = await import(/* @vite-ignore */ specifier);
-    const { url } = await blob.head(key);
+
+    let url: string;
+    try {
+      ({ url } = await blob.head(key));
+    } catch (error) {
+      // head() THROWS on a missing key rather than returning null, so without
+      // this the adapter breaks its own signature and every caller that treats
+      // null as an ordinary answer gets a rejected promise instead. That has now
+      // cost us the same bug three times, most recently the live preview
+      // freezing the moment a breed was chosen: the breed's stock illustration
+      // has not been drawn yet, head() threw, and the plate stopped rendering.
+      //
+      // Only not-found is an answer. Anything else (a bad token, a network
+      // failure) is a real fault and must keep travelling, or a
+      // misconfigured store would look exactly like an empty one.
+      if (error instanceof blob.BlobNotFoundError) return null;
+      throw error;
+    }
+
     const res = await fetch(url);
     if (!res.ok) return null;
     return new Uint8Array(await res.arrayBuffer());
