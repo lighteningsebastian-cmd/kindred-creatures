@@ -65,7 +65,47 @@ export interface Breed {
    * customer's photograph alone.
    */
   oneOfOne?: boolean;
+  /**
+   * Extra search terms that should surface this entry. Never displayed.
+   *
+   * These exist so that a customer typing what they actually call their dog
+   * finds something. Someone with a rescue types "pavement special" or "brak"
+   * or "street dog", not a breed name, and being told there are no results is
+   * the worst possible answer for the largest group of dog owners in the
+   * country. The aliases carry them to One of One, which is the entry written
+   * for exactly them.
+   */
+  aliases?: string[];
 }
+
+/**
+ * What South Africans actually call a dog of no recorded breed. "Pavement
+ * special" is the common local euphemism, "brak" the Afrikaans. All of these
+ * route to One of One, which is what gets printed. The words below never appear
+ * anywhere in the interface.
+ */
+const ONE_OF_ONE_ALIASES = [
+  "pavement special",
+  "pavement",
+  "brak",
+  "street dog",
+  "streetdog",
+  "stray",
+  "mutt",
+  "mongrel",
+  "mixed",
+  "mixed breed",
+  "crossbreed",
+  "cross breed",
+  "cross",
+  "unknown",
+  "not sure",
+  "no idea",
+  "rescue",
+  "spca",
+  "one of one",
+  "one of a kind",
+];
 
 /** Storage key of the hand-reviewed side-profile reference for a breed. */
 export function referenceKey(breed: Breed): string | null {
@@ -118,9 +158,9 @@ const DOGS: Breed[] = [
   { id: "shih-tzu", name: "Shih Tzu", species: "dog", origin: "Tibet", group: "Toy" },
 
   // One of One. Three sizes so a rescue owner still gets a real preview.
-  { id: "one-of-one-dog-small", name: "One of One · Small", species: "dog", origin: "Unrecorded", group: "One of One", oneOfOne: true },
-  { id: "one-of-one-dog-medium", name: "One of One · Medium", species: "dog", origin: "Unrecorded", group: "One of One", oneOfOne: true },
-  { id: "one-of-one-dog-large", name: "One of One · Large", species: "dog", origin: "Unrecorded", group: "One of One", oneOfOne: true },
+  { id: "one-of-one-dog-small", name: "One of One · Small", species: "dog", origin: "Unrecorded", group: "One of One", oneOfOne: true, aliases: ONE_OF_ONE_ALIASES },
+  { id: "one-of-one-dog-medium", name: "One of One · Medium", species: "dog", origin: "Unrecorded", group: "One of One", oneOfOne: true, aliases: ONE_OF_ONE_ALIASES },
+  { id: "one-of-one-dog-large", name: "One of One · Large", species: "dog", origin: "Unrecorded", group: "One of One", oneOfOne: true, aliases: ONE_OF_ONE_ALIASES },
 ];
 
 // ---------------------------------------------------------------------------
@@ -140,7 +180,7 @@ const CATS: Breed[] = [
   { id: "sphynx", name: "Sphynx", species: "cat", origin: "Toronto, Canada", group: "Hairless" },
   { id: "abyssinian", name: "Abyssinian", species: "cat", origin: "Ethiopia", group: "Shorthair" },
 
-  { id: "one-of-one-cat", name: "One of One", species: "cat", origin: "Unrecorded", group: "One of One", oneOfOne: true },
+  { id: "one-of-one-cat", name: "One of One", species: "cat", origin: "Unrecorded", group: "One of One", oneOfOne: true, aliases: ONE_OF_ONE_ALIASES },
 ];
 
 // ---------------------------------------------------------------------------
@@ -210,12 +250,20 @@ function fold(s: string): string {
  * must outrank a name that merely contains it, and a match on any word start
  * ("collie" finding "Border Collie") must outrank a match mid-word.
  */
-function matchRank(name: string, needle: string): number | null {
-  const n = fold(name);
+function matchRank(breed: Breed, needle: string): number | null {
+  const n = fold(breed.name);
   if (n === needle) return 0; // exact
   if (n.startsWith(needle)) return 1; // "lab" -> Labrador Retriever
   if (n.split(/[\s-]+/).some((w) => w.startsWith(needle))) return 2; // "collie" -> Border Collie
   if (n.includes(needle)) return 3; // last resort, mid-word
+
+  // Aliases rank below every real name match, so typing "cross" still finds
+  // any breed actually called that before falling through to One of One.
+  for (const alias of breed.aliases ?? []) {
+    const a = fold(alias);
+    if (a === needle) return 4;
+    if (a.startsWith(needle) && needle.length >= 3) return 5;
+  }
   return null;
 }
 
@@ -243,7 +291,7 @@ export function searchBreeds(species: Species, query: string): Breed[] {
   if (needle === "") return popularBreeds(species);
 
   return breedsForSpecies(species)
-    .map((breed, index) => ({ breed, rank: matchRank(breed.name, needle), index }))
+    .map((breed, index) => ({ breed, rank: matchRank(breed, needle), index }))
     .filter((r): r is { breed: Breed; rank: number; index: number } => r.rank !== null)
     .sort((a, b) => a.rank - b.rank || a.index - b.index)
     .map((r) => r.breed);
