@@ -119,6 +119,7 @@ export class OpenAIImageProvider implements ImageProvider {
     uploadKey: string,
     side: PortraitSide,
     reasons: RevisionReason[],
+    referenceKey: string | null,
   ): Promise<Uint8Array> {
     const source = await getStorage().getBytes(uploadKey);
     if (!source) throw new Error(`Upload ${uploadKey} not found`);
@@ -126,10 +127,36 @@ export class OpenAIImageProvider implements ImageProvider {
     const client = (await this.client()) as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { toFile } = (await this.sdk()) as any;
-    const image = await toFile(source, "upload.png", { type: "image/png" });
+    const photograph = await toFile(source, "upload.png", {
+      type: "image/png",
+    });
+
+    // The breed's hand-reviewed side profile, when we have one. Missing bytes
+    // are NOT a failure: artwork-drawing.ts already treats an undrawn
+    // illustration as ordinary, and a paid order must never fail because the
+    // library has not reached that breed yet. Getting here with a key whose
+    // bytes are gone means storage disagreed with itself, so say so and carry
+    // on with the photograph alone.
+    const referenceBytes = referenceKey
+      ? await getStorage().getBytes(referenceKey)
+      : null;
+    if (referenceKey && !referenceBytes) {
+      console.warn(
+        `[openai] reference ${referenceKey} is not in storage. Drawing from the photograph alone.`,
+      );
+    }
+    const reference = referenceBytes
+      ? await toFile(referenceBytes, "reference.png", { type: "image/png" })
+      : null;
+
     const result = await client.images.edit({
       model: "gpt-image-1",
-      image,
+      // gpt-image-1 takes up to 16 images. THE PHOTOGRAPH IS ALWAYS FIRST: it
+      // is the animal, and the likeness is the product. The reference is only
+      // ever the second input, and only the back asks for one, because a side
+      // profile has to be inferred from a face-on photograph and the reference
+      // is what keeps that inference breed-accurate.
+      image: reference ? [photograph, reference] : photograph,
       prompt: buildPortraitPrompt(side, reasons),
       size: CANONICAL_SIZE,
       // A portrait printed on a Stone hoodie must be an animal, not a white
@@ -148,13 +175,15 @@ export class OpenAIImageProvider implements ImageProvider {
     uploadKey,
     side,
     reasons = [],
+    referenceKey = null,
   }: {
     uploadKey: string;
     side: PortraitSide;
     reasons?: RevisionReason[];
+    referenceKey?: string | null;
   }): Promise<{ portraitBytes: Uint8Array; promptVersion: string }> {
     return {
-      portraitBytes: await this.render(uploadKey, side, reasons),
+      portraitBytes: await this.render(uploadKey, side, reasons, referenceKey),
       promptVersion: PROMPT_VERSION,
     };
   }
