@@ -133,14 +133,26 @@ sides genuinely need different pictures:
 Both the medium and the composition are keyed by side:
 
 ```ts
-const prompt = [SUBJECT, STYLE_CLAUSE[side], COMPOSITION[side], CONSTRAINTS].join(" ");
+const prompt = [
+  SUBJECT,
+  // Only when a second image is really attached. Section 6a, 4 August.
+  ...(hasReference ? [REFERENCE] : []),
+  STYLE_CLAUSE[side],
+  COMPOSITION[side],
+  CONSTRAINTS,
+].join(" ");
 ```
+
+`REFERENCE` is the only conditional clause. Every other clause is sent on every call.
 
 **The back is the one that needs watching.** It is drawn from a face-on photograph, so the
 profile has to be inferred, which is why the back is the side that receives the breed's
 hand-reviewed side-profile reference as a second input. Ask for the profile plainly and
 more than once: a model handed a face-on photo drifts back to face-on given any room, and
 a three-quarter view inside an archival plate reads as a mistake rather than a portrait.
+
+**Two images means the prompt must say which is which.** Naming them is what keeps the
+reference from lending its own coat to the portrait. See section 6a.
 
 **Before 3 August both sides were asked for the same face-on colour portrait**, differing
 only in whether the reference was attached. The back was never the profile this document
@@ -195,8 +207,78 @@ margin and is not cropped at the edges.
 
 The section 1 fix. Approve a preview, run fulfilment, compare. They must match.
 
+### Test E · reference bleed · the one that guards the new clause
+
+**Only for the back, and only for a breed whose reference illustration is stored.**
+
+Pick a dog with a marking the reference cannot have: a patch over one eye, a white blaze,
+odd socks, heterochromia. Generate the back three times.
+
+Pass: the marking is on every one of the three, and the coat is the animal's own.
+Fail: the marking is missing, faint, or has migrated. That means the reference is
+dominating, and `REFERENCE` in `prompts.ts` is claiming more than it should.
+
+Run this **whenever `REFERENCE` is edited.** It is the only test that can catch the
+failure that clause exists to prevent, and it cannot be run offline.
+
 Record what you learn in this file. Prompt work is empirical and undocumented findings get
 rediscovered expensively.
+
+---
+
+## 6a. Findings
+
+### 4 August 2026 · two images and nothing saying which was which
+
+**Found by reading, not by generating. Not yet validated against a photograph.**
+
+Since the back portrait started sending the breed's side-profile reference as a second
+image, the prompt has never said which attached image is which. `SUBJECT` says "A portrait
+of THIS SPECIFIC animal from the photograph" — with two images attached, the model had to
+guess which one that noun meant.
+
+The guess is not random. The reference illustration is *already in the pose we asked for*,
+so it is the more obliging answer, and the predicted failure is the reference's coat
+colour, markings and proportions bleeding into the portrait. That is the "handsome,
+generic example of the breed" this document's section 3 identifies as the single biggest
+cause of a portrait that is lovely and not theirs.
+
+**Fixed by a new conditional clause,** `REFERENCE` in `prompts.ts`, sitting directly after
+`SUBJECT`. `PROMPT_VERSION` is now `2026-08-04.1`, so any back portrait drawn before that
+version was drawn without the disambiguation and cannot be compared against one drawn
+after it.
+
+The clause only reaches the model when a reference was really attached. One of One entries
+and every breed the library has not reached yet are drawn from the photograph alone, and a
+sentence about a SECOND image that is not there is a worse instruction than silence. The
+condition is derived from the reference **bytes**, not from the reference key: a key whose
+bytes are missing falls back to one image, and the wording falls back with it.
+
+**The decision inside the clause: only the head angle and pose come from the reference.**
+Not the skull, not the muzzle, not the ear set. `SUBJECT` has already claimed ear shape and
+facial structure for the photograph, and a prompt that claims the same thing twice does not
+split the difference — it lets the model choose, and choose differently on every run.
+
+This resolves a contradiction the specs had been carrying: `spec-companion-profile.md`
+justifies the reference library as existing "so the model is not inventing skull shape and
+ear set from nothing" (section 5), while the prompt in its own section 6 takes "only the
+head angle and pose". The narrow reading wins. The cost is real and accepted: on a very
+flat or very long face, the profile is inferred from a face-on photograph and may come back
+approximate. A slightly generic profile is a portrait nobody remarks on. The customer's own
+dog with the wrong coat is a refund on a garment already printed and posted.
+
+**What is still unknown, and needs a live key with a spend cap:**
+
+- Whether `gpt-image-1` honours ordinal references ("the FIRST image") at all. If it does
+  not, this clause is decoration and the fix is a different shape — likely weighting the
+  photograph by repetition rather than by naming.
+- Whether the bleed was actually occurring, and how badly. It is predicted from how the
+  model is being asked, not observed.
+- Whether the narrow reading leaves flat-faced breeds (pug, bulldog, Persian) too
+  approximate to sell. If it does, widen `REFERENCE` deliberately and re-run Test E, rather
+  than widening it because a single profile looked wrong.
+
+Test E is the protocol for all three.
 
 ---
 

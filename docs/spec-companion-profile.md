@@ -176,7 +176,15 @@ That is what makes it feel expert.
 ### The reference image library
 
 One clean side-profile reference per breed, used as the second input to the back
-generation so the model is not inventing skull shape and ear set from nothing.
+generation so the model is not inventing the side view from nothing.
+
+> **Narrowed 4 August 2026.** This paragraph used to say "so the model is not inventing
+> skull shape and ear set from nothing", which contradicted the prompt in section 6 below
+> ("only the head angle and pose from the SECOND image"). The narrow reading won: the
+> reference supplies the *angle*, and every physical trait still comes from the
+> photograph, because `SUBJECT` has already claimed ear shape and facial structure and a
+> prompt cannot claim the same thing twice without letting the model choose. Reasoning in
+> `docs/spec-portrait-prompting.md` section 6a.
 
 - **Generate them yourself and review every one by hand.** Do not use stock photography:
   the rights are unclear and it would mean feeding someone else's image into a commercial

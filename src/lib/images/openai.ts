@@ -3,6 +3,7 @@ import {
   COMPOSITION,
   CONSTRAINTS,
   PROMPT_VERSION,
+  REFERENCE,
   STYLE_CLAUSE,
   SUBJECT,
   type PortraitSide,
@@ -39,10 +40,13 @@ function toDataUrl(bytes: Uint8Array, contentType: string): string {
 /**
  * Glues the clauses in prompts.ts into the one instruction the model is given.
  *
- * The order is the point: who to draw, how to draw it, where it sits, and what
- * must not appear. Three of the four clauses are identical for every portrait
- * we make, which is what stops the range drifting into three unrelated
- * pictures.
+ * The order is the point: who to draw, which picture is which, how to draw it,
+ * where it sits, and what must not appear. SUBJECT and CONSTRAINTS are the same
+ * on every portrait we make, which is what stops the range drifting into a set
+ * of unrelated pictures.
+ *
+ * REFERENCE is the one clause that is not always sent. It describes a SECOND
+ * attached image, so it may only appear on calls that actually attach one.
  */
 export function buildPortraitPrompt(
   side: PortraitSide,
@@ -53,9 +57,22 @@ export function buildPortraitPrompt(
    * all: it goes to a person. docs/spec-pipeline.md section 6.
    */
   reasons: RevisionReason[] = [],
+  /**
+   * Whether a second image is actually being attached to this call. Must be
+   * derived from the bytes that were really sent, never from the presence of a
+   * reference KEY: a key whose bytes are missing falls back to the photograph
+   * alone, and the prompt has to fall back with it.
+   */
+  hasReference = false,
 ): string {
   return [
     SUBJECT,
+    // Only when there really is a second image. Said unconditionally this
+    // describes a picture the model was not given, which is a worse instruction
+    // than silence. It sits here, directly after SUBJECT, because SUBJECT says
+    // "from the photograph" and with two images attached that is ambiguous
+    // until this resolves it.
+    ...(hasReference ? [REFERENCE] : []),
     STYLE_CLAUSE[side],
     ...adjustmentsFor(reasons),
     // SEAM, deliberately empty (docs/spec-portrait-prompting.md section 5).
@@ -157,7 +174,10 @@ export class OpenAIImageProvider implements ImageProvider {
       // profile has to be inferred from a face-on photograph and the reference
       // is what keeps that inference breed-accurate.
       image: reference ? [photograph, reference] : photograph,
-      prompt: buildPortraitPrompt(side, reasons),
+      // The SAME `reference` decides both lines. The prompt only names a SECOND
+      // image on the calls that actually attach one, so the fallback above
+      // cannot leave the model hunting for a picture it was never given.
+      prompt: buildPortraitPrompt(side, reasons, reference !== null),
       size: CANONICAL_SIZE,
       // A portrait printed on a Stone hoodie must be an animal, not a white
       // rectangle with an animal in it. Transparency requires a PNG or WebP

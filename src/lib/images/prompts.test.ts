@@ -4,6 +4,7 @@ import {
   COMPOSITION,
   CONSTRAINTS,
   PROMPT_VERSION,
+  REFERENCE,
   STYLE_CLAUSE,
   SUBJECT,
   type PortraitSide,
@@ -52,6 +53,34 @@ describe("prompt clauses", () => {
     expect(SUBJECT).toMatch(/THIS SPECIFIC animal/);
     expect(SUBJECT).toMatch(/markings/i);
     expect(SUBJECT).toMatch(/likeness/i);
+  });
+
+  it("tells the model which attached image is the animal and which is the breed", () => {
+    // With two images attached and nothing saying which is which, the model
+    // guesses, and the reference illustration's coat bleeds into the portrait.
+    // That is the "handsome, generic example of the breed" that SUBJECT exists
+    // to prevent, so the ordinals carry the whole clause.
+    expect(REFERENCE).toMatch(/FIRST/);
+    expect(REFERENCE).toMatch(/SECOND/);
+  });
+
+  it("takes the likeness from the photograph and only the pose from the reference", () => {
+    // The load-bearing restriction. The reference may contribute the angle a
+    // face-on photograph cannot show and NOTHING else; every physical trait
+    // stays with the photograph. Widening this is what lets the reference
+    // animal through. Owner decision, 4 August, and the spec's own wording:
+    // docs/spec-companion-profile.md section 6.
+    const [fromPhoto, fromReference] = REFERENCE.split("SECOND image");
+    expect(fromPhoto).toMatch(/colour/i);
+    expect(fromPhoto).toMatch(/markings/i);
+
+    expect(fromReference).toMatch(/ONLY/);
+    expect(fromReference).toMatch(/angle/i);
+    // Not skull, not muzzle, not ear set: SUBJECT claims those for the
+    // photograph, and a prompt that claims them twice lets the model pick.
+    expect(fromReference).not.toMatch(
+      /\b(skull|muzzle|ears?|markings?|colour|coat)\b/i,
+    );
   });
 
   it("forbids the things that get printed onto a garment by accident", () => {
@@ -115,6 +144,42 @@ describe("buildPortraitPrompt", () => {
       expect(prompt).toContain(CONSTRAINTS);
     }
     expect(new Set(prompts).size).toBe(SIDES.length);
+  });
+
+  it("says nothing about a second image when no reference is attached", () => {
+    // The clause describes the images the model was actually handed. Said
+    // unconditionally it would point at a SECOND image that is not there, which
+    // is a worse instruction than saying nothing at all. One of One entries and
+    // every breed the library has not reached yet take this path.
+    for (const side of SIDES) {
+      expect(buildPortraitPrompt(side)).not.toContain(REFERENCE);
+      expect(buildPortraitPrompt(side, [], false)).not.toContain(REFERENCE);
+      expect(buildPortraitPrompt(side, [], false)).not.toMatch(/SECOND/);
+    }
+  });
+
+  it("names the images immediately after the subject, before anything else", () => {
+    // SUBJECT still opens the prompt (owner decision, 4 August). It says "from
+    // the photograph", and with two images attached that noun is ambiguous
+    // until this clause resolves it, so the clause follows it directly rather
+    // than arriving after the style and pose have already been described.
+    const prompt = buildPortraitPrompt("back", [], true);
+
+    expect(prompt).toContain(REFERENCE);
+    expect(prompt.indexOf(SUBJECT)).toBeLessThan(prompt.indexOf(REFERENCE));
+    expect(prompt.indexOf(REFERENCE)).toBeLessThan(
+      prompt.indexOf(STYLE_CLAUSE.back),
+    );
+  });
+
+  it("keeps the subject and the constraints whether or not a reference is attached", () => {
+    // The reference clause supplements the likeness clause. It never replaces
+    // it: whichever images arrive, the animal is still the one in the photo and
+    // the picture still may not carry a frame or a solid background.
+    const withReference = buildPortraitPrompt("back", [], true);
+    expect(withReference).toContain(SUBJECT);
+    expect(withReference).toContain(CONSTRAINTS);
+    expect(withReference).toContain(COMPOSITION.back);
   });
 
   it("never asks for a frame, which the model would draw and we would print", () => {

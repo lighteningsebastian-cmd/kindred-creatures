@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { getStorage } from "@/lib/storage";
 import { OpenAIImageProvider } from "./openai";
+import { REFERENCE } from "./prompts";
 
 /**
  * The real provider, exercised offline by replacing the OpenAI SDK at its one
@@ -45,6 +46,17 @@ function stubSdk(provider: OpenAIImageProvider): EditSpy {
 /** The `image` field exactly as it was handed to the API. */
 function imageField(edit: EditSpy): SentFile | SentFile[] {
   return edit.mock.calls[0]![0].image;
+}
+
+/** The `prompt` field exactly as it was handed to the API. */
+function promptField(edit: EditSpy): string {
+  return edit.mock.calls[0]![0].prompt;
+}
+
+/** How many images that call actually attached. */
+function imageCount(edit: EditSpy): number {
+  const sent = imageField(edit);
+  return Array.isArray(sent) ? sent.length : 1;
 }
 
 function text(file: SentFile): string {
@@ -133,5 +145,64 @@ describe("the breed reference as a second image", () => {
     await provider.generatePortrait({ uploadKey, side: "front" });
 
     expect(Array.isArray(imageField(edit))).toBe(false);
+  });
+});
+
+/**
+ * The words and the attachments have to agree.
+ *
+ * Two images with nothing saying which is which is a guess, and the guess costs
+ * us the likeness. One image plus a clause about a SECOND one is worse still:
+ * it describes something that is not there. Both halves of that live here
+ * because the images and the prompt are chosen in the same three lines of
+ * render(), and nowhere else can see both.
+ */
+describe("the prompt agrees with the images actually attached", () => {
+  it("names which image is which when the reference is attached", async () => {
+    const uploadKey = await store("uploads", "the customer photograph");
+    const referenceKey = await store("references", "the breed side profile");
+    const provider = new OpenAIImageProvider();
+    const edit = stubSdk(provider);
+
+    await provider.generatePortrait({ uploadKey, side: "back", referenceKey });
+
+    expect(imageCount(edit)).toBe(2);
+    expect(promptField(edit)).toContain(REFERENCE);
+  });
+
+  it("says nothing about a second image when only the photograph is attached", async () => {
+    const uploadKey = await store("uploads", "the customer photograph");
+    const provider = new OpenAIImageProvider();
+    const edit = stubSdk(provider);
+
+    await provider.generatePortrait({
+      uploadKey,
+      side: "back",
+      referenceKey: null,
+    });
+
+    expect(imageCount(edit)).toBe(1);
+    expect(promptField(edit)).not.toContain(REFERENCE);
+    expect(promptField(edit)).not.toMatch(/SECOND/);
+  });
+
+  it("drops the clause too when the reference falls back to the photograph alone", async () => {
+    // The trap this pins. The fallback is decided by the BYTES, not by the key,
+    // so a prompt keyed off referenceKey would still describe a SECOND image on
+    // exactly the path where none was attached.
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const uploadKey = await store("uploads", "the customer photograph");
+    const provider = new OpenAIImageProvider();
+    const edit = stubSdk(provider);
+
+    await provider.generatePortrait({
+      uploadKey,
+      side: "back",
+      referenceKey: `references/never-stored-${Date.now()}.png`,
+    });
+
+    expect(imageCount(edit)).toBe(1);
+    expect(promptField(edit)).not.toContain(REFERENCE);
+    expect(promptField(edit)).not.toMatch(/SECOND/);
   });
 });
