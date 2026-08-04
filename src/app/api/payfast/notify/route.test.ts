@@ -132,7 +132,11 @@ function itn(
     merchant_id: MERCHANT_ID,
     ...overrides,
   };
-  return { ...fields, signature: buildSignature(fields, passphrase) };
+  // keepEmpty: this helper is PayFast, and PayFast signs empty fields as key=.
+  return {
+    ...fields,
+    signature: buildSignature(fields, passphrase, { keepEmpty: true }),
+  };
 }
 
 function post(fields: Record<string, string>): Request {

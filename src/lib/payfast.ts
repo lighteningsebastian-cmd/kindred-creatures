@@ -61,6 +61,18 @@ function urlEncode(value: string): string {
     );
 }
 
+/** How `buildSignature` treats a field whose value is empty. */
+export interface SignatureOptions {
+  /**
+   * Sign an empty value as `key=` instead of dropping the field.
+   *
+   * False for a payment request, true for an ITN. This is not a preference; the
+   * two directions genuinely differ and there is no single rule that satisfies
+   * both. See buildSignature rule 3 for the whole story.
+   */
+  keepEmpty?: boolean;
+}
+
 /**
  * Builds the MD5 signature PayFast expects.
  *
@@ -73,8 +85,19 @@ function urlEncode(value: string): string {
  *    string keys in insertion order, so the order `fields` is built in IS the
  *    order it is signed in. `buildPaymentFields` is where that order is set.
  * 2. TRIM. Values are trimmed of surrounding whitespace.
- * 3. SKIP EMPTIES. A field whose value is empty after trimming is left out of
- *    the base string entirely, rather than signed as "key=".
+ * 3. EMPTIES, AND THIS DEPENDS ON THE DIRECTION. Outbound (a payment request,
+ *    `keepEmpty` false, the default) a field that is empty after trimming is
+ *    left out of the base string entirely rather than signed as "key=".
+ *    Inbound (an ITN, `keepEmpty` true) it is signed as "key=", because that is
+ *    what PayFast itself signed before posting it to us.
+ *
+ *    The asymmetry is real and it is theirs, not ours. It was found the only
+ *    way it can be: a sandbox ITN carrying empty fields verified against a base
+ *    string that kept them and did not verify against one that dropped them.
+ *    Do not "simplify" the two paths back together. A real ITN nearly always
+ *    carries at least one empty field (unused custom_str1..5, an absent
+ *    name_last), so dropping them there rejects ordinary, genuine payments and
+ *    the only symptom is a signature mismatch on money that actually cleared.
  * 4. ENCODE. Values are urlEncode()d as above. Keys are not encoded: they are
  *    all plain ASCII field names.
  * 5. JOIN as `key=value` pairs separated by `&`.
@@ -86,12 +109,13 @@ function urlEncode(value: string): string {
 export function buildSignature(
   fields: Record<string, string>,
   passphrase?: string,
+  options: SignatureOptions = {},
 ): string {
   const pairs: string[] = [];
 
   for (const [key, rawValue] of Object.entries(fields)) {
     const value = (rawValue ?? "").trim();
-    if (value === "") continue;
+    if (value === "" && !options.keepEmpty) continue;
     pairs.push(`${key}=${urlEncode(value)}`);
   }
 
@@ -107,8 +131,12 @@ export function buildSignature(
 
 /**
  * Checks the signature on an ITN payload. PayFast signs the posted fields in
- * the order they were received, excluding `signature` itself, under the same
- * rules as the outbound signature.
+ * the order they were received, excluding `signature` itself.
+ *
+ * `keepEmpty` is the one rule that differs from the outbound signature, and it
+ * is not optional here: PayFast posts its unused fields as `key=` and signs
+ * them that way, so an ITN with an empty custom_str1 or no name_last only
+ * verifies against a base string that kept them. See buildSignature rule 3.
  *
  * Callers must preserve the posted order when building `fields` (iterate the
  * body, do not sort it), because the order is part of what is signed.
@@ -125,7 +153,7 @@ export function verifyItnSignature(
   const { signature, ...signed } = fields;
   if (typeof signature !== "string" || signature.trim() === "") return false;
 
-  const expected = buildSignature(signed, passphrase);
+  const expected = buildSignature(signed, passphrase, { keepEmpty: true });
   const given = signature.trim().toLowerCase();
 
   // Both are fixed-length MD5 hex, but a hostile payload can send any length.

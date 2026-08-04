@@ -141,14 +141,36 @@ describe("buildSignature", () => {
     expect(buildSignature(inFormOrder)).not.toBe(buildSignature(alphabetical));
   });
 
-  it("omits empty-value fields from the base string", () => {
-    // "name_last=" must never appear: the field is dropped, not signed blank.
+  it("omits empty-value fields from an outbound payment request", () => {
+    // "name_last=" must never appear HERE: on the way out the field is dropped,
+    // not signed blank. Inbound is the opposite; see keepEmpty below.
     expect(buildSignature({ a: "1", b: "", c: "2" })).toBe(
       buildSignature({ a: "1", c: "2" }),
     );
     expect(buildSignature({ a: "1", b: "   ", c: "2" })).toBe(
       buildSignature({ a: "1", c: "2" }),
     );
+  });
+
+  it("keeps empty-value fields as key= when keepEmpty is set", () => {
+    // Base string, written out so a drift in this rule says what it used to be:
+    //   a=1&b=&c=2
+    // and the MD5 below was taken of exactly that, by hand, not by this module.
+    expect(buildSignature({ a: "1", b: "", c: "2" }, undefined, {
+      keepEmpty: true,
+    })).toBe("2399ec37f46b3e89ca81af480e5d36f4");
+
+    // The whole point: the two rules must not agree, or the flag does nothing.
+    expect(
+      buildSignature({ a: "1", b: "", c: "2" }, undefined, { keepEmpty: true }),
+    ).not.toBe(buildSignature({ a: "1", b: "", c: "2" }));
+  });
+
+  it("still drops a field that is absent, even with keepEmpty", () => {
+    // keepEmpty is about a field PayFast sent empty, not about inventing one.
+    expect(
+      buildSignature({ a: "1", c: "2" }, undefined, { keepEmpty: true }),
+    ).toBe(buildSignature({ a: "1", c: "2" }));
   });
 
   it("trims surrounding whitespace before signing", () => {
@@ -258,7 +280,13 @@ describe("verifyItnSignature", () => {
       merchant_id: CONFIG.merchantId,
       ...overrides,
     };
-    return { ...posted, signature: buildSignature(posted, PASSPHRASE) };
+    // keepEmpty because this helper is standing in for PayFast, and PayFast
+    // signs its empty fields as key=. Without it an override like
+    // { name_last: "" } would build a payload no real gateway would send.
+    return {
+      ...posted,
+      signature: buildSignature(posted, PASSPHRASE, { keepEmpty: true }),
+    };
   }
 
   it("accepts a correctly signed payload", () => {
@@ -269,6 +297,79 @@ describe("verifyItnSignature", () => {
     const posted = { m_payment_id: ORDER.orderId, amount_gross: "899.00" };
     const signed = { ...posted, signature: buildSignature(posted) };
     expect(verifyItnSignature(signed)).toBe(true);
+  });
+
+  /**
+   * THE REGRESSION, AND THE ONLY FIXTURE IN THIS FILE THAT IS NOT OURS.
+   *
+   * This is a real ITN, verbatim, as PayFast posted it to the sandbox: the body
+   * bytes and the signature they put on the end of it. Every other vector here
+   * pins our encoding against a base string we wrote out by hand. This one pins
+   * us against PayFast, which is a different and stronger claim, and it is the
+   * only kind of evidence that could have settled the bug it was caught by.
+   *
+   * The bug: an ITN carries empty fields (item_description, the ten unused
+   * custom_str/custom_int slots) and PayFast signs them as `key=`. We dropped
+   * them, which is the correct rule for an outbound payment request and the
+   * wrong one here. Dropping them on this payload gives
+   * 71efdb6fc744d1c45e8daaf57efb0082 and PayFast says b0c3af35..., so every
+   * genuine ITN failed the signature guard and the money behind it was never
+   * recorded.
+   *
+   * Note there is no passphrase: this merchant account has none set, so PayFast
+   * signed the base string with nothing appended, and verifying it with a
+   * passphrase we invented would fail just as surely as dropping the empties
+   * did. Nothing secret is committed here.
+   *
+   * DO NOT EDIT THE BODY. Not the field order, not the values, not the
+   * encoding. Change one byte and the signature stops being PayFast's word and
+   * starts being ours, which is exactly the thing this fixture exists to avoid.
+   */
+  const SANDBOX_ITN_BODY =
+    "m_payment_id=42940a12-6139-4010-9f9a-bb37b141f1ba" +
+    "&pf_payment_id=3306972" +
+    "&payment_status=COMPLETE" +
+    "&item_name=Kindred+Creatures+order" +
+    "&item_description=" +
+    "&amount_gross=1998.00" +
+    "&amount_fee=-45.95" +
+    "&amount_net=1952.05" +
+    "&custom_str1=&custom_str2=&custom_str3=&custom_str4=&custom_str5=" +
+    "&custom_int1=&custom_int2=&custom_int3=&custom_int4=&custom_int5=" +
+    "&name_first=Sebastian" +
+    "&name_last=Lightening" +
+    "&email_address=lightening.sebastian%2B55%40gmail.com" +
+    "&merchant_id=10052598" +
+    "&signature=b0c3af35b59f2c0f5594844ddc94e136";
+
+  /** What the webhook's parseFields() does: posted order in, no sorting. */
+  function fieldsFromBody(body: string): Record<string, string> {
+    const fields: Record<string, string> = {};
+    for (const [key, value] of new URLSearchParams(body)) fields[key] = value;
+    return fields;
+  }
+
+  it("accepts a real PayFast ITN carrying eleven empty fields", () => {
+    expect(verifyItnSignature(fieldsFromBody(SANDBOX_ITN_BODY))).toBe(true);
+  });
+
+  it("rejects that same ITN signed the outbound way, with empties dropped", () => {
+    // 71efdb6f... is what we used to compute for this exact payload. If this
+    // ever passes, the inbound path has gone back to the payment-request rule
+    // and real payments are being refused again.
+    const fields = fieldsFromBody(SANDBOX_ITN_BODY);
+    fields.signature = "71efdb6fc744d1c45e8daaf57efb0082";
+    expect(verifyItnSignature(fields)).toBe(false);
+  });
+
+  it("survives the round trip through urlencoding", () => {
+    // The + in the email address is the trap: the body carries it as %2B, and
+    // a decoder that turned it into a space (or an encoder that sent it back
+    // as a bare +) would change the base string and break the signature. That
+    // this payload verifies at all is the proof both halves are right.
+    expect(fieldsFromBody(SANDBOX_ITN_BODY).email_address).toBe(
+      "lightening.sebastian+55@gmail.com",
+    );
   });
 
   it("rejects a tampered amount", () => {

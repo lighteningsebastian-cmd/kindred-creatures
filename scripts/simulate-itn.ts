@@ -122,7 +122,14 @@ function itnFields(
     merchant_id: merchantId,
   };
 
-  return { ...fields, signature: buildSignature(fields, passphrase) };
+  // keepEmpty, because this script is pretending to be PayFast and PayFast
+  // signs its empty fields as key=. Sign them the outbound way and this
+  // simulator would be testing the webhook against a payload the real gateway
+  // never sends, which is worse than not testing it.
+  return {
+    ...fields,
+    signature: buildSignature(fields, passphrase, { keepEmpty: true }),
+  };
 }
 
 async function main() {

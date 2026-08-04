@@ -148,7 +148,11 @@ function itn(orderId: string): Record<string, string> {
     email_address: "thandi@example.co.za",
     merchant_id: MERCHANT_ID,
   };
-  return { ...fields, signature: buildSignature(fields, PASSPHRASE) };
+  // keepEmpty: this helper is PayFast, and PayFast signs empty fields as key=.
+  return {
+    ...fields,
+    signature: buildSignature(fields, PASSPHRASE, { keepEmpty: true }),
+  };
 }
 
 function post(fields: Record<string, string>): Request {
