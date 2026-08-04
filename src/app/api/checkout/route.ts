@@ -207,18 +207,23 @@ export async function POST(request: Request) {
     // asking for one here would refuse every order in the shop.
     //
     // What must be true instead is that we can DRAW it the moment the money
-    // lands: a photograph, a chosen style, and a profile complete enough to set
-    // a plate. Anything missing here is an order that could be paid for and then
-    // stall, which is the same failure as before by a different route.
+    // lands: a photograph, and a profile complete enough to set a plate.
+    // Anything missing here is an order that could be paid for and then stall,
+    // which is the same failure as before by a different route.
     if (artwork.status === "rejected" || !artwork.uploadKey) {
       return bad(
         "We need a photo of them before you can order. Please upload one.",
         422,
       );
     }
-    if (!artwork.style) {
-      return bad("Please choose a style for one of these portraits.", 422);
-    }
+    // There WAS a third guard here demanding artwork.style, and it refused every
+    // order in the shop. Nothing has written that column since the style choice
+    // was removed on 3 August (saveArtworkDetails does not set it), so the
+    // question "which style did they choose" is one no customer can answer and
+    // no order can pass. The same guard was already removed from fulfillment.ts
+    // and artwork-drawing.ts for the same reason. The column stays: historic
+    // artwork carries a real value and account/creatures.ts reads it to label a
+    // reorder.
     // Re-checked server side because a browser is not a trust boundary, and
     // these are the words that get printed on a garment.
     if (!isProfileComplete(profileFromArtwork(artwork))) {

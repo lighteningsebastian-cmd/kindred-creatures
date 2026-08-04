@@ -25,12 +25,19 @@ async function uploadArtwork(productSlug = "hoodie"): Promise<string> {
 }
 
 /**
- * An artwork the way it reaches checkout NOW: a photograph, a chosen style and a
- * complete profile, and deliberately no portrait.
+ * An artwork the way it reaches checkout NOW: a photograph and a complete
+ * profile, and deliberately no portrait.
  *
  * Nothing is drawn before payment any more (docs/spec-pipeline.md section 1), so
  * this is what a real cart line looks like. The profile is written directly
  * because the form that collects it is not wired to persistence yet.
+ *
+ * NO STYLE IS SET, and that is the point. This helper used to write
+ * "classic-portrait", which no code path has produced since the style choice was
+ * removed on 3 August: saveArtworkDetails does not write the column, so every
+ * real artwork reaches checkout with style null. The helper was fabricating a
+ * state production cannot reach, which is exactly why the whole of this file
+ * stayed green while checkout refused every order in the shop.
  */
 async function readyArtwork(productSlug = "hoodie"): Promise<string> {
   const artworkId = await uploadArtwork(productSlug);
@@ -38,7 +45,6 @@ async function readyArtwork(productSlug = "hoodie"): Promise<string> {
   await db
     .update(artworks)
     .set({
-      style: "classic-portrait",
       creatureName: "Fenn",
       species: "dog",
       breedId: "one-of-one-dog-large",
@@ -272,13 +278,29 @@ describe("POST /api/checkout", () => {
     }
   });
 
-  it("refuses a line with no style chosen, with 422", async () => {
-    // Uploaded, but nobody picked how to draw it, so the drawing that happens
-    // after payment would have nothing to go on.
+  it("takes an order for an artwork that carries no style", async () => {
+    // Was "refuses a line with no style chosen, with 422". That assertion is
+    // gone rather than weakened, because the behaviour it described is the bug:
+    // there is one house style (owner decision, 3 August), nothing writes
+    // artworks.style any more, and so the old guard refused every real order.
+    // What replaces it is the same setup asserting the opposite, because "an
+    // uploaded photo with a complete profile and no style" is now simply what a
+    // cart line looks like.
     const artworkId = await uploadArtwork();
+    const db = await getDb();
+    await db
+      .update(artworks)
+      .set({
+        creatureName: "Fenn",
+        species: "dog",
+        breedId: "one-of-one-dog-large",
+        temperament: JSON.stringify(["confident", "affectionate", "spirited"]),
+      })
+      .where(eq(artworks.id, artworkId));
+
     const res = await checkout(order([hoodieLine(artworkId)]));
-    expect(res.status).toBe(422);
-    expect((await res.json()).error).toMatch(/choose a style/i);
+
+    expect(res.status).toBe(201);
   });
 
   it("refuses an incomplete profile, before taking any money", async () => {
