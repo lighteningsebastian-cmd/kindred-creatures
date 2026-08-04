@@ -62,8 +62,20 @@ function ok(): Response {
   return new Response("OK", { status: 200 });
 }
 
-/** Malformed or unverifiable. PayFast will retry; a human should look. */
-function unverifiable(): Response {
+/**
+ * Malformed or unverifiable. PayFast will retry; a human should look.
+ *
+ * The reason is logged because every rejection here answers an identical bare
+ * 400, and in production that made a PayFast outage, a stale merchant id and a
+ * forged post the same event: a 400, a retry, and nothing to tell them apart.
+ * The reason names the guard and stops there. Nothing from the payload goes in
+ * it, because a payload that failed these guards is unverified input, and the
+ * body is only worth keeping once we know who sent it (that is what
+ * webhook_events is for, below). The caller still learns nothing: this goes to
+ * our logs, not into the response.
+ */
+function unverifiable(reason: string): Response {
+  console.warn(`[payfast] ITN rejected: ${reason}`);
   return new Response("Bad Request", { status: 400 });
 }
 
@@ -261,36 +273,38 @@ export async function POST(request: Request) {
   try {
     body = await request.text();
   } catch {
-    return unverifiable();
+    return unverifiable("body unreadable");
   }
 
   const fields = parseFields(body);
-  if (!fields) return unverifiable();
+  if (!fields) return unverifiable("body unparseable");
 
   // PayFast's id for the transaction, and our idempotency key. Not m_payment_id:
   // that is our order id, and one order can legitimately see more than one
   // payment attempt.
   const paymentId = (fields.pf_payment_id ?? "").trim();
-  if (paymentId === "") return unverifiable();
+  if (paymentId === "") return unverifiable("no pf_payment_id");
 
   const config = payfastConfig();
 
   // (a) Signature. Proves the payload was signed by someone holding our
   // passphrase, and that not a byte of it has been edited since.
-  if (!verifyItnSignature(fields, config.passphrase)) return unverifiable();
+  if (!verifyItnSignature(fields, config.passphrase)) {
+    return unverifiable("signature mismatch");
+  }
 
   // (b) Source. Proves it was PayFast. See confirmedByPayfast: a signature is
   // not an origin, and the passphrase is a shared secret, not a private key.
   if (!sourceCheckSkipped() && !(await confirmedByPayfast(body))) {
-    return unverifiable();
+    return unverifiable("not confirmed by PayFast");
   }
 
   // (c) Merchant. A shop with no merchant id has nothing to compare against and
   // therefore no way to know this payment is even meant for us: fail closed
   // rather than accept a notification we cannot attribute.
-  if (config.merchantId === "") return unverifiable();
+  if (config.merchantId === "") return unverifiable("no merchant id configured");
   if ((fields.merchant_id ?? "").trim() !== config.merchantId) {
-    return unverifiable();
+    return unverifiable("merchant id mismatch");
   }
 
   const db = await getDb();
