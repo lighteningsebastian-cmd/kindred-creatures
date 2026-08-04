@@ -341,7 +341,7 @@ describe("buildHowTo", () => {
   it("emits the real steps in order", () => {
     const node = buildHowTo({
       name: "How it works",
-      description: "Upload, approve, unbox.",
+      description: "Tell us, we draw, you approve.",
       steps: HOW_IT_WORKS_STEPS,
     });
     const steps = node.step as Array<Record<string, unknown>>;
@@ -349,11 +349,13 @@ describe("buildHowTo", () => {
     expect(node["@type"]).toBe("HowTo");
     expect(node.totalTime).toBe("P10D");
     expect(steps).toHaveLength(3);
-    expect(steps.map((step) => step.name)).toEqual([
-      "Meet",
-      "Create",
-      "Celebrate",
-    ]);
+    // Read from the constant rather than restated: the point of this assertion
+    // is the ORDER and the shape, and a copy change should not have to be made
+    // twice. What must never drift is markup claiming a step the page does not
+    // show, which is what comparing against the source guarantees.
+    expect(steps.map((step) => step.name)).toEqual(
+      HOW_IT_WORKS_STEPS.map((step) => step.title),
+    );
     expect(steps.map((step) => step.position)).toEqual([1, 2, 3]);
     expect(steps[0].text).toBe(HOW_IT_WORKS_STEPS[0].body);
   });

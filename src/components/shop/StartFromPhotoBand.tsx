@@ -22,8 +22,8 @@ export function StartFromPhotoBand() {
             Not sure where to start?
           </h2>
           <p className="max-w-md text-lg leading-relaxed text-muted">
-            Upload a photo and see it on the piece first. Nothing prints until
-            you love the portrait.
+            Tell us about them and watch their piece appear on the garment.
+            Nothing is printed until you say yes.
           </p>
           <Button href="/products/hoodie" block>
             Start your portrait

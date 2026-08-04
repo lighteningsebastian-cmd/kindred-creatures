@@ -95,9 +95,9 @@ export default function HowItWorksPage() {
             </Reveal>
             <Reveal delay={0.1}>
               <p className="mt-5 text-lg leading-relaxed text-muted">
-                Four steps stand between the photo you send and the parcel that
-                arrives. Here is exactly what happens at each one, and why you
-                never pay for a portrait you would not want to wear.
+                Four steps stand between telling us about them and the parcel
+                that arrives. Here is exactly what happens at each one, and why
+                nothing is printed until you say yes.
               </p>
             </Reveal>
           </div>

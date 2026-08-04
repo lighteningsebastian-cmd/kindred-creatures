@@ -81,14 +81,19 @@ export async function generateMetadata({
 }
 
 const portraitSteps = [
-  "Upload a favourite photo of your pet, no studio shoot required.",
-  "We hand-finish it into portrait artwork and send it for your approval.",
-  "Once you say yes, we print it, check it over and send it on its way.",
+  "Tell us about them and see their piece on the garment as you answer.",
+  "Order, and we draw them by hand from the photo you sent.",
+  "Approve the portrait, and only then do we print it and send it on its way.",
 ];
 
+// WRITTEN FOR THE PRODUCT AS IT IS. The previous three notes described a shop
+// where the artwork was drawn before payment, shown watermarked and could be
+// regenerated three times. None of that has been true since 30 July, and a
+// promise of three tries is the kind of wrong that turns into a refund
+// conversation.
 const goodToKnow = [
-  "The preview carries a watermark. The print file we make after you order does not.",
-  "You get three portrait tries per photo, so take your time picking the one that looks most like them.",
+  "Nothing is printed until you say yes. You see the finished portrait first, and if it is not quite them we rework it.",
+  "We draw nobody on spec, so your portrait is made after you order rather than sitting in a queue of maybes.",
   "A clear, well-lit photo where their face is easy to see gives the best portrait every time.",
 ];
 

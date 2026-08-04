@@ -46,7 +46,7 @@ export const FAQS: FaqEntry[] = [
   },
 ];
 
-export type HowItWorksStepKey = "upload" | "approve" | "unbox";
+export type HowItWorksStepKey = "tell" | "draw" | "approve";
 
 export interface HowItWorksStep {
   key: HowItWorksStepKey;
@@ -54,22 +54,34 @@ export interface HowItWorksStep {
   body: string;
 }
 
-/** The three steps, in order, exactly as the landing page states them. */
+/**
+ * The three steps, in order, exactly as the landing page states them.
+ *
+ * THESE DESCRIBE THE PRODUCT AS IT IS. The earlier telling (Meet, Create,
+ * Celebrate) was written for a shop where the portrait was drawn before payment
+ * and the customer had three tries at it. Neither is true since 30 July:
+ * nothing is drawn until the order is in, and there is no regeneration. Copy
+ * that describes a flow the site no longer has is the one thing here that can
+ * actively mislead somebody.
+ *
+ * The promise that survived the change, and the one worth repeating: nothing is
+ * printed until you say yes.
+ */
 export const HOW_IT_WORKS_STEPS: HowItWorksStep[] = [
   {
-    key: "upload",
-    title: "Meet",
-    body: "Introduce us to your best friend.",
+    key: "tell",
+    title: "Tell us about them",
+    body: "Answer a few questions and watch their piece take shape on the garment.",
+  },
+  {
+    key: "draw",
+    title: "Order, and we draw them",
+    body: "Nothing is drawn on spec. Your portrait is made by hand once your order is in.",
   },
   {
     key: "approve",
-    title: "Create",
-    body: "We craft a portrait worthy of them.",
-  },
-  {
-    key: "unbox",
-    title: "Celebrate",
-    body: "Wear them. Gift them. Treasure them.",
+    title: "Approve it",
+    body: "Nothing is printed until you say yes.",
   },
 ];
 
@@ -103,7 +115,7 @@ export const DELIVERY_DAYS = 5;
 /** "about five working days". The only phrasing of the promise anywhere. */
 export const DELIVERY_WINDOW = "about five working days";
 
-export type HowItWorksPageStepKey = "upload" | "draw" | "approve" | "ship";
+export type HowItWorksPageStepKey = "tell" | "draw" | "approve" | "ship";
 
 export interface HowItWorksPageStep {
   key: HowItWorksPageStepKey;
@@ -123,19 +135,19 @@ export interface HowItWorksPageStep {
  */
 export const HOW_IT_WORKS_PAGE_STEPS: HowItWorksPageStep[] = [
   {
-    key: "upload",
-    title: "Share the photo that captures them best",
-    body: "Good light and a clear look at their face is all we need. If you are torn between two, send both and we will tell you which one will make the better portrait.",
+    key: "tell",
+    title: "Tell us who they are",
+    body: "Their name, their breed, the three words that describe them, the year they arrived. Their piece builds itself on the garment as you answer, so you know what you are buying before you buy it. Then share the photo we will draw them from.",
   },
   {
     key: "draw",
-    title: "We craft their portrait",
-    body: "Your photo becomes artwork in the style you choose, hand-finished and framed with care, so it looks like them and not like a filter.",
+    title: "You order, and we draw them",
+    body: "We draw nothing on spec, which is why we can spend real time on yours. Once your order is in, your photo becomes a hand-finished portrait, so it looks like them and not like a filter.",
   },
   {
     key: "approve",
     title: "You say yes, or you say not quite",
-    body: "The portrait comes back to you before anything is printed. If the first one is not quite them, we rework it until it is. Nothing reaches the press without your word.",
+    body: "The portrait comes to you before anything is printed. If the first one is not quite them, we rework it until it is. Nothing reaches the press without your word.",
   },
   {
     key: "ship",

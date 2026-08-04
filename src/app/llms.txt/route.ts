@@ -45,7 +45,7 @@ function body(): string {
 
   return `# ${BRAND_NAME}
 
-> ${BRAND_NAME} makes custom pet portrait apparel in South Africa. You upload a photo of your pet, we turn the photo into portrait artwork, you approve the artwork, and a print shop in Jeffreys Bay prints it on a garment and couriers it to you. Prices run ${priceRange()} in South African rands.
+> ${BRAND_NAME} makes custom pet portrait apparel in South Africa. You tell us about your pet and upload a photo, you order, we then turn the photo into portrait artwork, you approve the artwork, and only then does a print shop in Jeffreys Bay print it on a garment and courier it to you. Prices run ${priceRange()} in South African rands.
 
 ## What we are
 

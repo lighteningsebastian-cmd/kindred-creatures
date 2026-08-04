@@ -638,7 +638,7 @@ export type JobSheetResendResult =
  * WHY THIS IS HERE and not in S8's admin action. The admin could hold sendJobSheet
  * itself; the reason it does not is that every other thing that mails the print
  * shop leaves a fulfillment_events row behind, and an order's timeline is the
- * only answer to "was Cape Town ever told about this one?". A re-send that
+ * only answer to "was Jeffreys Bay ever told about this one?". A re-send that
  * reached past this module would be the one job sheet in the shop's history with
  * no breadcrumb, which is precisely the job sheet someone will later need to
  * find.

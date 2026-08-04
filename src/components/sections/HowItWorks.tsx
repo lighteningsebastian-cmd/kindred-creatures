@@ -1,5 +1,5 @@
 import type { Icon } from "@phosphor-icons/react";
-import { UploadSimple, PencilSimple, Package } from "@phosphor-icons/react/dist/ssr";
+import { ChatCircleText, PaintBrush, SealCheck } from "@phosphor-icons/react/dist/ssr";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { Reveal } from "@/components/motion/Reveal";
@@ -8,9 +8,9 @@ import { HOW_IT_WORKS_STEPS, type HowItWorksStepKey } from "@/lib/content";
 // The words live in lib/content because the HowTo JSON-LD describes these exact
 // steps; only the icon is this component's business.
 const stepIcon: Record<HowItWorksStepKey, Icon> = {
-  upload: UploadSimple,
-  approve: PencilSimple,
-  unbox: Package,
+  tell: ChatCircleText,
+  draw: PaintBrush,
+  approve: SealCheck,
 };
 
 /**

@@ -4,8 +4,7 @@ import type { HowItWorksPageStep, HowItWorksPageStepKey } from "@/lib/content";
 
 /** The shot each process step reserves, art-directed per step. */
 const stepShot: Record<HowItWorksPageStepKey, string> = {
-  upload:
-    "candid: a hand holding a phone showing a favourite photo of a dog, warm indoor light over a kitchen table",
+  tell: "candid: someone on a phone answering questions about their dog, the dog asleep against their leg, warm indoor light over a kitchen table",
   draw: "detail: an artist hand-finishing a pet portrait on a tablet, the reference photo pinned alongside, focused desk light",
   approve:
     "over-the-shoulder: someone smiling at the finished portrait on a laptop, an approval email open, soft window light",
