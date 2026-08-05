@@ -27,23 +27,36 @@ import { parse, type Font } from "opentype.js";
  * one place rather than a hunt through the layout code.
  */
 export type PrintFontRole =
-  /** `KINDRED CREATURES`, both sides. Light, and very widely letterspaced. */
+  /** `KINDRED CREATURES` on the BACK. Large, light, very widely letterspaced. */
   | "wordmark"
+  /**
+   * `KINDRED CREATURES` on the FRONT, and a separate role for a reason.
+   *
+   * It is the same words in the same face, but the front arc is a fraction of
+   * the size of the back's header and carries the same wide letterspacing. At
+   * that size Light stops being restrained and starts being absent: it is thin
+   * strokes, spread thinly, over a colour portrait. SemiBold holds. If it ever
+   * reads too heavy against the portrait, Medium is the next step, but that
+   * means vendoring a fourth Archivo file and its licence, so do not reach for
+   * it before looking at this one at true print size.
+   */
+  | "wordmarkFront"
   /** Data table labels and the `KC-XXXXX` reference. Caps, letterspaced, small. */
   | "label"
-  /** Data table values. */
+  /** Data table values, and the temperament line under the portrait. */
   | "value"
   /** The breed name above the portrait on the back. Caps. */
   | "breed"
   /** The Latin binomial. The one italic on the plate. */
   | "binomial"
-  /** The pet's name on the front. Sentence case, and deliberately so. */
+  /** The pet's name on the front. Caps, as on the back. */
   | "frontName"
   /** The pet's name at the foot of the back plate. Caps, centred. */
   | "backName";
 
 const FONT_FILES: Record<PrintFontRole, string> = {
   wordmark: "Archivo-Light.ttf",
+  wordmarkFront: "Archivo-SemiBold.ttf",
   label: "Archivo-Regular.ttf",
   value: "Archivo-Regular.ttf",
   breed: "Archivo-SemiBold.ttf",

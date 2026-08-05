@@ -75,6 +75,10 @@ right of centre when looking at the garment photograph.
 
 ## 2. Back · large plate
 
+**Revised 5 August 2026, owner decision.** The table was five rows and is now three; the
+temperament moved out of it and under the portrait. What changed and why is recorded under
+the sketch, because both were deliberate trades rather than tidying.
+
 ```
         K I N D R E D   C R E A T U R E S
         ─────────────────────────────────
@@ -84,13 +88,12 @@ right of centre when looking at the garment photograph.
 
                  [ portrait, graphite ]        side profile, transparent bg
 
+           Confident · Affectionate · Spirited     centred, middot joined
         ─────────────────────────────────
 
-        BREED             Yorkshire Terrier
         ORIGIN            Yorkshire, England
         GROUP             Toy Terrier
-        TEMPERAMENT       Confident · Affectionate · Spirited
-        TOGETHER SINCE    2021
+        TOGETHER          2021
 
                       FRANCIS
                       KC-01248
@@ -102,29 +105,82 @@ right of centre when looking at the garment photograph.
 |---|---|---|
 | Header | `KINDRED CREATURES` | Widest letterspacing on the plate |
 | Rule | Solid, full plate width | Directly beneath the header |
-| Breed name | From the breed table | Caps |
+| Breed name | From the breed table | Caps. **The only place the breed is printed** |
 | Binomial | From the breed table | Italic, sentence case, e.g. `Canis lupus familiaris` |
 | Portrait | Generated, graphite, side profile | Transparent background |
-| Rule | Solid, full plate width | Beneath the portrait |
+| Temperament | One to three chips, joined ` · ` | Centred, directly under the portrait |
+| Rule | Solid, full plate width | Beneath the temperament |
 | Data table | Label left, value right | See below |
 | Name | The pet's name | **Caps**, centred |
 | Reference | `KC-XXXXX` | Small caps or small letterspaced, beneath the name |
 
+### The heading is the only place the breed appears
+
+Whatever the customer told us their animal is arrives at the heading above the portrait, in
+caps, and nowhere else. There are four routes in and all four end here:
+
+| What we were told | Heading |
+|---|---|
+| A breed from our table | The breed name, e.g. `YORKSHIRE TERRIER` |
+| An unrecorded breed | `ONE OF ONE` |
+| A breed they typed, because our list did not have it | Their words, as typed |
+| An "other" species' own word for their animal | Their words, as typed |
+| No breed word at all | `COMPANION PROFILE` |
+
+The last row is a real state, not a fallback nobody hits: an "other" species customer must
+name the KIND of animal and may leave the breed blank. The `SPECIES` row carries the answer
+in that case.
+
 ### The data table
 
-Label column left aligned, value column right aligned, aligned to the plate edges. Rows in
-this fixed order:
+Label column left aligned, value column right aligned, aligned to the plate edges. **Three
+rows at most**, in this fixed order:
 
 | Label | Source |
 |---|---|
-| `BREED` | Breed table, or `One of One` |
-| `ORIGIN` | Breed table |
-| `GROUP` | Breed table |
-| `TEMPERAMENT` | Three chips chosen by the customer, joined with a middot |
-| `TOGETHER SINCE` | Year, optional |
+| `ORIGIN` | Breed table, or the customer's own answer for an "other" species |
+| `GROUP` | Breed table. `COAT` for cats, `NATIVE TO` for birds, per species |
+| `TOGETHER` | Year, optional |
 
-**Rows with no value are omitted entirely, not printed empty.** The table closes up. A
-plate with four rows must look as deliberate as one with five.
+For an "other" species the rows are `SPECIES` and `ORIGIN`, plus `TOGETHER`.
+
+**Rows with no value are omitted entirely, not printed empty.** The table closes up, and it
+is allowed to come back **completely empty**: a customer who typed their own breed and gave
+no year has their word in the heading and nothing left for a row. A plate with an empty
+table must still look deliberate, and it does, because the rule above it and the name below
+it carry it.
+
+### Why BREED and TEMPERAMENT left the table · owner, 5 August
+
+**`BREED` goes because it is already printed, in caps, directly above the portrait, as the
+plate's heading.** On a plate this spare, printing the same words twice reads as a fault
+rather than a fact.
+
+The consequence to keep in mind: `One of One` used to reach the plate only through the
+`BREED` row. It now reaches it as the heading, which is the correct place for it — it reads
+as status rather than absence there, exactly as section 3 intends.
+
+**`TEMPERAMENT` goes because it is not really a data row.** Under a label, in a right
+aligned column, three personality words read as a specification. Centred under the portrait
+they read as a caption on it, which is what they are.
+
+It is set in the table's VALUE face at roughly the row size. **It is a caption, not a
+heading: it must not compete with the breed name at the top.**
+
+**One to three words, not exactly three** (see `src/lib/companion.ts`). The line is measured
+upward from the rule like everything else in the bottom block, so:
+
+- Three words and one word cost the portrait exactly the same height. Only the line's
+  WIDTH changes, and it stays centred.
+- No words means **no line and no gap**. The portrait grows back into the space. This is
+  the same discipline the name and the year already keep: nothing on this plate leaves a
+  hole where a thing would have been.
+
+### `TOGETHER SINCE` became `TOGETHER`
+
+The owner's wording, and the shorter label. Section 3's constraint is unchanged and still
+governs: whatever this label is called it must never read as a lifespan, so `EST.`, `BORN`
+and `LIFE` remain forbidden. `TOGETHER` is safe.
 
 ---
 
@@ -180,13 +236,30 @@ authoritative (`design/DESIGN-SYSTEM.md`). Do not introduce a fourth typeface fo
 
 | Use | Face |
 |---|---|
-| `KINDRED CREATURES`, both sides | Archivo, light weight, wide letterspacing |
+| `KINDRED CREATURES`, **back** | Archivo, light weight, wide letterspacing |
+| `KINDRED CREATURES`, **front** | Archivo, **semibold**, same wide letterspacing |
 | Table labels, reference code | Archivo, caps, letterspaced, small |
-| Table values | Archivo, regular |
+| Table values, and the temperament line | Archivo, regular |
 | Breed name | Archivo, caps |
 | Binomial | A serif italic |
-| Front name | Serif, sentence case |
+| Front name | Serif, **caps** |
 | Back name | Serif or Archivo, caps, centred |
+
+**The two wordmarks are two roles, not one** (`wordmarkFront` and `wordmark` in
+`src/lib/print/fonts.ts`). Same words, same family, deliberately different weight. The back
+header is large and Light is right for it. The front arc is a fraction of that size and
+carries the same wide letterspacing, and at that size Light stops reading as restrained and
+starts reading as absent: thin strokes, spread thinly, over a colour portrait. Owner, 5
+August.
+
+If SemiBold ever proves too heavy against the portrait, Medium is the next step. That means
+vendoring a fourth Archivo file and its OFL, so do not reach for it speculatively: look at
+the front at true print size first.
+
+**Both names are caps.** Owner decision, 3 August. See section 1's note for the trade that
+was made. The front name is shrunk to fit the plate width exactly as the back's heading is,
+because caps are meaningfully wider than sentence case and the worst case (`BARTHOLOMEW` on
+a 110mm print) overflows without it.
 
 **Outline all text to paths before rasterising.** Do not rely on fonts being installed in a
 serverless runtime: a missing font substitutes silently and ruins the layout, and it will
@@ -236,13 +309,28 @@ grep -rn "—\|–" src --include=*.tsx --include=*.ts
 grep -rni "mixed breed" src                        # must be empty
 ```
 
+Sample plates for every case below are written by `src/lib/print/sample.test.ts`, which is
+off by default because the rest of the suite has no business writing files:
+
+```
+RENDER_PLATES=1 npx vitest run src/lib/print/sample.test.ts
+```
+
 Manual, at 100 percent zoom on a rendered print file:
 
 - Every letter is correct and sharp. This check is the entire reason compositing exists.
 - The arc curves smoothly and the glyphs sit on the path, not rotated individually.
 - Transparency is real: open over a dark background and confirm alpha, not white pixels.
 - Omit the name, and the front is still centred and deliberate.
-- Omit the year and the temperament, and the table closes up cleanly.
 - A breed with a long name and a long origin does not overflow or collide with the value
   column.
-- `One of One` renders in the `BREED` row for an unknown breed.
+- `ONE OF ONE` renders as the HEADING for an unknown breed, and the breed appears nowhere
+  else on the plate.
+- **One trait and three.** The line centres, the rule sits the same distance below it, and
+  the portrait does not overlap either.
+- **No traits and no year.** The table is one or two rows, it closes up, and the plate still
+  looks deliberate.
+- **An empty table**, from a typed breed with no year. The heading and the name carry it.
+- **A long name on the front**, `BARTHOLOMEW` at 110mm. It fits.
+- **The front wordmark at true print size.** Legible, and heavier than the back's without
+  looking like a different brand.

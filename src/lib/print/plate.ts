@@ -107,13 +107,22 @@ export function frontPlate(
   const nameSize = contentWidth * 0.115;
   const gap = contentWidth * 0.05;
 
-  const name = profile.name?.trim() ?? "";
-  const nameRun = name ? outlineText(name, { role: "frontName", sizePx: nameSize }) : null;
+  // ALL CAPS, matching the back. Owner decision, 3 August; the spec has said so
+  // since and the code simply had not followed.
+  //
+  // Caps are meaningfully wider than sentence case, so the name is shrunk to fit
+  // exactly as the back's heading is. BARTHOLOMEW at 110mm is the case that
+  // decides this, and a name clipped by the press is not discovered until the
+  // garment arrives.
+  const name = profile.name?.trim().toUpperCase() ?? "";
+  const nameRun = name
+    ? fitToWidth(name, "frontName", nameSize, 0, contentWidth)
+    : null;
 
   // Measure the arc before placing anything: its cap height decides how much
   // room the stack needs above the portrait.
   const probe = outlineText("KINDRED CREATURES", {
-    role: "wordmark",
+    role: "wordmarkFront",
     sizePx: wordSize,
     letterSpacingPx: wordSize * 0.28,
   });
@@ -137,7 +146,9 @@ export function frontPlate(
   const radius = portraitSize / 2 + gap * 0.35;
 
   const arc = outlineTextOnArc("KINDRED CREATURES", {
-    role: "wordmark",
+    // SemiBold here, Light on the back. The front arc is small and widely
+    // letterspaced, and Light at that size disappears into the portrait.
+    role: "wordmarkFront",
     sizePx: wordSize,
     letterSpacingPx: wordSize * 0.28,
     radiusPx: radius,
@@ -173,40 +184,72 @@ interface TableRow {
 }
 
 /**
+ * The heading above the portrait: what this creature IS, in caps.
+ *
+ * This is where the breed word lives now. It used to be printed twice, once
+ * here and once in a BREED table row, which on a plate this spare reads as a
+ * fault rather than a fact (owner, 5 August). The table lost the row; the
+ * heading keeps the word, and every route to a breed word ends here:
+ *
+ * - a breed from our table, or `One of One` for an unrecorded one
+ * - a breed the customer typed, because ours did not have it
+ * - an "other" species' own word for what their animal is
+ *
+ * `COMPANION PROFILE` is the last resort, for a plate with no breed word at
+ * all. That is a real state (an "other" species who named the kind and not the
+ * breed) and the SPECIES row carries the answer in that case.
+ */
+export function plateHeading(profile: CompanionProfile): string {
+  const breed = profile.breedId ? getBreed(profile.breedId) : undefined;
+  if (breed) return breedRowValue(breed).toUpperCase();
+
+  const typed = profile.otherBreed?.trim();
+  if (typed) return typed.toUpperCase();
+
+  return "COMPANION PROFILE";
+}
+
+/**
  * The rows for a profile, in the fixed order, with empties dropped.
  *
- * The table closes up rather than printing a blank: a four row plate has to
- * look as deliberate as a five row one.
+ * THREE ROWS AT MOST: ORIGIN, GROUP, TOGETHER. Owner decision, 5 August:
+ * anything more is too busy. What left, and why:
+ *
+ * - BREED, because it is already printed in caps directly above the portrait
+ *   as the plate's heading. Once is a fact, twice is a fault.
+ * - TEMPERAMENT, which moved out from under a label and sits under the portrait
+ *   as a line of its own. See backPlate.
+ *
+ * TOGETHER SINCE became TOGETHER: the owner's wording, and the shorter label.
+ * Whatever it is called it must never read as a lifespan, so EST., BORN and
+ * LIFE stay forbidden (docs/spec-print-layout.md section 3). TOGETHER is safe.
+ *
+ * The table closes up rather than printing a blank, and it is allowed to come
+ * back EMPTY: a customer who typed their own breed and gave no year has their
+ * word in the heading and nothing left for a row. The rule above and the name
+ * below carry the plate on their own.
  */
 export function tableRows(profile: CompanionProfile): TableRow[] {
   const rows: TableRow[] = [];
   const breed = profile.breedId ? getBreed(profile.breedId) : undefined;
 
   if (profile.species === "other") {
-    // Three named answers onto three named rows, in the same order every other
-    // species uses. No invented field names.
+    // Two named answers onto two named rows. Their word for the BREED is the
+    // heading now, the same as it is for every other species.
     const push = (label: string, value: string | null) => {
       const trimmed = value?.trim();
       if (trimmed) rows.push({ label, value: trimmed });
     };
     push("SPECIES", profile.otherKind);
-    push("BREED", profile.otherBreed);
     push("ORIGIN", profile.otherOrigin);
-  } else if (!breed && profile.otherBreed?.trim()) {
-    // A breed they typed themselves, because ours did not have it. Printed as
-    // written, and ORIGIN and GROUP are simply left off: we know what they call
-    // their dog, not where the line came from, and inventing either would be
-    // the one dishonest row on an honest plate. The table closes up on its own.
-    rows.push({ label: "BREED", value: profile.otherBreed.trim() });
   } else if (breed) {
     const config = SPECIES[breed.species];
-    rows.push({ label: "BREED", value: breedRowValue(breed) });
     if (breed.origin) {
       rows.push({ label: config.originLabel, value: breed.origin });
     }
-    // An unrecorded breed carries "One of One" as its group too, and printing
-    // the same words twice on a five row plate reads as a fault rather than a
-    // fact. One row says it better than two.
+    // An unrecorded breed carries "One of One" as its group too, and the
+    // heading right above the portrait already says it. Printing the same
+    // words twice on a plate this spare reads as a fault.
     if (
       breed.group &&
       config.groupLabel &&
@@ -215,19 +258,16 @@ export function tableRows(profile: CompanionProfile): TableRow[] {
       rows.push({ label: config.groupLabel, value: breed.group });
     }
   }
-
-  if (profile.temperament.length > 0) {
-    rows.push({
-      label: "TEMPERAMENT",
-      value: profile.temperament.map(temperamentLabel).join(" · "),
-    });
-  }
+  // A breed the customer typed themselves adds no row at all. We know what they
+  // call their dog, not where the line came from, and inventing an ORIGIN or a
+  // GROUP would be the one dishonest row on an honest plate. Their word is
+  // already the heading.
 
   // The only date on the plate, and it lives here rather than under the name.
   // A name in caps above a year is a headstone; above a catalogue number it is
   // an archive entry. See docs/spec-print-layout.md section 3.
   if (profile.togetherSince) {
-    rows.push({ label: "TOGETHER SINCE", value: String(profile.togetherSince) });
+    rows.push({ label: "TOGETHER", value: String(profile.togetherSince) });
   }
 
   return rows;
@@ -274,8 +314,8 @@ export function backPlate(
   y += word.descent + contentWidth * 0.035;
   parts.push(pathElement(rule(x0, x1, y, thin), ink));
 
-  // "Other" species have no breed, so the plate says what it is instead.
-  const heading = breed ? breedRowValue(breed).toUpperCase() : "COMPANION PROFILE";
+  // The breed word, and the ONLY place it is printed now. See plateHeading.
+  const heading = plateHeading(profile);
   // Shrink to fit rather than run off the plate. "Staffordshire Bull Terrier" in
   // caps is half again as wide as "Beagle", and a breed name clipped at the edge
   // of the print area is a garment nobody can sell. Measured once at the ideal
@@ -361,13 +401,42 @@ export function backPlate(
   footY -= contentWidth * 0.02;
   parts.push(pathElement(rule(x0, x1, footY, thin), ink));
 
+  // --- The temperament, between the portrait and that rule.
+  //
+  // It was a TEMPERAMENT row in the table until 5 August, when the owner moved
+  // it here: centred, joined with a middot, directly under the portrait.
+  //
+  //                  [ portrait, graphite ]
+  //            Confident · Affectionate · Spirited
+  //         ─────────────────────────────────
+  //
+  // Set in the VALUE role at the table's row size, because it is a caption and
+  // not a heading: it must not compete with the breed name at the top.
+  //
+  // Measured upward from the rule like everything else in this block, so the
+  // portrait shrinks by exactly the space the line takes. No words chosen means
+  // no line AND no gap: the portrait grows back into it and the plate looks as
+  // deliberate as it does with three. Same discipline as the name and the year.
+  let portraitFloor = footY;
+  const traits = profile.temperament.map(temperamentLabel).join(" · ");
+  if (traits) {
+    // Shrink to fit: three of the longer words joined by middots is a wide line.
+    const traitsRun = fitToWidth(traits, "value", rowSize, 0, contentWidth);
+    const baseline = footY - contentWidth * 0.035 - traitsRun.descent;
+    parts.push(
+      `<g transform="translate(${x0 + (contentWidth - traitsRun.width) / 2} ${baseline})">` +
+        `${pathElement(traitsRun.d, ink)}</g>`,
+    );
+    portraitFloor = baseline - traitsRun.ascent;
+  }
+
   return {
     svg: svgDocument(width, height, parts.join("")),
     portrait: {
       x: x0,
       y: topEnd,
       width: contentWidth,
-      height: Math.max(0, footY - contentWidth * 0.04 - topEnd),
+      height: Math.max(0, portraitFloor - contentWidth * 0.04 - topEnd),
     },
   };
 }
