@@ -122,11 +122,12 @@ export class MockImageProvider implements ImageProvider {
   }
 
   // referenceKey is accepted and ignored: the stand-in draws the same paw
-  // whatever it is handed, and the point is that the seam exists.
+  // whatever it is handed, and the point is that the seam exists. uploadKey is
+  // nullable for the same reason: a customer may order without a photograph.
   async generatePortrait({
     side,
   }: {
-    uploadKey: string;
+    uploadKey: string | null;
     side: PortraitSide;
   }): Promise<{ portraitBytes: Uint8Array; promptVersion: string }> {
     await delay(latencyMs());

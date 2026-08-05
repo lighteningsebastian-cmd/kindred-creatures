@@ -133,20 +133,26 @@ export class OpenAIImageProvider implements ImageProvider {
   }
 
   private async render(
-    uploadKey: string,
+    uploadKey: string | null,
     side: PortraitSide,
     reasons: RevisionReason[],
     referenceKey: string | null,
   ): Promise<Uint8Array> {
-    const source = await getStorage().getBytes(uploadKey);
-    if (!source) throw new Error(`Upload ${uploadKey} not found`);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const client = (await this.client()) as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { toFile } = (await this.sdk()) as any;
-    const photograph = await toFile(source, "upload.png", {
-      type: "image/png",
-    });
+
+    // A null uploadKey is the customer who ordered without a photograph and
+    // took the stock illustration of their breed instead (owner, 5 August).
+    // A key that is SET but whose bytes are gone is a different thing entirely
+    // and still an error: storage has lost the photograph of somebody's animal.
+    let photograph: unknown = null;
+    if (uploadKey) {
+      const source = await getStorage().getBytes(uploadKey);
+      if (!source) throw new Error(`Upload ${uploadKey} not found`);
+      photograph = await toFile(source, "upload.png", { type: "image/png" });
+    }
 
     // The breed's hand-reviewed side profile, when we have one. Missing bytes
     // are NOT a failure: artwork-drawing.ts already treats an undrawn
@@ -166,18 +172,47 @@ export class OpenAIImageProvider implements ImageProvider {
       ? await toFile(referenceBytes, "reference.png", { type: "image/png" })
       : null;
 
+    // Nothing to draw from at all. Refused by name rather than sent to the
+    // model, which would happily return a handsome generic example of the
+    // breed: precisely what SUBJECT exists to prevent, and not what anybody
+    // paid R999 for.
+    if (!photograph && !reference) {
+      throw new Error(
+        "Nothing to draw from: this artwork has neither a photograph nor a " +
+          "breed reference illustration.",
+      );
+    }
+
+    // gpt-image-1 takes up to 16 images. THE PHOTOGRAPH IS ALWAYS FIRST when
+    // there is one: it is the animal, and the likeness is the product. The
+    // reference is otherwise the second input, and only the back asks for one,
+    // because a side profile has to be inferred from a face-on photograph and
+    // the reference is what keeps that inference breed-accurate.
+    //
+    // With no photograph the reference is the only image, so it is first, and
+    // REFERENCE must NOT be sent: that clause names a FIRST and a SECOND image
+    // and there is only one. See the note below about the wording this case
+    // still needs.
+    const images = photograph
+      ? reference
+        ? [photograph, reference]
+        : photograph
+      : reference;
+
     const result = await client.images.edit({
       model: "gpt-image-1",
-      // gpt-image-1 takes up to 16 images. THE PHOTOGRAPH IS ALWAYS FIRST: it
-      // is the animal, and the likeness is the product. The reference is only
-      // ever the second input, and only the back asks for one, because a side
-      // profile has to be inferred from a face-on photograph and the reference
-      // is what keeps that inference breed-accurate.
-      image: reference ? [photograph, reference] : photograph,
-      // The SAME `reference` decides both lines. The prompt only names a SECOND
-      // image on the calls that actually attach one, so the fallback above
-      // cannot leave the model hunting for a picture it was never given.
-      prompt: buildPortraitPrompt(side, reasons, reference !== null),
+      image: images,
+      // The prompt only names a SECOND image on the calls that actually attach
+      // two, so neither fallback above can leave the model hunting for a
+      // picture it was never given.
+      //
+      // OWNER: a reference-only generation (no photograph) is currently sent
+      // the ordinary SUBJECT clause, which talks about "the photograph". It is
+      // not wrong enough to break anything and no order can reach this path yet
+      // (the option is not in the interface), but it wants a SUBJECT that does
+      // not refer to a photograph before half two ships. prompts.ts is yours;
+      // this pass deliberately did not touch it.
+      prompt: buildPortraitPrompt(side, reasons, photograph !== null && reference !== null),
       size: CANONICAL_SIZE,
       // A portrait printed on a Stone hoodie must be an animal, not a white
       // rectangle with an animal in it. Transparency requires a PNG or WebP
@@ -197,7 +232,7 @@ export class OpenAIImageProvider implements ImageProvider {
     reasons = [],
     referenceKey = null,
   }: {
-    uploadKey: string;
+    uploadKey: string | null;
     side: PortraitSide;
     reasons?: RevisionReason[];
     referenceKey?: string | null;

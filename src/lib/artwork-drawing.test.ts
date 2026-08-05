@@ -144,6 +144,82 @@ describe("a breed with no reference illustration", () => {
   });
 });
 
+/**
+ * A customer may order without a photograph and take the stock illustration of
+ * their breed instead (owner, 5 August). HALF ONE ONLY: the data model and this
+ * path allow it, and nothing in the interface offers it. These tests cover the
+ * pipeline so half two is a gating question and not a plumbing one.
+ */
+describe("drawing without a photograph", () => {
+  // A BREED OF ITS OWN, and this matters: the mock storage is a directory on
+  // disk that survives the run, so writing a reference here writes it for
+  // every future run of the whole suite. "beagle" is this file's breed with NO
+  // reference and yorkshire-terrier is its breed WITH one; a third test that
+  // needs a reference needs a third breed, or it silently rewrites what an
+  // earlier test is asserting about.
+  it("draws from the breed reference alone", async () => {
+    const png = await sharp({
+      create: {
+        width: 32,
+        height: 32,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer();
+    await getStorage().put(
+      "references/pug-profile.png",
+      new Uint8Array(png),
+      "image/png",
+    );
+
+    const seeded = await seedArtwork({ breedId: "pug", uploadKey: null });
+    const result = await drawArtworkPlates(seeded.id);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.usedReference).toBe(true);
+    expect(result.artwork.frontKey).toBeTruthy();
+    expect(result.artwork.backKey).toBeTruthy();
+  });
+
+  it("refuses when there is neither a photograph nor a reference", async () => {
+    // Nothing to draw from at all. Asking the model anyway returns a handsome
+    // generic example of the breed, which is exactly what the prompt's SUBJECT
+    // clause exists to prevent and is not what anybody paid R999 for.
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const images = await import("@/lib/images");
+    const provider = vi.fn();
+    vi.spyOn(images, "getImageProvider").mockResolvedValue({
+      moderate: async () => ({ ok: true as const }),
+      generatePortrait: provider,
+    });
+
+    const seeded = await seedArtwork({
+      breedId: "one-of-one-dog-brown",
+      uploadKey: null,
+    });
+    const result = await drawArtworkPlates(seeded.id);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toMatch(/no photograph and no reference/i);
+    // Refused BEFORE the retry loop: two attempts at an impossible drawing is
+    // two API calls and four minutes to reach the same answer.
+    expect(provider).not.toHaveBeenCalled();
+    // Loud, and flagged, because a paid order is waiting on somebody.
+    expect(error).toHaveBeenCalled();
+
+    const db = await getDb();
+    const [row] = await db
+      .select()
+      .from(artworks)
+      .where(eq(artworks.id, seeded.id));
+    expect(row!.status).toBe("failed");
+  });
+});
+
 describe("when the model refuses", () => {
   it("retries once, then flags for a person instead of throwing", async () => {
     const seeded = await seedArtwork();

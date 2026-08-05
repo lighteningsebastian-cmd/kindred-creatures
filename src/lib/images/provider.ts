@@ -59,7 +59,16 @@ export interface ImageProvider {
    * docs/spec-portrait-prompting.md section 1.
    */
   generatePortrait(input: {
-    uploadKey: string;
+    /**
+     * The customer's photograph, or NULL when they ordered without one and
+     * took the stock illustration of their breed instead (owner, 5 August).
+     *
+     * A null here means the portrait is drawn from `referenceKey` alone. Both
+     * null is not a drawable order and implementations must throw rather than
+     * ask the model to invent an animal: the likeness IS the product, and a
+     * handsome generic dog at R999 is a refund with extra steps.
+     */
+    uploadKey: string | null;
     /**
      * Which side of the garment this portrait is for, which decides both the
      * medium and the pose: the front is colour and faces the viewer, the back
@@ -78,6 +87,9 @@ export interface ImageProvider {
      * a SECOND input for the back portrait. Null or missing is an ordinary
      * case, not an error: One of One entries have no reference by design, and
      * the library is drawn breed by breed. Fall back to the photograph alone.
+     *
+     * When `uploadKey` is null this is the ONLY input, and it becomes the first
+     * image rather than the second.
      */
     referenceKey?: string | null;
   }): Promise<{

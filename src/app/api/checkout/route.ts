@@ -210,6 +210,17 @@ export async function POST(request: Request) {
     // lands: a photograph, and a profile complete enough to set a plate.
     // Anything missing here is an order that could be paid for and then stall,
     // which is the same failure as before by a different route.
+    //
+    // uploadKey IS NULLABLE IN THE SCHEMA NOW, so that a customer can one day
+    // order using the stock illustration of their breed instead (owner,
+    // 5 August). This guard is deliberately NOT relaxed to match. That option
+    // is half two and is gated on a reference illustration library that does
+    // not exist: until it does, an artwork with no photograph is not a
+    // customer who chose the illustration, it is an upload that failed, and
+    // taking money for it would produce an order nothing can draw.
+    //
+    // When half two ships, this becomes "a photograph OR a breed whose
+    // reference really exists, checked by bytes", and not before.
     if (artwork.status === "rejected" || !artwork.uploadKey) {
       return bad(
         "We need a photo of them before you can order. Please upload one.",

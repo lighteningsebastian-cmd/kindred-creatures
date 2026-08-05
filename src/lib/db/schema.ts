@@ -26,7 +26,19 @@ export type ArtworkStatus =
 export const artworks = pgTable("artworks", {
   id: uuid("id").primaryKey().defaultRandom(),
   // Storage key of the original photo the customer uploaded.
-  uploadKey: text("upload_key").notNull(),
+  //
+  // NULLABLE, because a customer may order without one and take the stock
+  // illustration of their breed instead (owner, 5 August). This is half one of
+  // that change: the data model and the drawing path allow it, and NOTHING in
+  // the interface offers it yet. Every artwork created today still has a
+  // photograph, and the option cannot appear until the reference illustration
+  // library exists, because "a stock illustration of your breed" that is a
+  // hatched placeholder is a refund.
+  //
+  // A null here is NOT a half-finished upload. An artwork with neither a
+  // photograph nor a reference has nothing to draw from at all, and the drawing
+  // path refuses it by name rather than asking the model to invent a dog.
+  uploadKey: text("upload_key"),
   // Chosen art style. Null until the customer picks one on the generate step.
   style: text("style").$type<ArtStyle>(),
   // Storage key of the CANONICAL portrait: the one and only set of bytes the
@@ -449,7 +461,8 @@ export type NewWebhookEvent = typeof webhookEvents.$inferInsert;
 export const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS artworks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  upload_key text NOT NULL,
+  -- Nullable: see the ALTER further down and the column comment in the schema.
+  upload_key text,
   style text,
   canonical_key text,
   prompt_version text,
@@ -645,6 +658,13 @@ ALTER TABLE artworks ADD COLUMN IF NOT EXISTS personal_contact_at timestamptz;
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS other_kind text;
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS other_breed text;
 ALTER TABLE artworks ADD COLUMN IF NOT EXISTS other_origin text;
+
+-- A photograph is optional now (owner, 5 August): a customer may order using
+-- the stock illustration of their breed instead. Dropping NOT NULL is the
+-- migration, and it is the reason this could not be a form change. Idempotent:
+-- DROP NOT NULL on a column that is already nullable is a no-op, which covers
+-- both a fresh database created from the CREATE TABLE above and an existing one.
+ALTER TABLE artworks ALTER COLUMN upload_key DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS breed_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

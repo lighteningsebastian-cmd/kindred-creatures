@@ -24,6 +24,14 @@ import { getStorage } from "@/lib/storage";
  * is an ordinary state (One of One has no reference by design, and the library
  * is being drawn breed by breed). The second gets one retry and then a flag for
  * a person. Neither may leave a customer who has paid with nothing.
+ *
+ * THE PHOTOGRAPH IS OPTIONAL, as of 5 August, so that a customer can order
+ * using the stock illustration of their breed. This is half one of that
+ * change: the pipeline handles a null upload, and nothing in the interface
+ * offers the option yet. It cannot until the reference illustration library
+ * exists, because selling "a stock illustration of your breed" that is a
+ * hatched placeholder is a refund. See docs/spec-portrait-prompting.md
+ * section 6a for how the same gating is done for the prompt's REFERENCE clause.
  */
 
 export type DrawResult =
@@ -87,6 +95,29 @@ export async function drawArtworkPlates(
   }
 
   const reference = await resolveReference(artwork);
+
+  // A NULL uploadKey is an ordinary case now: the customer ordered without a
+  // photograph and took the stock illustration of their breed instead (owner,
+  // 5 August), so the reference is the only input and the portrait is drawn
+  // from it alone.
+  //
+  // Neither one is not. There is nothing to draw from, and asking the model
+  // anyway returns a handsome generic example of the breed, which is exactly
+  // what SUBJECT exists to prevent. Refused by name, before the retry loop:
+  // two attempts at an impossible drawing is two API calls and four minutes to
+  // reach the same answer.
+  if (!artwork.uploadKey && !reference) {
+    console.error(
+      `[drawing] artwork ${artworkId} has neither a photograph nor a breed ` +
+        `reference. A paid order is waiting on a person.`,
+    );
+    await db
+      .update(artworks)
+      .set({ status: "failed" })
+      .where(eq(artworks.id, artworkId));
+    return { ok: false, reason: "no photograph and no reference illustration" };
+  }
+
   // Only ever our own sentences, and only from validated chips. What the
   // customer wrote is not here and never will be.
   const reasons = readRevisions(artwork).at(-1)?.reasons ?? [];
