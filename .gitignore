@@ -48,3 +48,14 @@ next-env.d.ts
 # design reference (large, de-escaped duplicate of the kit)
 design/ui-kit-readable.html
 .plates/
+
+# the owner's own working documents. Office files are binary, so a diff on one
+# tells nobody anything, and the stock photography is large and not the source
+# of anything the site builds. Both belong beside the repo, not inside it.
+# The trailing-space form is the directory as it actually exists on disk.
+/Stock Images*/
+*.docx
+*.xlsx
+
+# per-machine tool settings, not a project decision
+.claude/settings.local.json

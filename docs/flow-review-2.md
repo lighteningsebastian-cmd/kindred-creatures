@@ -24,11 +24,9 @@ feature look broken.
 **Expected:** on select, the input shows the chosen breed name, the results list closes,
 and a clear affordance exists to change it.
 
-### 2. The plate sits too high on the garment
+### 2. Plate placement · FIXED, verified 3 August
 
-`KINDRED CREATURES` renders over the hood. Placement percentages in the mockup config need
-lowering for the hoodie back, and calibrating per product. The hood occupies roughly the
-top fifth of a hoodie back photograph and nothing may enter it.
+The header sits clear of the hood on the live site. Closed, do not reopen.
 
 ### 3. On mobile the form is unusable · worst bug in the set
 
@@ -180,13 +178,14 @@ Quiet dots may indicate length. Numbers make it a form.
 1. **Bug 3, the mobile layout.** Nothing else can be judged until the form is readable on a
    phone. Everything below is invisible behind this one.
 2. **Bug 1, the breed picker selection state.** A working feature that looks broken.
-3. **Bug 2, plate placement** below the hood, calibrated per product against the real
-   garment photography.
-4. **The reordered one-question flow**, with the reactive copy and the dots.
-5. Wire `public/garments/` so the preview shows a real garment rather than a hatched frame.
+3. **The reordered one-question flow**, with the reactive copy and the dots.
+4. Wire `public/garments/` so the preview shows a real garment rather than a hatched frame.
 
-Items 1 to 4 are all in the customer's path. Item 5 is what makes any of it look like a
+Items 1 to 3 are all in the customer's path. Item 4 is what makes any of it look like a
 product.
+
+**Superseded 3 August:** see `WEEK-PLAN-2.md` Priority 0. The live preview stops updating
+entirely once a breed is chosen, which is ahead of everything on this list.
 
 ---
 

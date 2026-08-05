@@ -35,14 +35,41 @@ Three elements, stacked and centred on a shared vertical axis.
 |---|---|---|
 | Arc | `KINDRED CREATURES` | Letterspaced caps, set on a half-circle arc above the portrait, curving upward |
 | Portrait | Generated, colour, facing the viewer | Transparent background |
-| Name | The pet's name, as entered | Serif, sentence case, **not** caps |
+| Name | The pet's name, as entered | Serif, **ALL CAPS** |
+
+### Dimensions · owner measurements, 3 August 2026
+
+**The whole front print is 150mm tall by 110mm wide.** The three elements are stacked
+bands that fill that height.
+
+| Band | Share | Height | At 300 DPI |
+|---|---|---|---|
+| Arc | 25% | 37.5mm | 443px |
+| Portrait | 60% | 90mm | 1063px |
+| Name | 15% | 22.5mm | 266px |
+| **Total** | 100% | **150mm** | **1772 × 1299px** |
+
+**These are band heights, not type sizes.** The arc band is the vertical space the curved
+text occupies including its curvature, so the cap height of the glyphs is a fraction of it.
+Set the type to fill its band optically rather than matching the number: the point of the
+percentages is the relationship between the three, which is what the owner is specifying.
+
+**Placement on the garment:** centred on the left chest, with the top of the print
+**80 to 90mm below the shoulder seam**. Left chest means the wearer's left, so it sits
+right of centre when looking at the garment photograph.
+
+### Notes
 
 - The arc is a true text-on-path, curving with the top of the portrait. Do not fake it by
   rotating individual glyphs.
-- Sentence case on the name is deliberate. `Francis` is intimate; `FRANCIS` is a label.
-  The back plate uses caps, and the contrast between the two sides is the point.
-- **If no name was given, omit the name line entirely** and centre the remaining two
-  elements. Never render an empty line or a placeholder.
+- **The name is all caps.** Owner decision, 3 August, overriding the earlier sentence-case
+  instruction in this spec. The reasoning for sentence case was that `Francis` reads
+  intimate against the archival `FRANCIS` on the back; the owner prefers the caps on both.
+  Recorded so the trade is visible, not to reopen it.
+- **The front needs its own print area.** `products.ts` currently carries a single
+  `printArea` of 280 × 350mm, which is the back. Front is 110 × 150mm and must be separate.
+- **If no name was given, omit the name band entirely** and let the arc and portrait fill
+  the height. Never render an empty line or a placeholder.
 
 ---
 
