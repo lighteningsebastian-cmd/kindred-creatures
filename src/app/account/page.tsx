@@ -41,17 +41,25 @@ function firstName(name: string | null): string | null {
 function CreatureCard({ creature }: { creature: CustomerCreature }) {
   return (
     <li className="flex flex-col overflow-hidden rounded-lg border border-line bg-surface">
+      {/* The tint is doing work, not decoration: what hangs here is the FRONT
+          PLATE, a transparent PNG of dark ink with no garment behind it. On
+          white it would read as type floating in a void; on parchment it reads
+          as ink on stock, which is what it is. */}
       <div className="relative aspect-square w-full overflow-hidden bg-surface-alt">
         {creature.previewUrl ? (
           // Plain img, not next/image: the source is a short-lived signed URL
           // that changes every hour, so there is nothing for the optimizer to
           // cache and proxying it would only leak it further. Same call the
           // admin order page makes.
+          //
+          // contain, not cover: the plate is 110 by 150mm, so it is TALLER than
+          // this square box and cover would crop the arc off the top and the
+          // name off the bottom, which is the whole plate but the portrait.
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={creature.previewUrl}
             alt={`${creature.styleLabel} portrait`}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain p-3"
           />
         ) : (
           <div

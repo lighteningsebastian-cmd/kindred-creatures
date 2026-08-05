@@ -85,11 +85,15 @@ export function ReorderFlow({ artworkId, styleLabel, previewUrl }: ReorderFlowPr
             // Plain img, not next/image: the source is a short-lived signed URL
             // that changes every hour, so there is nothing to cache and proxying
             // it would only leak it further. Same call the account cards make.
+            //
+            // contain, not cover: the plate is taller than this square box, so
+            // cover would crop the arc and the name away. Same reasoning as the
+            // account card, and the tint behind it is doing the same job.
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={previewUrl}
               alt={`${styleLabel} portrait`}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain p-3"
             />
           ) : (
             <div

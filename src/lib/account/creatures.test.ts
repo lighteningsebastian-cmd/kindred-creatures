@@ -45,14 +45,29 @@ async function seedCustomer(): Promise<string> {
   return row.id;
 }
 
-async function seedArtwork(): Promise<string> {
+/**
+ * An artwork as the pipeline actually writes one TODAY: frontKey and backKey
+ * set by artwork-drawing.ts, and previewKey null, because nothing has written
+ * previewKey since generation moved to after payment.
+ *
+ * This seeder used to write previewKey and nothing else, which is precisely how
+ * "My Creatures" came to show a paw print on every card while every test here
+ * passed: the fixture described a row shape the product had stopped producing.
+ * Pass `legacy` for a row from before the change.
+ */
+async function seedArtwork(shape: "current" | "legacy" = "current"): Promise<string> {
   const db = await getDb();
   const id = randomUUID();
   await db.insert(artworks).values({
     id,
     uploadKey: `uploads/${id}.jpg`,
     style: "watercolor",
-    previewKey: `previews/${id}/1.svg`,
+    ...(shape === "legacy"
+      ? { previewKey: `previews/${id}/1.svg` }
+      : {
+          frontKey: `plates/${id}/front-1.png`,
+          backKey: `plates/${id}/back-1.png`,
+        }),
     status: "ready",
     productSlug: "hoodie",
   });
@@ -113,6 +128,23 @@ describe("listCreaturesForCustomer", () => {
     const mine = creatures.find((c) => c.artworkId === artworkId)!;
     expect(mine.styleLabel).toBe("Watercolor");
     expect(mine.previewUrl).toBeTruthy();
+  });
+
+  // The card falls back to a paw print when previewUrl is null, and previewKey
+  // is null on every artwork drawn since generation moved after payment. Both
+  // row shapes have to produce a picture.
+  it("shows the front plate now, and the old preview for historic rows", async () => {
+    for (const shape of ["current", "legacy"] as const) {
+      const customerId = await seedCustomer();
+      const artworkId = await seedArtwork(shape);
+      await seedOrder({ customerId, artworkId, status: "paid" });
+
+      const [creature] = await listCreaturesForCustomer(customerId);
+      expect(creature.previewUrl, `${shape} artwork has no picture`).toBeTruthy();
+
+      const reorderable = await getReorderableCreature(customerId, artworkId);
+      expect(reorderable?.previewUrl, `${shape} reorder has no picture`).toBeTruthy();
+    }
   });
 
   it("counts sent_to_printer, printed and shipped as owned too", async () => {
