@@ -46,14 +46,21 @@ export function afterBreed(breedId: string | null): string | null {
 }
 
 /**
- * After the three words.
+ * After the words. One, two or three of them.
  *
  * Reads the combination, not the count. Sleepy and gentle earns a different
- * sentence to fearless and mischievous, because a line that would fit any three
- * words tells the customer we were not listening.
+ * sentence to fearless and mischievous, because a line that would fit any set
+ * of words tells the customer we were not listening.
+ *
+ * IT USED TO RETURN NULL BELOW THREE WORDS, which meant that once the customer
+ * was allowed to choose one, the person who chose one got silence where
+ * everybody else got a warm line. The flow answering back is the whole point of
+ * it; going quiet on the shortest answer is the flow saying that answer was not
+ * good enough. The matching rules below are unchanged: they ask `has()` and
+ * work on a shorter set exactly as they did on three.
  */
 export function afterTemperament(words: Temperament[]): string | null {
-  if (words.length < 3) return null;
+  if (words.length === 0) return null;
 
   const chosen = new Set(words);
   const has = (...any: Temperament[]) => any.some((w) => chosen.has(w));
@@ -64,7 +71,12 @@ export function afterTemperament(words: Temperament[]): string | null {
   const listed = words.map((w, index) =>
     index === 0 ? temperamentLabel(w) : w.toLowerCase(),
   );
-  const phrase = `${listed.slice(0, -1).join(", ")} and ${listed.at(-1)}`;
+  // One word needs no conjunction at all, and "and" alone joins two. The comma
+  // only appears once there is a list to punctuate.
+  const phrase =
+    listed.length === 1
+      ? listed[0]!
+      : `${listed.slice(0, -1).join(", ")} and ${listed.at(-1)}`;
 
   // Ordered most specific first: a mischievous, fearless animal gets its own
   // line before the gentler catch-alls get a chance at it.

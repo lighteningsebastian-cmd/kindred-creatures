@@ -53,7 +53,18 @@ export interface CompanionProfile {
 export const NAME_MAX = 40;
 /** Free text on a plate row. Long enough for "Somewhere near Colesberg". */
 export const OTHER_MAX = 32;
-export const TEMPERAMENT_COUNT = 3;
+
+/**
+ * At least one word, up to three. Owner, 5 August.
+ *
+ * NAMED AS A MAXIMUM, not a count, and deliberately so: the old
+ * `TEMPERAMENT_COUNT` read as a required number of words wherever it was used,
+ * and the validation obligingly enforced it with a `!==`. A customer who could
+ * only think of one true thing about their dog was refused until they padded
+ * it out with a word they did not mean, which then got printed on a garment.
+ */
+export const TEMPERAMENT_MIN = 1;
+export const TEMPERAMENT_MAX = 3;
 
 /** Nothing alive today arrived before this, and typos are usually decades out. */
 export const EARLIEST_YEAR = 1950;
@@ -131,8 +142,11 @@ export function validateProfile(
   }
 
   if (hasTemperament(profile.species)) {
-    if (profile.temperament.length !== TEMPERAMENT_COUNT) {
-      errors.temperament = `Choose ${TEMPERAMENT_COUNT} words.`;
+    if (
+      profile.temperament.length < TEMPERAMENT_MIN ||
+      profile.temperament.length > TEMPERAMENT_MAX
+    ) {
+      errors.temperament = "Choose at least one word.";
     } else if (!profile.temperament.every(isTemperament)) {
       // Only ever reachable by a tampered payload: chips are a closed set, and
       // they are the only customer input allowed anywhere near a prompt.

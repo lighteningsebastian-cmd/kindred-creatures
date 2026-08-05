@@ -9,7 +9,7 @@ import {
   EARLIEST_YEAR,
   NAME_MAX,
   OTHER_MAX,
-  TEMPERAMENT_COUNT,
+  TEMPERAMENT_MAX,
   currentYear,
   hasTemperament,
   validateProfile,
@@ -115,7 +115,7 @@ export function CompanionForm({
       : [...profile.temperament, word];
     // Silently ignore a fourth rather than disabling the rest: a disabled chip
     // gives no clue why, and the counter below already says what is needed.
-    if (chosen.length > TEMPERAMENT_COUNT) return;
+    if (chosen.length > TEMPERAMENT_MAX) return;
     set({ temperament: chosen });
   }
 
@@ -223,7 +223,7 @@ export function CompanionForm({
       {hasTemperament(profile.species) ? (
         <fieldset className="flex flex-col gap-3">
           <legend className="text-sm font-medium text-ink">
-            What are they like?
+            What are they like? Choose up to three.
           </legend>
           <div className="flex flex-wrap gap-2">
             {TEMPERAMENTS.map((word) => (
@@ -236,8 +236,13 @@ export function CompanionForm({
               </Chip>
             ))}
           </div>
+          {/* "1 of 3 chosen" reads as an unfinished form. One word is a
+              complete answer, so the counter states what they have rather
+              than what they are short of. */}
           <p className="text-sm text-muted" role="status">
-            {profile.temperament.length} of {TEMPERAMENT_COUNT} chosen
+            {profile.temperament.length === 0
+              ? `Choose up to ${TEMPERAMENT_MAX}`
+              : `${profile.temperament.length} chosen`}
           </p>
         </fieldset>
       ) : null}

@@ -5,7 +5,7 @@ import {
   afterTemperament,
   afterYear,
 } from "./companion-copy";
-import { TEMPERAMENTS, type Temperament } from "@/lib/breeds";
+import { TEMPERAMENTS, temperamentLabel, type Temperament } from "@/lib/breeds";
 
 describe("what the flow says back", () => {
   it("uses the name, and says nothing without one", () => {
@@ -45,10 +45,31 @@ describe("what the flow says back", () => {
     expect(line).toContain("spirited");
   });
 
-  it("waits until all three are chosen", () => {
+  it("says nothing only when nothing has been chosen", () => {
     expect(afterTemperament([])).toBeNull();
-    expect(afterTemperament(["confident"])).toBeNull();
-    expect(afterTemperament(["confident", "gentle"])).toBeNull();
+  });
+
+  // A customer may choose one word, so the person who chooses one must not get
+  // silence where everybody else gets a warm line. That reads as the flow
+  // telling them their answer was not good enough.
+  it("builds the phrase for one, two and three words", () => {
+    // The phrase is the opening of the line, so assert on how each STARTS: the
+    // sentence that follows it has punctuation of its own.
+    expect(afterTemperament(["confident"])).toMatch(/^Confident\./);
+    expect(afterTemperament(["confident", "gentle"])).toMatch(
+      /^Confident and gentle\./,
+    );
+    expect(afterTemperament(["confident", "gentle", "wise"])).toMatch(
+      /^Confident, gentle and wise\./,
+    );
+  });
+
+  it("has something to say for every single word we offer", () => {
+    for (const word of TEMPERAMENTS) {
+      const line = afterTemperament([word]);
+      expect(line, word).toBeTruthy();
+      expect(line, word).toContain(temperamentLabel(word));
+    }
   });
 
   it("has something to say for every combination we offer", () => {

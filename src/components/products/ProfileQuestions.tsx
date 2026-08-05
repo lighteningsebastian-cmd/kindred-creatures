@@ -10,7 +10,7 @@ import {
   EARLIEST_YEAR,
   NAME_MAX,
   OTHER_MAX,
-  TEMPERAMENT_COUNT,
+  TEMPERAMENT_MAX,
   currentYear,
   hasTemperament,
   validateProfile,
@@ -119,7 +119,7 @@ export function ProfileQuestions({
     const chosen = profile.temperament.includes(word)
       ? profile.temperament.filter((t) => t !== word)
       : [...profile.temperament, word];
-    if (chosen.length > TEMPERAMENT_COUNT) return;
+    if (chosen.length > TEMPERAMENT_MAX) return;
     set({ temperament: chosen });
   }
 
@@ -256,8 +256,11 @@ export function ProfileQuestions({
 
         {current === "temperament" ? (
           <fieldset className="flex flex-col gap-3">
+            {/* One is enough. Asking for three was making people pad the
+                answer out with a word they did not mean, and that word then
+                got printed on a garment. */}
             <legend className="text-sm font-medium text-ink">
-              What are they like? Choose three.
+              What are they like? Choose up to three.
             </legend>
             <div className="flex flex-wrap gap-2">
               {TEMPERAMENTS.map((word) => (

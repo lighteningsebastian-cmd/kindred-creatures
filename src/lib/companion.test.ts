@@ -22,12 +22,28 @@ describe("validateProfile", () => {
     expect(validateProfile(profile())).toEqual({});
   });
 
-  it("insists on exactly three words for a dog", () => {
+  it("wants one word for a dog, and takes up to three", () => {
+    // Owner, 5 August. Demanding three made somebody who could only think of
+    // one true thing about their dog pad the answer out with a word they did
+    // not mean, and that word then went on a garment.
     expect(validateProfile(profile({ temperament: [] }))).toHaveProperty(
       "temperament",
     );
+    for (const temperament of [
+      ["confident"],
+      ["confident", "loyal"],
+      ["confident", "loyal", "gentle"],
+    ] as const) {
+      expect(
+        validateProfile(profile({ temperament: [...temperament] })),
+        temperament.join("+"),
+      ).not.toHaveProperty("temperament");
+    }
+    // Four is still too many for the plate.
     expect(
-      validateProfile(profile({ temperament: ["confident", "loyal"] })),
+      validateProfile(
+        profile({ temperament: ["confident", "loyal", "gentle", "wise"] }),
+      ),
     ).toHaveProperty("temperament");
   });
 

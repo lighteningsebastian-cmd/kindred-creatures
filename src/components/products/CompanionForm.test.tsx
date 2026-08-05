@@ -42,17 +42,22 @@ describe("CompanionForm", () => {
     expect(screen.queryByLabelText(/date of birth|birthday/i)).toBeNull();
   });
 
-  it("takes exactly three words and refuses a fourth", async () => {
+  it("takes one word, up to three, and refuses a fourth", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    for (const word of ["Confident", "Affectionate", "Spirited"]) {
+    // One word is a complete answer, so the counter must not read as an
+    // unfinished form ("1 of 3 chosen").
+    await user.click(screen.getByRole("button", { name: "Confident" }));
+    expect(screen.getByText(/^1 chosen$/i)).toBeVisible();
+
+    for (const word of ["Affectionate", "Spirited"]) {
       await user.click(screen.getByRole("button", { name: word }));
     }
-    expect(screen.getByText(/3 of 3 chosen/i)).toBeVisible();
+    expect(screen.getByText(/^3 chosen$/i)).toBeVisible();
 
     await user.click(screen.getByRole("button", { name: "Gentle" }));
-    expect(screen.getByText(/3 of 3 chosen/i)).toBeVisible();
+    expect(screen.getByText(/^3 chosen$/i)).toBeVisible();
     expect(screen.getByRole("button", { name: "Gentle" })).toHaveAttribute(
       "aria-pressed",
       "false",
