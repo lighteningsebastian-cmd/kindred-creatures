@@ -56,6 +56,21 @@ export interface Product {
  * That question is still open with Red Hot Prints.
  */
 
+/**
+ * THE FIRST VARIANT IS THE DEFAULT COLOURWAY, and it is load-bearing.
+ *
+ * `ProductFlow` and `ReorderFlow` both start at `variants[0]`, so the order of
+ * this array is the answer to "which colourway does the customer see while
+ * they are answering the profile questions" (docs/flow-review-2.md). Owner,
+ * 5 August: **White, on every garment.** Reordering a variants array is
+ * therefore a product decision, not tidying.
+ *
+ * It reaches further than the swatch. `photoAspect()` is per COLOURWAY rather
+ * than per product, because the shoot was not consistent (see the note in
+ * lib/garments.ts), so the default colourway also decides the SHAPE of the
+ * preview box the whole flow renders into.
+ */
+
 /** The apparel size runs. The crewneck is cut smaller and stops at XL. */
 const SIZES_TO_XXL = ["XS", "S", "M", "L", "XL", "XXL"];
 const SIZES_TO_XL = ["XS", "S", "M", "L", "XL"];
@@ -74,10 +89,12 @@ export const PRODUCTS: Product[] = [
     fit: "unisex",
     blurb:
       "A heavyweight brushed-cotton hoodie carrying your pet's portrait, soft enough to live in and warm enough to earn a spot by the fire.",
+    // White first: it is the default colourway. See THE FIRST VARIANT IS THE
+    // DEFAULT above.
     variants: [
+      { color: "White", colorHex: "#F3EFE9", sizes: SIZES_TO_XXL, priceZar: 999 },
       { color: "Blue", colorHex: "#657188", sizes: SIZES_TO_XXL, priceZar: 999 },
       { color: "Lilac", colorHex: "#A898A6", sizes: SIZES_TO_XXL, priceZar: 999 },
-      { color: "White", colorHex: "#F3EFE9", sizes: SIZES_TO_XXL, priceZar: 999 },
     ],
     printArea: { front: FRONT_PRINT, back: { widthMm: 280, heightMm: 350 } },
   },

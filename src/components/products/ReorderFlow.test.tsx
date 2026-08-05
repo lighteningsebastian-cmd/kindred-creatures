@@ -68,7 +68,8 @@ describe("ReorderFlow", () => {
     const hoodie = getProduct("hoodie")!;
     expect(items[0]).toEqual({
       productSlug: "hoodie",
-      color: "Blue",
+      // The first variant, which is White on every garment (owner, 5 August).
+      color: "White",
       size: "L",
       qty: 1,
       artworkId: ARTWORK_ID,

@@ -193,7 +193,31 @@ entirely once a breed is chosen, which is ahead of everything on this list.
 
 - The stock-illustration line: wrong wording, or wrong to show it at all while the
   illustration is still a placeholder?
-- Which colourway is the default during the profile questions?
+
+---
+
+## Answered
+
+### Which colourway is the default during the profile questions? · ANSWERED 5 August
+
+**White, on every garment.** Owner decision.
+
+`ProductFlow` and `ReorderFlow` both start at `product.variants[0]`, so the order of the
+`variants` array in `src/lib/products.ts` IS this answer. The tee and the crewneck already
+led with White; the hoodie led with Blue and has been reordered. Reordering that array is a
+product decision now, not tidying, and `products.test.ts` asserts it.
+
+It reaches further than the swatch, and this was checked rather than assumed: `photoAspect()`
+is per COLOURWAY rather than per product, because the shoot was not consistent, so the
+default also sets the shape of the preview box the whole profile flow renders into. All
+three hoodie shots are 1120 × 1400, so the box did not move. Asserted, so a future default
+cannot change it silently.
+
+**One thing found next to it, not fixed here and not asked for.** The tee's Heritage Blue
+and Olive shots are landscape while its White is portrait, so a tee customer who switches
+colourway mid-flow DOES resize the preview box under themselves. `lib/garments.ts` already
+records this as a known consequence of an inconsistent shoot. It wants a recrop rather than
+code.
 
 ---
 

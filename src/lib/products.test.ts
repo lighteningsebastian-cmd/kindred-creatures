@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { garmentImageUrl, photoAspect } from "./garments";
 import {
   PRODUCTS,
   formatZar,
@@ -116,5 +117,41 @@ describe("catalog seed", () => {
     const tote = getProduct("tote")!;
     expect(tote.variants).toHaveLength(1);
     expect(tote.variants[0].sizes).toEqual(["One size"]);
+  });
+
+  // ProductFlow and ReorderFlow both start at variants[0], so the order of this
+  // array is a product decision rather than tidying. Owner, 5 August: White on
+  // every worn garment. Asserted here because a reorder for any other reason
+  // would change what the customer sees on their first paint, silently.
+  it("starts every worn garment on White", () => {
+    for (const slug of ["hoodie", "tee", "crewneck"] as const) {
+      expect(getProduct(slug)!.variants[0].color, slug).toBe("White");
+    }
+  });
+
+  // photoAspect is per COLOURWAY, not per product, so the default colourway
+  // also sets the SHAPE of the preview box the whole profile flow renders
+  // into. Moving the hoodie's default from Blue to White would have resized
+  // that box if the two shots were different ratios, and the mobile layout
+  // would have had to hold at whatever it became. They are the same ratio, so
+  // it did not, and this asserts that rather than trusting it.
+  it("did not resize the preview box when the hoodie default moved to White", () => {
+    expect(photoAspect("hoodie", "White")).toBeCloseTo(
+      photoAspect("hoodie", "Blue"),
+      4,
+    );
+  });
+
+  // Every default has a photograph behind it. A default with none falls back to
+  // DEFAULT_SHAPE and renders an empty frame on first paint, which reads as a
+  // broken page on a R999 product.
+  it("has a photograph for every default colourway", () => {
+    for (const slug of ["hoodie", "tee", "crewneck"] as const) {
+      const product = getProduct(slug)!;
+      expect(
+        garmentImageUrl(slug, product.variants[0].color, "front"),
+        slug,
+      ).toBeTruthy();
+    }
   });
 });
