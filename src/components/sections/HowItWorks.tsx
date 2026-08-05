@@ -38,10 +38,24 @@ export function HowItWorks() {
                 delay={index * 0.1}
                 className="flex items-center gap-4 rounded-md border border-line bg-base p-5"
               >
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-tint text-accent">
+                {/*
+                  NO ICON ON A PHONE. In a 40px square to the left of the text
+                  it leaves the column no room and pushes the number out of
+                  line with the ones above and below it, so the three rows read
+                  as mismatched rather than as a sequence. The number takes its
+                  place as the thing the eye lands on, which is what it is for.
+                  From sm: up there is width for both. Owner, 5 August.
+                */}
+                <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-tint text-accent sm:inline-flex">
                   <Icon size={22} />
                 </span>
                 <div className="flex flex-col gap-1">
+                  {/*
+                    aria-hidden because "01" is read as "zero one", which is
+                    noise. The step number still has to REACH a screen reader
+                    though, or the three headings arrive with no sense of being
+                    a sequence, so it is said properly in the heading instead.
+                  */}
                   <span
                     aria-hidden="true"
                     className="eyebrow text-[11px] text-accent-secondary"
@@ -49,6 +63,9 @@ export function HowItWorks() {
                     {number}
                   </span>
                   <h3 className="font-display text-lg leading-[1.2] text-ink">
+                    <span className="sr-only">
+                      {`Step ${index + 1} of ${HOW_IT_WORKS_STEPS.length}: `}
+                    </span>
                     {step.title}
                   </h3>
                   <p className="text-sm leading-relaxed text-muted">
