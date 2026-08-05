@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { LivePreview } from "./LivePreview";
 import { emptyProfile, type CompanionProfile } from "@/lib/companion";
+import { PLACEMENT } from "@/lib/garments";
 import { PRODUCTS } from "@/lib/products";
 
 const product = PRODUCTS[0]!;
@@ -123,6 +125,112 @@ describe("LivePreview", () => {
     // One side at a time, with a toggle: the plate is shown ON the garment, so
     // two of them side by side would mean two garments.
     expect(screen.getByRole("button", { name: "front" })).toBeVisible();
+  });
+
+  /**
+   * The front opens zoomed in, because at full-garment zoom a 110mm print on a
+   * 600mm garment is a smudge and the customer has just spent five questions
+   * building it (owner, 5 August).
+   */
+  describe("the zoomed front", () => {
+    const renderPlates = () =>
+      vi.fn().mockResolvedValue({ front: plate, back: plate, stockUrl: null });
+
+    async function showFront() {
+      const user = userEvent.setup();
+      const { container } = render(
+        <LivePreview
+          profile={profile()}
+          product={product}
+          color={color}
+          render={renderPlates()}
+        />,
+      );
+      await user.click(screen.getByRole("button", { name: "front" }));
+      return { user, container };
+    }
+
+    /** The single element the garment and the plate are transformed inside. */
+    const stage = (container: HTMLElement) =>
+      container.querySelector<HTMLElement>('div[style*="aspect-ratio"] > div');
+
+    it("opens zoomed in, and offers the whole garment", async () => {
+      const { container } = await showFront();
+      expect(
+        screen.getByRole("button", { name: /whole garment/i }),
+      ).toBeVisible();
+      expect(stage(container)!.style.transform).toMatch(/scale\(/);
+    });
+
+    it("toggles between two states and nothing in between", async () => {
+      const { user, container } = await showFront();
+
+      await user.click(screen.getByRole("button", { name: /whole garment/i }));
+      expect(stage(container)!.style.transform).toBe("");
+      expect(screen.getByRole("button", { name: /zoom in/i })).toBeVisible();
+
+      await user.click(screen.getByRole("button", { name: /zoom in/i }));
+      expect(stage(container)!.style.transform).toMatch(/scale\(/);
+      // No slider: a range input would be a continuum, which is not the ask.
+      expect(screen.queryByRole("slider")).toBeNull();
+    });
+
+    // THE ONE THAT MATTERS. The plate is placed as a percentage of the
+    // PHOTOGRAPH, so the two have to be scaled by the same transform from the
+    // same origin. Transform the image alone and the portrait lands on the
+    // sleeve, which is a defect no assertion about the scale factor would find.
+    it("scales the garment and the plate as one element", async () => {
+      const { container } = await showFront();
+      const transformed = stage(container)!;
+
+      expect(transformed.style.transform).toMatch(/scale\(/);
+
+      // The plate arrives from a debounced server render, so wait for it: an
+      // absent plate would pass a containment check vacuously, which is the
+      // one way this test could claim to prove something and prove nothing.
+      await waitFor(() =>
+        expect(
+          container.querySelector("img[src^='data:image/svg']"),
+        ).not.toBeNull(),
+      );
+      const garment = container.querySelector("img[alt*='front']")!;
+      const plateImg = container.querySelector("img[src^='data:image/svg']")!;
+
+      expect(transformed.contains(garment)).toBe(true);
+      expect(transformed.contains(plateImg)).toBe(true);
+      // And nothing else carries a transform of its own to fight it.
+      const others = [...container.querySelectorAll<HTMLElement>("[style]")]
+        .filter((el) => el !== transformed && el.style.transform);
+      expect(others).toHaveLength(0);
+    });
+
+    it("derives the scale from the placement rather than hard-coding it", async () => {
+      const { container } = await showFront();
+      const { transform, transformOrigin } = stage(container)!.style;
+
+      // Half the box width for a print placed at 13% of it.
+      const scale = Number(/scale\(([\d.]+)\)/.exec(transform)![1]);
+      expect(scale).toBeCloseTo(50 / PLACEMENT.hoodie.front.width, 3);
+      // Centred on the print, then carried to the middle of the box.
+      const ox = PLACEMENT.hoodie.front.left + PLACEMENT.hoodie.front.width / 2;
+      expect(transformOrigin).toContain(`${ox}%`);
+      expect(transform).toContain(`translate(${50 - ox}%`);
+    });
+
+    it("never zooms the back, whose whole point is the whole plate", async () => {
+      const { container } = render(
+        <LivePreview
+          profile={profile()}
+          product={product}
+          color={color}
+          render={renderPlates()}
+        />,
+      );
+      // Opens on the back.
+      expect(screen.queryByRole("button", { name: /whole garment/i })).toBeNull();
+      expect(screen.queryByRole("button", { name: /zoom in/i })).toBeNull();
+      expect(stage(container)!.style.transform).toBe("");
+    });
   });
 
   it("asks for the plate at the garment's own print proportions", async () => {
