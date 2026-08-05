@@ -44,10 +44,15 @@ type Presentation = {
 };
 
 const PRESENTATION: Record<OrderStatus, Presentation> = {
+  // "paid" means DRAWN OR DRAWING, not printing. Generation moved to after
+  // payment (owner, 2 August), so at this status nothing has been sent
+  // anywhere and an approval mail is on its way instead. Anything here that
+  // promises the press is a lie told to somebody who has just paid R999, and
+  // it is the one lie that costs the whole relationship.
   paid: {
     eyebrow: "Payment confirmed",
-    heading: "Thank you. Your creature is off to be printed.",
-    body: "PayFast has confirmed your payment, so your portrait is on its way to our print shop in Jeffreys Bay. We print, check it over by hand, and courier it to you within 7 to 10 working days. Your tracking number lands in your inbox the moment the courier has it.",
+    heading: "Thank you. We are drawing your creature now.",
+    body: "PayFast has confirmed your payment. Drawing them takes a few minutes, and then an email lands in your inbox with both sides of your piece for you to look at. Nothing is printed until you are happy with it. Once you say yes, it goes to our print shop in Jeffreys Bay and reaches you within 7 to 10 working days from that moment.",
     confirmed: true,
   },
   sent_to_printer: {

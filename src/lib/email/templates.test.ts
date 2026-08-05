@@ -114,6 +114,28 @@ describe("order confirmation", () => {
     expect(rendered.text).toContain("tracking number");
   });
 
+  // The order this mail describes has NOT been printed and has not been sent
+  // anywhere: generation happens after payment and an approval mail follows
+  // this one. Promising the press here is the one lie that costs the
+  // relationship, so it is asserted rather than left to a reviewer's eye.
+  it("promises the approval step and never the press", () => {
+    // The plain-text half is hard-wrapped, so a sentence spans lines. Compare
+    // on whitespace-collapsed copies or the wrapping decides the assertion.
+    const flat = (s: string) => s.replace(/\s+/g, " ");
+    for (const body of [flat(rendered.html), flat(rendered.text)]) {
+      // The exact sentence approval.ts keeps. One promise, one wording.
+      expect(body).toContain("othing is printed until you are happy with it");
+      expect(body).toContain("second email");
+      for (const lie of [
+        "off to be printed",
+        "on its way to print",
+        "heading to the print shop",
+      ]) {
+        expect(body).not.toContain(lie);
+      }
+    }
+  });
+
   it("uses no em or en dashes", () => {
     expectNoDashes(rendered);
   });

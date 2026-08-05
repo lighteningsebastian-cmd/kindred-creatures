@@ -66,6 +66,14 @@ function totalRow(label: string, value: string, strong = false): string {
  * receipt: tell them what happens now, because they have just paid for a thing
  * that does not exist yet and a week or more of silence is where the support
  * mail comes from.
+ *
+ * WHAT HAPPENS NOW IS THE APPROVAL STEP, NOT THE PRESS. Generation moved to
+ * after payment (owner, 2 August), so when this mail lands the portrait is
+ * being drawn and a second mail is coming with it. This is the first place the
+ * approval promise is made, so it has to make the same promise `approval.ts`
+ * keeps, in the same words: nothing is printed until you are happy with it.
+ * Two wordings for one promise is two promises, and the customer will notice
+ * which one we broke.
  */
 export function orderConfirmationEmail(
   data: OrderConfirmationData,
@@ -74,7 +82,7 @@ export function orderConfirmationEmail(
     data.shippingZar === 0 ? "Free" : formatZar(data.shippingZar);
 
   const body = [
-    heading("Thank you, your portrait is on its way to print."),
+    heading("Thank you. We are drawing your creature now."),
     paragraph(
       `Hi ${escapeHtml(data.firstName)}, we have your order and your payment came through. Here is what you ordered and what happens next.`,
     ),
@@ -90,7 +98,10 @@ ${totalRow("Total paid", formatZar(data.totalZar), true)}
     divider(),
     eyebrow("What happens next"),
     paragraph(
-      "Your portrait goes to our print shop in Jeffreys Bay, who print it by hand onto your garment. Allow 7 to 10 working days for printing and courier. When it leaves the shop we will send you the tracking number so you can watch it come to you.",
+      "We are drawing your creature now. It takes a few minutes, and then a second email lands with both sides of your piece for you to look at. Nothing is printed until you are happy with it, and if the first one is not quite right we will do it again.",
+    ),
+    paragraph(
+      "Once you approve it, your portrait goes to our print shop in Jeffreys Bay, who print it by hand onto your garment. Allow 7 to 10 working days from your approval for printing and courier. When it leaves the shop we will send you the tracking number so you can watch it come to you.",
     ),
     paragraph(
       "You can check on your order any time using the link below. Keep it somewhere safe: it is the key to your order page.",
@@ -103,7 +114,7 @@ ${totalRow("Total paid", formatZar(data.totalZar), true)}
   ].join("\n");
 
   const text = [
-    `Thank you, your portrait is on its way to print.`,
+    `Thank you. We are drawing your creature now.`,
     ``,
     `Hi ${data.firstName}, we have your order and your payment came through.`,
     ``,
@@ -115,9 +126,15 @@ ${totalRow("Total paid", formatZar(data.totalZar), true)}
     `Total paid: ${formatZar(data.totalZar)}`,
     ``,
     `WHAT HAPPENS NEXT`,
-    `Your portrait goes to our print shop in Jeffreys Bay, who print it by hand`,
-    `onto your garment. Allow 7 to 10 working days for printing and courier.`,
-    `When it leaves the shop we will send you the tracking number.`,
+    `We are drawing your creature now. It takes a few minutes, and then a second`,
+    `email lands with both sides of your piece for you to look at. Nothing is`,
+    `printed until you are happy with it, and if the first one is not quite`,
+    `right we will do it again.`,
+    ``,
+    `Once you approve it, your portrait goes to our print shop in Jeffreys Bay,`,
+    `who print it by hand onto your garment. Allow 7 to 10 working days from`,
+    `your approval for printing and courier. When it leaves the shop we will`,
+    `send you the tracking number.`,
     ``,
     `Check on your order any time:`,
     data.orderUrl,
@@ -131,7 +148,7 @@ ${totalRow("Total paid", formatZar(data.totalZar), true)}
     subject: `Your Kindred Creatures order ${data.orderRef}`,
     html: shell({
       title: `Order ${data.orderRef}`,
-      preheader: `We have your order and your portrait is heading to the print shop.`,
+      preheader: `We are drawing your creature now. Nothing prints until you say so.`,
       body,
     }),
     text,

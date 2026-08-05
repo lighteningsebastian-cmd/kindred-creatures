@@ -48,11 +48,34 @@ export const OWNED_ORDER_STATUSES: OrderStatus[] = [
 /** How long a creature thumbnail link stays good. One browsing session. */
 const CREATURE_LINK_TTL_SEC = 60 * 60;
 
+/**
+ * The key to show for a creature: the front plate, falling back to the old
+ * preview.
+ *
+ * `previewKey` was written by the PRE-PAYMENT preview path. Generation moved to
+ * after payment (owner, 2 August), so `artwork-drawing.ts` now writes frontKey
+ * and backKey and NOTHING writes previewKey any more. Asking for previewKey
+ * alone is asking for a column that is null on every artwork made since, which
+ * is why every card in "My Creatures" was falling through to a paw print.
+ *
+ * The front plate is the one with a face on it and a colour portrait, so it is
+ * the one worth showing. The fallback keeps historic rows working; drop it only
+ * once there are none left. Same order the approval page resolves in.
+ */
+function creatureKey(row: {
+  frontKey: string | null;
+  previewKey: string | null;
+}): string | null {
+  return row.frontKey ?? row.previewKey;
+}
+
 /** How each order status reads in the compact account order list. Warmer than
  * the operational admin labels; this is the customer's own history. */
 export const CUSTOMER_ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   pending: "Awaiting payment",
-  paid: "Paid, off to be printed",
+  // Paid means the portrait is being drawn and an approval mail is going out,
+  // NOT that anything has reached the press. See the order page's PRESENTATION.
+  paid: "Drawing your creature",
   sent_to_printer: "At the print shop",
   printed: "Printed and packed",
   shipped: "On its way to you",
@@ -90,6 +113,7 @@ export async function listCreaturesForCustomer(
     .select({
       artworkId: artworks.id,
       style: artworks.style,
+      frontKey: artworks.frontKey,
       previewKey: artworks.previewKey,
       orderedAt: orders.createdAt,
     })
@@ -108,14 +132,14 @@ export async function listCreaturesForCustomer(
   // window function, and the DISTINCT-with-min reads clearer here.
   const byArtwork = new Map<
     string,
-    { style: ArtStyle | null; previewKey: string | null; firstOrderedAt: Date }
+    { style: ArtStyle | null; key: string | null; firstOrderedAt: Date }
   >();
   for (const row of rows) {
     const existing = byArtwork.get(row.artworkId);
     if (!existing) {
       byArtwork.set(row.artworkId, {
         style: row.style,
-        previewKey: row.previewKey,
+        key: creatureKey(row),
         firstOrderedAt: row.orderedAt,
       });
     } else if (row.orderedAt < existing.firstOrderedAt) {
@@ -129,8 +153,8 @@ export async function listCreaturesForCustomer(
       artworkId,
       style: v.style,
       styleLabel: v.style ? ART_STYLE_LABELS[v.style] : "Your portrait",
-      previewUrl: v.previewKey
-        ? await storage.getSignedUrl(v.previewKey, CREATURE_LINK_TTL_SEC)
+      previewUrl: v.key
+        ? await storage.getSignedUrl(v.key, CREATURE_LINK_TTL_SEC)
         : null,
       firstOrderedAt: v.firstOrderedAt,
     })),
@@ -214,12 +238,13 @@ export async function getReorderableCreature(
   const db = await getDb();
 
   let row:
-    | { style: ArtStyle | null; previewKey: string | null }
+    | { style: ArtStyle | null; frontKey: string | null; previewKey: string | null }
     | undefined;
   try {
     [row] = await db
       .select({
         style: artworks.style,
+        frontKey: artworks.frontKey,
         previewKey: artworks.previewKey,
       })
       .from(orders)
@@ -240,8 +265,9 @@ export async function getReorderableCreature(
   }
   if (!row) return null;
 
-  const previewUrl = row.previewKey
-    ? await getStorage().getSignedUrl(row.previewKey, CREATURE_LINK_TTL_SEC)
+  const key = creatureKey(row);
+  const previewUrl = key
+    ? await getStorage().getSignedUrl(key, CREATURE_LINK_TTL_SEC)
     : null;
 
   return {
