@@ -71,7 +71,7 @@ describe("the heading above the portrait", () => {
   });
 
   it("is One of One for an unrecorded breed", () => {
-    expect(plateHeading(profile({ breedId: "one-of-one-dog-large" }))).toBe(
+    expect(plateHeading(profile({ breedId: "one-of-one-dog-brown" }))).toBe(
       "ONE OF ONE",
     );
   });
@@ -129,7 +129,7 @@ describe("the data table", () => {
     // Once is a fact, twice is a fault. The word moved up to the heading.
     for (const p of [
       profile(),
-      profile({ breedId: "one-of-one-dog-large" }),
+      profile({ breedId: "one-of-one-dog-brown" }),
       profile({ breedId: null, otherBreed: "Boerboel cross" }),
     ]) {
       expect(tableRows(p).map((r) => r.label)).not.toContain("BREED");
@@ -143,7 +143,7 @@ describe("the data table", () => {
   });
 
   it("keeps One of One off the table entirely", () => {
-    const rows = tableRows(profile({ breedId: "one-of-one-dog-large" }));
+    const rows = tableRows(profile({ breedId: "one-of-one-dog-brown" }));
     // ORIGIN is Unrecorded; GROUP is suppressed because it repeats the heading.
     expect(rows.map((r) => r.label)).toEqual(["ORIGIN", "TOGETHER"]);
     expect(rows.filter((r) => r.value === "One of One")).toHaveLength(0);

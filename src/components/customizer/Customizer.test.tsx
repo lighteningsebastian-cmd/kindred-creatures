@@ -21,7 +21,7 @@ function fullProfile(): CompanionProfile {
   return {
     ...emptyProfile("dog"),
     name: "Fenn",
-    breedId: "one-of-one-dog-large",
+    breedId: "one-of-one-dog-brown",
     temperament: ["confident", "affectionate", "spirited"],
   };
 }

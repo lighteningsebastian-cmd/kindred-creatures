@@ -72,7 +72,7 @@ describe("LivePreview", () => {
 
     render(
       <LivePreview
-        profile={profile({ breedId: "one-of-one-dog-large" })}
+        profile={profile({ breedId: "one-of-one-dog-brown" })}
         product={product}
         color={color}
         render={renderPlates}

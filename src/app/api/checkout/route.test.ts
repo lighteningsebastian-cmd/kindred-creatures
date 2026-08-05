@@ -47,7 +47,7 @@ async function readyArtwork(productSlug = "hoodie"): Promise<string> {
     .set({
       creatureName: "Fenn",
       species: "dog",
-      breedId: "one-of-one-dog-large",
+      breedId: "one-of-one-dog-brown",
       temperament: JSON.stringify(["confident", "affectionate", "spirited"]),
     })
     .where(eq(artworks.id, artworkId));
@@ -293,7 +293,7 @@ describe("POST /api/checkout", () => {
       .set({
         creatureName: "Fenn",
         species: "dog",
-        breedId: "one-of-one-dog-large",
+        breedId: "one-of-one-dog-brown",
         temperament: JSON.stringify(["confident", "affectionate", "spirited"]),
       })
       .where(eq(artworks.id, artworkId));
@@ -310,9 +310,12 @@ describe("POST /api/checkout", () => {
     // failure as an undrawn portrait used to be by a different route.
     const artworkId = await readyArtwork();
     const db = await getDb();
+    // NO words, which is the incomplete case now. This used to be ONE word,
+    // back when the plate demanded exactly three; one is a complete answer
+    // since 5 August, so it no longer proves anything about the guard.
     await db
       .update(artworks)
-      .set({ temperament: JSON.stringify(["confident"]) })
+      .set({ temperament: JSON.stringify([]) })
       .where(eq(artworks.id, artworkId));
 
     const res = await checkout(order([hoodieLine(artworkId)]));

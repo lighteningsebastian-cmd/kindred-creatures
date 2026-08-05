@@ -45,7 +45,7 @@ describe("companion profile columns", () => {
         uploadKey: "uploads/test2.png",
         productSlug: "tee",
         species: "dog",
-        breedId: "one-of-one-dog-medium",
+        breedId: "one-of-one-dog-black",
       })
       .returning();
 

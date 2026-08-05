@@ -107,7 +107,52 @@ const ONE_OF_ONE_ALIASES = [
   "one of a kind",
 ];
 
-/** Storage key of the hand-reviewed side-profile reference for a breed. */
+/**
+ * How a One of One is told apart: by COLOUR, not by size. Owner, 5 August.
+ *
+ * WHAT THE COLOUR IS FOR, and it is worth being clear about it, because it is
+ * not what it looks like. It selects which stock reference illustration the
+ * back portrait is given. **It is not printed anywhere.** `breedRowValue()`
+ * returns "One of One" for every one of these, so the plate reads the same
+ * three words whichever colour was chosen, and the heading above the portrait
+ * says the same thing.
+ *
+ * Size was the wrong axis: a rescue owner knows their dog is brown long before
+ * they would call it "medium", and two brown dogs of different sizes want the
+ * same reference far more than a brown and a black one of the same size do.
+ */
+const ONE_OF_ONE_COLOURS = [
+  "brown",
+  "black",
+  "white",
+  "brindle",
+  "spotty",
+] as const;
+
+/** The One of One entries for a species, one per colour. */
+function oneOfOnes(species: "dog" | "cat"): Breed[] {
+  return ONE_OF_ONE_COLOURS.map((colour) => ({
+    id: `one-of-one-${species}-${colour}`,
+    name: `One of One · ${colour[0]!.toUpperCase()}${colour.slice(1)}`,
+    species,
+    origin: "Unrecorded",
+    group: "One of One",
+    oneOfOne: true,
+    // The colour needs no alias: it is in the name, and a name match already
+    // outranks an alias match in matchRank.
+    aliases: ONE_OF_ONE_ALIASES,
+  }));
+}
+
+/**
+ * Storage key of the hand-reviewed side-profile reference for a breed.
+ *
+ * Null for every One of One, and that is correct rather than a gap to fill in:
+ * the colour library does not exist yet, so these generate from the customer's
+ * photograph alone. Returning a key for a file that is not there would make the
+ * drawing path warn on every rescue order, and faking it with a neighbouring
+ * breed would put a stranger's dog into the reference.
+ */
 export function referenceKey(breed: Breed): string | null {
   return breed.oneOfOne ? null : `references/${breed.id}-profile.png`;
 }
@@ -157,10 +202,8 @@ const DOGS: Breed[] = [
   { id: "australian-shepherd", name: "Australian Shepherd", species: "dog", origin: "United States", group: "Herding" },
   { id: "shih-tzu", name: "Shih Tzu", species: "dog", origin: "Tibet", group: "Toy" },
 
-  // One of One. Three sizes so a rescue owner still gets a real preview.
-  { id: "one-of-one-dog-small", name: "One of One · Small", species: "dog", origin: "Unrecorded", group: "One of One", oneOfOne: true, aliases: ONE_OF_ONE_ALIASES },
-  { id: "one-of-one-dog-medium", name: "One of One · Medium", species: "dog", origin: "Unrecorded", group: "One of One", oneOfOne: true, aliases: ONE_OF_ONE_ALIASES },
-  { id: "one-of-one-dog-large", name: "One of One · Large", species: "dog", origin: "Unrecorded", group: "One of One", oneOfOne: true, aliases: ONE_OF_ONE_ALIASES },
+  // One of One, by colour. See ONE_OF_ONE_COLOURS.
+  ...oneOfOnes("dog"),
 ];
 
 // ---------------------------------------------------------------------------
@@ -180,7 +223,7 @@ const CATS: Breed[] = [
   { id: "sphynx", name: "Sphynx", species: "cat", origin: "Toronto, Canada", group: "Hairless" },
   { id: "abyssinian", name: "Abyssinian", species: "cat", origin: "Ethiopia", group: "Shorthair" },
 
-  { id: "one-of-one-cat", name: "One of One", species: "cat", origin: "Unrecorded", group: "One of One", oneOfOne: true, aliases: ONE_OF_ONE_ALIASES },
+  ...oneOfOnes("cat"),
 ];
 
 // ---------------------------------------------------------------------------

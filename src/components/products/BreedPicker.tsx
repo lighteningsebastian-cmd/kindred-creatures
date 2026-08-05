@@ -115,6 +115,20 @@ export function BreedPicker({
         {selected && !showList ? `${selected.name} selected` : ""}
       </p>
 
+      {/*
+        One line, where they choose, because the colour is the one thing on
+        this screen that looks like it does something it does not. It is not
+        printed: every One of One prints the same three words. All it picks is
+        which stock illustration the drawing is given to work from, and saying
+        so here is the difference between an expectation and a refund.
+      */}
+      {selected?.oneOfOne && !showList ? (
+        <p className="text-sm text-muted">
+          The colour only picks the example illustration. Yours is still drawn
+          from your own photo.
+        </p>
+      ) : null}
+
       {showList && !ownWords ? (
         <>
           {results.length > 0 ? (

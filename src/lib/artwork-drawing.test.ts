@@ -110,7 +110,7 @@ describe("a breed with no reference illustration", () => {
   it("expects none for One of One, and says nothing about it", async () => {
     // One of One has no reference BY DESIGN, so there is nothing to warn about.
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const seeded = await seedArtwork({ breedId: "one-of-one-dog-large" });
+    const seeded = await seedArtwork({ breedId: "one-of-one-dog-brown" });
     const result = await drawArtworkPlates(seeded.id);
 
     expect(result.ok).toBe(true);

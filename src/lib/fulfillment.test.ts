@@ -166,7 +166,7 @@ async function undrawnArtwork(productSlug = "hoodie"): Promise<string> {
     productSlug,
     creatureName: "Fenn",
     species: "dog",
-    breedId: "one-of-one-dog-large",
+    breedId: "one-of-one-dog-brown",
   });
   return id;
 }

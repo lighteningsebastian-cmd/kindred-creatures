@@ -61,7 +61,7 @@ describe("sample plates", () => {
       ["no-traits", { ...full, temperament: [] }, "KC-01248"],
       // A one-row table, and the plate still has to look deliberate.
       ["no-traits-no-year", { ...full, temperament: [], togetherSince: null }, "KC-01248"],
-      ["one-of-one", { ...full, breedId: "one-of-one-dog-large" }, "KC-01249"],
+      ["one-of-one", { ...full, breedId: "one-of-one-dog-brown" }, "KC-01249"],
       ["long-breed", { ...full, breedId: "staffordshire-bull-terrier" }, "KC-01250"],
       // THE EMPTY TABLE. A breed they typed themselves and no year leaves the
       // table with nothing in it at all: their word is the heading, and the rule

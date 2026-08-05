@@ -22,7 +22,7 @@ describe("what the flow says back", () => {
   });
 
   it("never lets One of One read as a shrug", () => {
-    const line = afterBreed("one-of-one-dog-large")!;
+    const line = afterBreed("one-of-one-dog-brown")!;
     expect(line).toMatch(/one of a kind/i);
     // And never the phrase the brand does not use.
     expect(line.toLowerCase()).not.toContain("mixed");
