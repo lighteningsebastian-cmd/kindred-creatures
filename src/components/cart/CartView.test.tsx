@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CartView } from "./CartView";
 import { useCartStore, type CartItem } from "@/lib/cart-store";
@@ -59,12 +59,10 @@ describe("CartView", () => {
       screen.getByRole("heading", { name: "The Kindred Tee" }),
     ).toBeInTheDocument();
 
-    // The thumbnail is the garment they chose. The portrait is not drawn until
-    // after payment, so there is nothing else honest to show here.
-    expect(screen.getByAltText("The Kindred Hoodie in White")).toHaveAttribute(
-      "src",
-      "/garments/hoodie/white/front.webp",
-    );
+    // The thumbnail is the plate they built, drawn from their own profile.
+    expect(
+      screen.getByAltText("Your design for The Kindred Hoodie in White"),
+    ).toHaveAttribute("src", "/api/artwork/art-1/plate");
 
     expect(screen.getByText("White · Size M")).toBeInTheDocument();
     expect(screen.getByText("Olive · Size L")).toBeInTheDocument();
@@ -82,7 +80,7 @@ describe("CartView", () => {
     );
   });
 
-  it("thumbnails the same garment differently per colourway", async () => {
+  it("draws each line's own plate, so two creatures are two pictures", async () => {
     seed(
       line({ artworkId: "art-1", color: "White" }),
       line({ artworkId: "art-2", color: "Lilac" }),
@@ -91,8 +89,25 @@ describe("CartView", () => {
     render(<CartView />);
 
     expect(
-      await screen.findByAltText("The Kindred Hoodie in White"),
-    ).toHaveAttribute("src", "/garments/hoodie/white/front.webp");
+      await screen.findByAltText("Your design for The Kindred Hoodie in White"),
+    ).toHaveAttribute("src", "/api/artwork/art-1/plate");
+    expect(
+      screen.getByAltText("Your design for The Kindred Hoodie in Lilac"),
+    ).toHaveAttribute("src", "/api/artwork/art-2/plate");
+  });
+
+  it("falls back to the garment photograph when the plate cannot be drawn", async () => {
+    // What the route returns for an artwork whose profile was never finished.
+    // A half-empty plate reads as a fault, so the line shows something real.
+    seed(line({ artworkId: "art-1", color: "Lilac" }));
+
+    render(<CartView />);
+
+    const plate = await screen.findByAltText(
+      "Your design for The Kindred Hoodie in Lilac",
+    );
+    fireEvent.error(plate);
+
     expect(screen.getByAltText("The Kindred Hoodie in Lilac")).toHaveAttribute(
       "src",
       "/garments/hoodie/lilac/front.webp",
