@@ -1,13 +1,25 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CartView } from "./CartView";
 import { useCartStore, type CartItem } from "@/lib/cart-store";
 
+// next/image needs config it does not have in jsdom; the thumbnail assertions
+// below only care which photograph was asked for.
+vi.mock("next/image", () => ({
+  default: (props: Record<string, unknown>) => {
+    const { src, alt } = props as { src: string; alt: string };
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt={alt} />;
+  },
+}));
+
+// A REAL colourway, because the thumbnail is now the garment photograph and a
+// colour with no shot behind it would prove nothing.
 function line(overrides: Partial<CartItem> = {}): CartItem {
   return {
     productSlug: "hoodie",
-    color: "Stone",
+    color: "White",
     size: "M",
     qty: 1,
     artworkId: "art-1",
@@ -47,11 +59,14 @@ describe("CartView", () => {
       screen.getByRole("heading", { name: "The Kindred Tee" }),
     ).toBeInTheDocument();
 
-    // The thumbnail points at the re-signing route, not a stored signed URL.
-    const thumb = screen.getByAltText("Your portrait for the The Kindred Hoodie");
-    expect(thumb).toHaveAttribute("src", "/api/artwork/art-1/preview");
+    // The thumbnail is the garment they chose. The portrait is not drawn until
+    // after payment, so there is nothing else honest to show here.
+    expect(screen.getByAltText("The Kindred Hoodie in White")).toHaveAttribute(
+      "src",
+      "/garments/hoodie/white/front.webp",
+    );
 
-    expect(screen.getByText("Stone · Size M")).toBeInTheDocument();
+    expect(screen.getByText("White · Size M")).toBeInTheDocument();
     expect(screen.getByText("Olive · Size L")).toBeInTheDocument();
 
     // Line totals: 2 x R 899, and 1 x R 449.
@@ -67,6 +82,23 @@ describe("CartView", () => {
     );
   });
 
+  it("thumbnails the same garment differently per colourway", async () => {
+    seed(
+      line({ artworkId: "art-1", color: "White" }),
+      line({ artworkId: "art-2", color: "Lilac" }),
+    );
+
+    render(<CartView />);
+
+    expect(
+      await screen.findByAltText("The Kindred Hoodie in White"),
+    ).toHaveAttribute("src", "/garments/hoodie/white/front.webp");
+    expect(screen.getByAltText("The Kindred Hoodie in Lilac")).toHaveAttribute(
+      "src",
+      "/garments/hoodie/lilac/front.webp",
+    );
+  });
+
   it("steps quantity and reprices the line and the total", async () => {
     const user = userEvent.setup();
     seed(line({ qty: 1 }));
@@ -74,10 +106,10 @@ describe("CartView", () => {
     render(<CartView />);
 
     const increase = await screen.findByRole("button", {
-      name: "Increase quantity of The Kindred Hoodie, Stone, size M",
+      name: "Increase quantity of The Kindred Hoodie, White, size M",
     });
     const decrease = screen.getByRole("button", {
-      name: "Decrease quantity of The Kindred Hoodie, Stone, size M",
+      name: "Decrease quantity of The Kindred Hoodie, White, size M",
     });
 
     // At one, there is nowhere to step down to: removal is its own control.
@@ -102,7 +134,7 @@ describe("CartView", () => {
 
     await user.click(
       await screen.findByRole("button", {
-        name: "Remove The Kindred Hoodie, Stone, size M from your cart",
+        name: "Remove The Kindred Hoodie, White, size M from your cart",
       }),
     );
 

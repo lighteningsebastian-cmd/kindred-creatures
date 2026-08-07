@@ -1,10 +1,12 @@
 "use client";
 
+import Image from "next/image";
 import { Minus, Plus, X } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { FREE_SHIPPING_THRESHOLD_ZAR } from "@/lib/checkout";
+import { garmentImageUrl } from "@/lib/garments";
 import { formatZar, getProduct, type ProductSlug } from "@/lib/products";
 import {
   MAX_QTY,
@@ -17,6 +19,11 @@ import {
 
 function productName(slug: ProductSlug): string {
   return getProduct(slug)?.name ?? slug;
+}
+
+/** The chosen colourway's own colour, for a garment with no photograph. */
+function swatchHex(slug: ProductSlug, color: string): string | undefined {
+  return getProduct(slug)?.variants.find((v) => v.color === color)?.colorHex;
 }
 
 /** Placeholder while the persisted cart is being read back on the client. */
@@ -56,9 +63,10 @@ function EmptyCart() {
 }
 
 /**
- * The cart screen: one line per commissioned portrait, with the artwork itself
- * as the thumbnail. Lines are keyed by artworkId, so the quantity stepper and
- * the remove control both address a portrait rather than a product.
+ * The cart screen: one line per commissioned portrait, thumbnailed by the
+ * garment in the colourway they chose. Lines are keyed by artworkId, so the
+ * quantity stepper and the remove control both address a portrait rather than
+ * a product.
  */
 export function CartView() {
   const items = useCartItems();
@@ -89,21 +97,38 @@ export function CartView() {
                 {items.map((item) => {
                   const name = productName(item.productSlug);
                   const describe = `${name}, ${item.color}, size ${item.size}`;
+                  const garment = garmentImageUrl(
+                    item.productSlug,
+                    item.color,
+                    "front",
+                  );
+                  const swatch = swatchHex(item.productSlug, item.color);
                   return (
                     <li
                       key={item.artworkId}
                       className="flex gap-4 border-b border-line py-6 sm:gap-6"
                     >
-                      <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md border border-line bg-surface sm:h-28 sm:w-28">
-                        {/* Stable path that re-signs per request: a stored
-                            signed URL would expire inside a saved cart. Plain
-                            img keeps the next/image loader off a redirect. */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={`/api/artwork/${item.artworkId}/preview`}
-                          alt={`Your portrait for the ${name}`}
-                          className="h-full w-full object-cover"
-                        />
+                      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md border border-line bg-surface sm:h-28 sm:w-28">
+                        {/* The garment they chose, in the colourway they chose.
+                            NOT the portrait: it does not exist yet and by
+                            design will not until after payment, so a thumbnail
+                            asking for one is a broken image on every cart. */}
+                        {garment ? (
+                          <Image
+                            src={garment}
+                            alt={`${name} in ${item.color}`}
+                            fill
+                            sizes="112px"
+                            className="object-cover"
+                          />
+                        ) : (
+                          // No photograph for this garment yet (the tote). Its
+                          // own colour, rather than an empty frame.
+                          <div
+                            className="absolute inset-0"
+                            style={{ backgroundColor: swatch }}
+                          />
+                        )}
                       </div>
 
                       <div className="flex min-w-0 flex-1 flex-col gap-4">

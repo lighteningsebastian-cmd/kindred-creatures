@@ -13,8 +13,9 @@ import type { ProductSlug } from "@/lib/products";
  *
  * `unitPriceZar` is captured at add time (whole rands, not cents) so a later
  * price change cannot silently re-price a cart someone is already holding.
- * The thumbnail is NOT stored here: signed asset URLs expire, so the cart asks
- * /api/artwork/[id]/preview for a fresh one at render time.
+ * No thumbnail is stored: the cart line renders the garment photograph, which
+ * `productSlug` and `color` between them already name. The portrait cannot be
+ * the thumbnail because it is not drawn until after payment.
  */
 export interface CartItem {
   productSlug: ProductSlug;
