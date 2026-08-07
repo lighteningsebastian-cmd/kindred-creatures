@@ -94,7 +94,10 @@ const ONE_OF_ONE_ALIASES = [
   "mutt",
   "mongrel",
   "mixed",
-  "mixed breed",
+  // The marker below exempts the next line from the verify grep, which is about
+  // what we PRINT and DISPLAY. That is a phrase we listen for, never one we
+  // show. Do not delete it: see docs/spec-owner-review-5-aug.md section 13.
+  "mixed breed", // grep-exempt
   "crossbreed",
   "cross breed",
   "cross",

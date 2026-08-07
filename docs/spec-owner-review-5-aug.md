@@ -1,5 +1,18 @@
 # Owner review, 5 August 2026 · fourteen changes after the first real artwork
 
+> **STATUS, 5 August, evening. Delivered in commits `abe29b5` to `d3c3aeb`.**
+>
+> Everything below is built and committed **except section 2b**, which was written after
+> Claude Code had already started and is the only item still open.
+>
+> **One correction to this document, and the error is mine.** Section 4 says
+> `CompanionForm.tsx` is dead code and should be deleted. It is not: `ProductFlow.tsx`
+> line 6 imports it for the edit stage, added in `e991690`. Claude Code was right to update
+> it rather than follow the instruction. The claim came from a stale note of mine and was
+> not re-checked before it went into this brief.
+>
+> Two questions came back and are answered at the foot of this file, section 13.
+
 **For Claude Code.** Owner viewed the first genuinely generated front and back plates
 (order `F0379EB0`, artwork `b025ee59`) and gave the list below. Consistency across
 generations was singled out as working: **do not touch `prompts.ts` in this pass.** The
@@ -105,6 +118,42 @@ read at line 217 onward. Select `artworks.frontKey` alongside `previewKey` in bo
 
 **Verify:** the existing order `F0379EB0` must show its artwork in My Creatures without any
 regeneration.
+
+---
+
+## 2b. The cart thumbnail is a broken image · same era, different fix
+
+Owner screenshot, 5 August: the cart line shows the browser's broken-image icon and the raw
+alt text, `Your portrait for the The Kindred Hoodie`.
+
+**Cause.** `src/components/cart/CartView.tsx` line 103 points at
+`/api/artwork/{id}/preview`. That route (`src/app/api/artwork/[id]/preview/route.ts` line 42)
+returns 404 when `previewKey` is null, and `previewKey` is now never written — the same dead
+column as section 2.
+
+**But the fix is NOT the same as section 2.** In My Creatures the artwork genuinely exists
+and the wrong column is being read. In the cart, **the portrait does not exist yet and by
+design never will at that point**: generation happens after payment. This route is a leftover
+from when portraits were drawn in the browser before checkout. It is asking for a picture we
+deliberately have not made.
+
+**Fix.** Show the garment, in the colourway they chose. The cart line already carries
+`productSlug` and `color` (`src/lib/cart-store.ts` lines 21 to 24), and
+`garmentImageUrl(slug, color, "front")` in `src/lib/garments.ts` already returns the
+photograph. Honest, no new machinery, and it shows them what they are buying.
+
+- Replace the `<img>` src with the garment photograph. `next/image` is fine here: it is a
+  static asset, not a redirect, which is the only reason the plain `img` was used.
+- **Delete `src/app/api/artwork/[id]/preview/route.ts`.** `CartView` is its only caller
+  (`CartView.test.tsx` line 52 is the only other reference). Say in the commit that it died
+  with pre-payment generation.
+- Update `CartView.test.tsx` line 52 to assert the garment image instead.
+
+**And fix the alt text while you are there.** It reads `Your portrait for the ${name}` where
+name is already `The Kindred Hoodie`, so it renders "for the The Kindred Hoodie". The
+double article is only visible because the image is broken, but it is what a screen reader
+has been reading out all along. It is a garment photo now, so the alt text should describe
+that: `${name} in ${item.color}`.
 
 ---
 
@@ -420,9 +469,13 @@ npm run build
 npx vitest run
 npm run lint
 grep -rn "—\|–" src --include=*.tsx --include=*.ts
-grep -rni "mixed breed" src
+grep -rni "mixed breed" src | grep -v grep-exempt
 grep -rn "off to be printed\|on its way to print" src
 ```
+
+The `grep -v` narrows the check to printed and displayed strings, which is what the rule
+was always about. Reasoning in section 13; the exempt alias carries the marker and a
+comment beside it.
 
 By hand, and none of these can be checked by reading code:
 
@@ -438,3 +491,51 @@ By hand, and none of these can be checked by reading code:
 6. Open My Creatures as the customer on order `F0379EB0`. The artwork is there.
 7. Read the order page at `paid` and the confirmation email, out loud, as someone who has
    just spent R999. Nothing in either says the garment is being printed.
+
+---
+
+## 13. Answers to the two questions that came back
+
+### The "mixed breed" grep
+
+`grep -rni "mixed breed"` returns `src/lib/breeds.ts:97`, inside `ONE_OF_ONE_ALIASES`.
+
+**The alias stays. The verify step is what was wrong.** The rule in
+`docs/spec-print-layout.md` section 3 is about what we **print and display** — a customer
+must never be shown that phrase, because of what it carries in a South African context. It
+was never about what we **listen for**. A rescue owner who types the words they have always
+used has to find their dog, and an empty result is a lost sale and a small insult.
+
+So the alias is the rule working, not breaking. Narrow the check to the thing it actually
+guards:
+
+```
+grep -rni "mixed breed" src | grep -v grep-exempt
+```
+
+**Built 6 August, and not quite as sketched above.** The `grep -v ONE_OF_ONE_ALIASES` form
+in the original answer cannot work: grep is line-based, and the line that matches is
+`"mixed breed",` on its own, which does not contain the array's name. Splitting the check
+into a `.tsx` pass and a `src/lib` pass also leaves `src/app/**/*.ts` unchecked, and
+`llms.txt/route.ts` is customer-facing copy that lives there.
+
+So the exemption is marked at the line instead: the alias carries a trailing `grep-exempt`
+comment and three lines above it saying why it must not be deleted. One grep now covers
+every file in `src`, and only the marked line is exempt.
+
+The verify blocks in `docs/spec-print-layout.md` section 7, this file's section 12 and
+`docs/spec-pipeline.md` section 13 all carry the narrowed command.
+
+### The reference-only `SUBJECT` clause
+
+Owner's, and it is waiting on him, correctly. Nothing should be written into `prompts.ts` by
+anyone else while he has that file open.
+
+The shape of what is needed, so it is not rediscovered: with no photograph, `SUBJECT`'s
+first sentence ("A portrait of THIS SPECIFIC animal from the photograph") has no referent,
+and the whole clause exists to stop the model drawing a handsome generic example of the
+breed. On this path a handsome generic example of the breed **is what was ordered**. So it
+is not a smaller version of the same instruction, it is close to its inverse, and it wants
+its own named constant rather than a conditional inside the existing one.
+
+It cannot ship before the reference library exists in any case.

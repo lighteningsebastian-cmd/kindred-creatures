@@ -342,8 +342,12 @@ npm run build
 npx vitest run
 npm run lint
 grep -rn "—\|–" src --include=*.tsx --include=*.ts
-grep -rni "mixed breed" src
+grep -rni "mixed breed" src | grep -v grep-exempt
 ```
+
+The phrase is forbidden in what we print and display, never in what we listen for: the
+search alias in `src/lib/breeds.ts` carries the `grep-exempt` marker and the reasoning.
+See `docs/spec-owner-review-5-aug.md` section 13.
 
 Manual:
 

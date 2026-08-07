@@ -306,8 +306,15 @@ npm run build
 npx vitest run
 npm run lint
 grep -rn "—\|–" src --include=*.tsx --include=*.ts
-grep -rni "mixed breed" src                        # must be empty
+grep -rni "mixed breed" src | grep -v grep-exempt   # must be empty
 ```
+
+The `grep -v` is not a loophole, it is the rule stated properly. Section 3 forbids that
+phrase in what we **print and display**; it was never about what we **listen for**, and
+`ONE_OF_ONE_ALIASES` in `src/lib/breeds.ts` listens for it on purpose, so a rescue owner
+who types the words they have always used finds their dog. That one line carries a
+`grep-exempt` marker and a comment saying why. Anything else this grep returns is a real
+failure.
 
 Sample plates for every case below are written by `src/lib/print/sample.test.ts`, which is
 off by default because the rest of the suite has no business writing files:
