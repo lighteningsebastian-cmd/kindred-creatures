@@ -13,10 +13,16 @@ const shopLinks = [
   { href: "/faq", label: "FAQ" },
 ];
 
+// Real routes, every one of them. These sat on href="#" while the pages did not
+// exist, which is the first thing a payment provider's reviewer clicks and the
+// last thing a customer wants to find when they are looking for a returns
+// policy. Footer.test.tsx fails the build if a "#" comes back.
 const policyLinks = [
   { href: "/order-lookup", label: "Find my order" },
-  { href: "#", label: "Shipping & returns" },
-  { href: "#", label: "Privacy" },
+  { href: "/contact", label: "Contact" },
+  { href: "/shipping-and-returns", label: "Shipping & returns" },
+  { href: "/terms", label: "Terms of sale" },
+  { href: "/privacy", label: "Privacy" },
 ];
 
 export function Footer() {

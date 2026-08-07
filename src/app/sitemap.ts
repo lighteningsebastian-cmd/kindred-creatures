@@ -65,6 +65,14 @@ export const STATIC_ROUTES: StaticRoute[] = [
   { path: "/about", changeFrequency: "yearly", priority: 0.5 },
   { path: "/faq", changeFrequency: "monthly", priority: 0.6 },
   { path: "/journal", changeFrequency: "weekly", priority: 0.5 },
+  // The policy pages. Low priority, but listed rather than hidden: shipping,
+  // returns and contact are read before a first order is placed, and a crawler
+  // that cannot find them cannot show them to somebody deciding whether to
+  // trust a shop they have never heard of.
+  { path: "/contact", changeFrequency: "yearly", priority: 0.4 },
+  { path: "/shipping-and-returns", changeFrequency: "yearly", priority: 0.4 },
+  { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
+  { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

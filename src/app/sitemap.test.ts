@@ -43,7 +43,18 @@ describe("sitemap", () => {
     }
   });
 
-  it("lists nothing but the homepage, shop, how-it-works, content pages and the products", () => {
+  it("lists the policy pages", () => {
+    for (const path of [
+      "/contact",
+      "/shipping-and-returns",
+      "/terms",
+      "/privacy",
+    ]) {
+      expect(urls()).toContain(`${BASE}${path}`);
+    }
+  });
+
+  it("lists nothing but the homepage, shop, how-it-works, content pages, policy pages and the products", () => {
     expect(urls().sort()).toEqual(
       [
         BASE,
@@ -52,6 +63,10 @@ describe("sitemap", () => {
         `${BASE}/about`,
         `${BASE}/faq`,
         `${BASE}/journal`,
+        `${BASE}/contact`,
+        `${BASE}/shipping-and-returns`,
+        `${BASE}/terms`,
+        `${BASE}/privacy`,
         ...PRODUCTS.map((p) => `${BASE}/products/${p.slug}`),
       ].sort(),
     );
