@@ -1,13 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
 import { Minus, Plus, X } from "@phosphor-icons/react";
+import { LineThumbnail } from "@/components/cart/LineThumbnail";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { FREE_SHIPPING_THRESHOLD_ZAR } from "@/lib/checkout";
-import { garmentImageUrl } from "@/lib/garments";
 import { formatZar, getProduct, type ProductSlug } from "@/lib/products";
 import {
   MAX_QTY,
@@ -16,80 +14,59 @@ import {
   useCartHydrated,
   useCartItems,
   useCartStore,
-  type CartItem,
 } from "@/lib/cart-store";
 
 function productName(slug: ProductSlug): string {
   return getProduct(slug)?.name ?? slug;
 }
 
-/** The chosen colourway's own colour, for a garment with no photograph. */
-function swatchHex(slug: ProductSlug, color: string): string | undefined {
-  return getProduct(slug)?.variants.find((v) => v.color === color)?.colorHex;
-}
-
 /**
- * The picture on a cart line: the plate they built, set the way it prints.
+ * One garment choice on a cart line, changeable in place.
  *
- * THE PLATE, NOT THE GARMENT, because the plate is the part they made. Five
- * questions went into the breed, the words and the name, and a photograph of a
- * plain white hoodie shows none of it back to them. It is served as SVG from
- * the artwork's own profile, so it is their creature's plate rather than a
- * picture of one, and it fills the box rather than sitting at true placement:
- * at 80px, a plate at 46% of a garment's width is an illegible smudge.
- *
- * The portrait window inside it is empty, and honestly so. The drawing happens
- * after payment.
- *
- * FALLING BACK TO THE GARMENT is what happens when the route says no, which it
- * does for an artwork with no finished profile behind it. A half-empty plate
- * reads as a fault; the garment photograph is a picture of something real.
+ * A native select on purpose: it is one tap on a phone, it is keyboard
+ * operable without anybody writing that part twice, and a cart is the last
+ * place to be clever. Where there is only one thing to choose (the tote's one
+ * size) it renders as plain text rather than a dropdown that cannot do
+ * anything.
  */
-function CartThumbnail({
-  item,
-  productLabel,
+function LineOption({
+  label,
+  value,
+  options,
+  describe,
+  onChange,
 }: {
-  item: CartItem;
-  productLabel: string;
+  label: string;
+  value: string;
+  options: string[];
+  /** What the line is, so the control names itself to a screen reader. */
+  describe: string;
+  onChange: (next: string) => void;
 }) {
-  const [plateFailed, setPlateFailed] = useState(false);
-  const garment = garmentImageUrl(item.productSlug, item.color, "front");
-  const swatch = swatchHex(item.productSlug, item.color);
-
-  if (!plateFailed) {
+  if (options.length <= 1) {
     return (
-      // The garment's own colour behind it, so the ink sits on the fabric it
-      // will be printed on rather than on the page.
-      <div
-        className="absolute inset-0 flex items-center justify-center"
-        style={{ backgroundColor: swatch }}
-      >
-        {/* Not next/image: this is a dynamic SVG rendered per request, which
-            the optimiser refuses by default and could not usefully resize
-            anyway. The plate carries its own margin, so it needs no padding. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`/api/artwork/${item.artworkId}/plate`}
-          alt={`Your design for ${productLabel} in ${item.color}`}
-          className="h-full w-full object-contain"
-          onError={() => setPlateFailed(true)}
-        />
-      </div>
+      <span className="text-sm text-muted">
+        {label}: {value}
+      </span>
     );
   }
 
-  return garment ? (
-    <Image
-      src={garment}
-      alt={`${productLabel} in ${item.color}`}
-      fill
-      sizes="112px"
-      className="object-cover"
-    />
-  ) : (
-    // No photograph for this garment yet (the tote). Its own colour, rather
-    // than an empty frame.
-    <div className="absolute inset-0" style={{ backgroundColor: swatch }} />
+  return (
+    <label className="inline-flex items-center gap-1.5 text-sm text-muted">
+      <span>{label}</span>
+      <select
+        aria-label={`${label} for ${describe}`}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="rounded-md border border-line bg-base px-2 py-1 text-sm text-ink transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base"
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -131,14 +108,20 @@ function EmptyCart() {
 
 /**
  * The cart screen: one line per commissioned portrait, thumbnailed by the
- * garment in the colourway they chose. Lines are keyed by artworkId, so the
- * quantity stepper and the remove control both address a portrait rather than
- * a product.
+ * plate they built. Lines are keyed by artworkId, so the quantity stepper, the
+ * garment controls and the remove control all address a portrait rather than a
+ * product.
+ *
+ * Colour and size are CHANGEABLE HERE, and that is the point of them being
+ * here: they belong to the garment rather than to the portrait, so changing
+ * one is not a reason to answer five questions about a dog again. Anything
+ * that belongs to the creature is still edited back in the flow.
  */
 export function CartView() {
   const items = useCartItems();
   const hydrated = useCartHydrated();
   const setQty = useCartStore((state) => state.setQty);
+  const setLineOptions = useCartStore((state) => state.setLineOptions);
   const removeItem = useCartStore((state) => state.removeItem);
 
   const subtotal = subtotalZar(items);
@@ -164,13 +147,18 @@ export function CartView() {
                 {items.map((item) => {
                   const name = productName(item.productSlug);
                   const describe = `${name}, ${item.color}, size ${item.size}`;
+                  const product = getProduct(item.productSlug);
+                  const colours = product?.variants.map((v) => v.color) ?? [];
+                  const sizes =
+                    product?.variants.find((v) => v.color === item.color)
+                      ?.sizes ?? [];
                   return (
                     <li
                       key={item.artworkId}
                       className="flex gap-4 border-b border-line py-6 sm:gap-6"
                     >
                       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md border border-line bg-surface sm:h-28 sm:w-28">
-                        <CartThumbnail item={item} productLabel={name} />
+                        <LineThumbnail item={item} productLabel={name} />
                       </div>
 
                       <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -179,10 +167,27 @@ export function CartView() {
                             <h2 className="font-display text-lg leading-snug text-ink sm:text-xl">
                               {name}
                             </h2>
-                            <p className="mt-1 text-sm text-muted">
-                              {item.color} · Size {item.size}
-                            </p>
-                            <p className="mt-1 text-sm text-muted">
+                            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                              <LineOption
+                                label="Colour"
+                                value={item.color}
+                                options={colours}
+                                describe={describe}
+                                onChange={(color) =>
+                                  setLineOptions(item.artworkId, { color })
+                                }
+                              />
+                              <LineOption
+                                label="Size"
+                                value={item.size}
+                                options={sizes}
+                                describe={describe}
+                                onChange={(size) =>
+                                  setLineOptions(item.artworkId, { size })
+                                }
+                              />
+                            </div>
+                            <p className="mt-2 text-sm text-muted">
                               {formatZar(item.unitPriceZar)} each
                             </p>
                           </div>

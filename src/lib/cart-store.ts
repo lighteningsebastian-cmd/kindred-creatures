@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { MAX_QTY, MIN_QTY } from "@/lib/checkout";
-import type { ProductSlug } from "@/lib/products";
+import { getProduct, type ProductSlug } from "@/lib/products";
 
 /**
  * One line in the cart. `artworkId` is the line identity: every artwork is a
@@ -44,6 +44,19 @@ export type CartState = {
   removeItem: (artworkId: string) => void;
   /** Sets a line's quantity (clamped 1..10). A quantity of 0 removes it. */
   setQty: (artworkId: string, qty: number) => void;
+  /**
+   * Changes the garment on a line: its colourway, its size, or both.
+   *
+   * A cart used to be a one-way door. Everything about the piece was decided
+   * five steps back and the only ways out were to empty the line and answer
+   * every question again, or to buy the wrong size. Colour and size are the
+   * two things that belong to the GARMENT rather than to the portrait, so they
+   * are the two that can be changed here without touching the artwork at all.
+   */
+  setLineOptions: (
+    artworkId: string,
+    options: { color?: string; size?: string },
+  ) => void;
   clear: () => void;
 };
 
@@ -90,6 +103,37 @@ export const useCartStore = create<CartState>()(
             ),
           };
         }),
+
+      setLineOptions: (artworkId, options) =>
+        set((state) => ({
+          items: state.items.map((line) => {
+            if (line.artworkId !== artworkId) return line;
+
+            const color = options.color ?? line.color;
+            const variant = getProduct(line.productSlug)?.variants.find(
+              (candidate) => candidate.color === color,
+            );
+            // A colourway that is not in the catalogue is not a colourway we
+            // can print. Leave the line exactly as it was.
+            if (!variant) return line;
+
+            // Size runs belong to the VARIANT, so a colour change can carry a
+            // size away with it. Keep theirs where the new colourway has it and
+            // fall back to its first size where it does not, because a line
+            // naming a size that cannot be made is one the checkout will refuse
+            // after they have typed in their address.
+            const wanted = options.size ?? line.size;
+            const size = variant.sizes.includes(wanted)
+              ? wanted
+              : (variant.sizes[0] ?? line.size);
+
+            // Re-priced from the catalogue, never carried over: colourways are
+            // allowed to differ in price, and the checkout re-derives every
+            // amount server-side anyway. A cart that disagrees with it shows
+            // somebody one number and charges another.
+            return { ...line, color, size, unitPriceZar: variant.priceZar };
+          }),
+        })),
 
       clear: () => set({ items: [] }),
     }),

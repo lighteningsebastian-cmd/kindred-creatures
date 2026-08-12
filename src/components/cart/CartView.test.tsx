@@ -64,8 +64,17 @@ describe("CartView", () => {
       screen.getByAltText("Your design for The Kindred Hoodie in White"),
     ).toHaveAttribute("src", "/api/artwork/art-1/plate");
 
-    expect(screen.getByText("White · Size M")).toBeInTheDocument();
-    expect(screen.getByText("Olive · Size L")).toBeInTheDocument();
+    // Colour and size are controls now, not a sentence: they are the two
+    // things somebody may change without starting the piece again.
+    expect(
+      screen.getByLabelText("Colour for The Kindred Hoodie, White, size M"),
+    ).toHaveValue("White");
+    expect(
+      screen.getByLabelText("Size for The Kindred Hoodie, White, size M"),
+    ).toHaveValue("M");
+    expect(
+      screen.getByLabelText("Colour for The Kindred Tee, Olive, size L"),
+    ).toHaveValue("Olive");
 
     // Line totals: 2 x R 899, and 1 x R 449.
     expect(screen.getByText("R 1 798")).toBeInTheDocument();
@@ -112,6 +121,80 @@ describe("CartView", () => {
       "src",
       "/garments/hoodie/lilac/front.webp",
     );
+  });
+
+  it("changes the colourway from the cart, without touching the artwork", async () => {
+    const user = userEvent.setup();
+    seed(line({ artworkId: "art-1", color: "White" }));
+
+    render(<CartView />);
+
+    await user.selectOptions(
+      await screen.findByLabelText(
+        "Colour for The Kindred Hoodie, White, size M",
+      ),
+      "Lilac",
+    );
+
+    const [stored] = useCartStore.getState().items;
+    expect(stored.color).toBe("Lilac");
+    // Same portrait, same line: a colour is a garment decision.
+    expect(stored.artworkId).toBe("art-1");
+    expect(stored.size).toBe("M");
+    // And the thumbnail follows it.
+    expect(
+      screen.getByAltText("Your design for The Kindred Hoodie in Lilac"),
+    ).toBeInTheDocument();
+  });
+
+  it("changes the size from the cart", async () => {
+    const user = userEvent.setup();
+    seed(line({ artworkId: "art-1", size: "M" }));
+
+    render(<CartView />);
+
+    await user.selectOptions(
+      await screen.findByLabelText(
+        "Size for The Kindred Hoodie, White, size M",
+      ),
+      "XL",
+    );
+
+    expect(useCartStore.getState().items[0].size).toBe("XL");
+  });
+
+  it("re-prices a line from the catalogue rather than carrying the old price", async () => {
+    const user = userEvent.setup();
+    // A stale price, as a cart saved before a price change would hold.
+    seed(line({ artworkId: "art-1", color: "White", unitPriceZar: 1 }));
+
+    render(<CartView />);
+
+    await user.selectOptions(
+      await screen.findByLabelText(
+        "Colour for The Kindred Hoodie, White, size M",
+      ),
+      "Blue",
+    );
+
+    // The checkout re-derives every amount server-side. A cart that disagrees
+    // with it shows one number and charges another.
+    expect(useCartStore.getState().items[0].unitPriceZar).toBe(999);
+  });
+
+  it("offers only the sizes the chosen colourway is cut in", async () => {
+    // The crewneck stops at XL where the hoodie runs to XXL.
+    seed(line({ artworkId: "art-1", productSlug: "crewneck", color: "Peach" }));
+
+    render(<CartView />);
+
+    const size = await screen.findByLabelText(
+      "Size for The Kindred Crewneck, Peach, size M",
+    );
+    const offered = Array.from(size.querySelectorAll("option")).map(
+      (option) => option.textContent,
+    );
+    expect(offered).toEqual(["XS", "S", "M", "L", "XL"]);
   });
 
   it("steps quantity and reprices the line and the total", async () => {
