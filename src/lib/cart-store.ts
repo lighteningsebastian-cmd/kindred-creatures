@@ -45,18 +45,16 @@ export type CartState = {
   /** Sets a line's quantity (clamped 1..10). A quantity of 0 removes it. */
   setQty: (artworkId: string, qty: number) => void;
   /**
-   * Changes the garment on a line: its colourway, its size, or both.
+   * Swaps a line for an edited version of itself, in place.
    *
-   * A cart used to be a one-way door. Everything about the piece was decided
-   * five steps back and the only ways out were to empty the line and answer
-   * every question again, or to buy the wrong size. Colour and size are the
-   * two things that belong to the GARMENT rather than to the portrait, so they
-   * are the two that can be changed here without touching the artwork at all.
+   * The cart is not where a piece is edited: the flow is, with the plate on
+   * screen and every answer they gave still in the fields. This is how that
+   * flow comes back. It keeps the line's POSITION and its QUANTITY, and it
+   * takes a possibly different artworkId, because choosing a new photograph
+   * mid-edit opens a new artwork and the line has to follow it rather than
+   * point at the picture they replaced.
    */
-  setLineOptions: (
-    artworkId: string,
-    options: { color?: string; size?: string },
-  ) => void;
+  replaceLine: (originalArtworkId: string, item: CartItem) => void;
   clear: () => void;
 };
 
@@ -104,36 +102,33 @@ export const useCartStore = create<CartState>()(
           };
         }),
 
-      setLineOptions: (artworkId, options) =>
-        set((state) => ({
-          items: state.items.map((line) => {
-            if (line.artworkId !== artworkId) return line;
+      replaceLine: (originalArtworkId, item) =>
+        set((state) => {
+          const index = state.items.findIndex(
+            (line) => line.artworkId === originalArtworkId,
+          );
+          // The line went while they were editing: another tab, or a Remove on
+          // the way past. Adding it back would resurrect something they threw
+          // away, so the edit simply has nothing to land on.
+          if (index === -1) return state;
 
-            const color = options.color ?? line.color;
-            const variant = getProduct(line.productSlug)?.variants.find(
-              (candidate) => candidate.color === color,
-            );
-            // A colourway that is not in the catalogue is not a colourway we
-            // can print. Leave the line exactly as it was.
-            if (!variant) return line;
+          // Re-priced from the catalogue on the way in, because the checkout
+          // re-derives every amount server-side. A cart that disagrees with it
+          // shows somebody one number and charges another.
+          const variant = getProduct(item.productSlug)?.variants.find(
+            (candidate) => candidate.color === item.color,
+          );
 
-            // Size runs belong to the VARIANT, so a colour change can carry a
-            // size away with it. Keep theirs where the new colourway has it and
-            // fall back to its first size where it does not, because a line
-            // naming a size that cannot be made is one the checkout will refuse
-            // after they have typed in their address.
-            const wanted = options.size ?? line.size;
-            const size = variant.sizes.includes(wanted)
-              ? wanted
-              : (variant.sizes[0] ?? line.size);
-
-            // Re-priced from the catalogue, never carried over: colourways are
-            // allowed to differ in price, and the checkout re-derives every
-            // amount server-side anyway. A cart that disagrees with it shows
-            // somebody one number and charges another.
-            return { ...line, color, size, unitPriceZar: variant.priceZar };
-          }),
-        })),
+          const items = [...state.items];
+          items[index] = {
+            ...item,
+            // Their quantity, not the flow's: the flow only ever knows about
+            // one, and they may have asked for three.
+            qty: clampQty(state.items[index].qty),
+            unitPriceZar: variant?.priceZar ?? item.unitPriceZar,
+          };
+          return { items };
+        }),
 
       clear: () => set({ items: [] }),
     }),

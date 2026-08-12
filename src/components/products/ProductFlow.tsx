@@ -14,6 +14,7 @@ import {
   saveArtworkDetails,
 } from "@/app/products/[slug]/actions";
 import { emptyProfile } from "@/lib/companion";
+import type { ResumedArtwork } from "@/lib/artwork-resume";
 import type { Product, Variant } from "@/lib/products";
 
 export type ProductFlowProps = {
@@ -22,6 +23,11 @@ export type ProductFlowProps = {
   initialColor?: string;
   /** Size from the `?size=` deep link, if present and valid. */
   initialSize?: string;
+  /**
+   * A cart line come back to be changed: the artwork, the answers they gave
+   * and the photograph they sent. Null for a piece being started fresh.
+   */
+  resumed?: ResumedArtwork | null;
 };
 
 /**
@@ -73,16 +79,27 @@ export function ProductFlow({
   product,
   initialColor,
   initialSize,
+  resumed = null,
 }: ProductFlowProps) {
   const startColor = resolveColor(product, initialColor);
   const [color, setColor] = useState<Variant>(startColor);
   const [size, setSize] = useState<string | null>(() =>
     resolveSize(startColor, initialSize),
   );
-  const [profile, setProfile] = useState(emptyProfile());
-  // A deep link with a colour and size already chosen has done the shopping, so
-  // it starts at the commission rather than replaying questions it answered.
-  const [stage, setStage] = useState<Stage>("profile");
+  const [profile, setProfile] = useState(
+    () => resumed?.profile ?? emptyProfile(),
+  );
+  /**
+   * AN EDIT OPENS AT THE PIECE, not at question one.
+   *
+   * Somebody who came back from the cart to change a size has already told us
+   * about their dog, and walking them through it again to reach the size is the
+   * behaviour that made the cart feel like a one-way door in the first place.
+   * The reveal is the hub: their plate is on screen, "Change something" opens
+   * every answer at once, and the colour, size and photograph are the steps
+   * after it.
+   */
+  const [stage, setStage] = useState<Stage>(resumed ? "reveal" : "profile");
 
   // The flow fills whatever is left of the viewport BELOW the site header, so
   // the question and its Next button are reachable without scrolling. Measured
@@ -169,8 +186,9 @@ export function ProductFlow({
                   : "Here is their piece."}
               </h2>
               <p className="max-w-md leading-relaxed text-muted">
-                Front and back. Have a look at both, then choose the colour you
-                would like it on.
+                {resumed
+                  ? "Change anything you like: what we know about them, the colour, the size, or the photo you sent."
+                  : "Front and back. Have a look at both, then choose the colour you would like it on."}
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -269,6 +287,7 @@ export function ProductFlow({
             size={size}
             profile={profile}
             save={saveArtworkDetails}
+            resumed={resumed}
           />
         ) : null}
       </div>

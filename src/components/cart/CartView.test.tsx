@@ -64,17 +64,8 @@ describe("CartView", () => {
       screen.getByAltText("Your design for The Kindred Hoodie in White"),
     ).toHaveAttribute("src", "/api/artwork/art-1/plate");
 
-    // Colour and size are controls now, not a sentence: they are the two
-    // things somebody may change without starting the piece again.
-    expect(
-      screen.getByLabelText("Colour for The Kindred Hoodie, White, size M"),
-    ).toHaveValue("White");
-    expect(
-      screen.getByLabelText("Size for The Kindred Hoodie, White, size M"),
-    ).toHaveValue("M");
-    expect(
-      screen.getByLabelText("Colour for The Kindred Tee, Olive, size L"),
-    ).toHaveValue("Olive");
+    expect(screen.getByText("White · Size M")).toBeInTheDocument();
+    expect(screen.getByText("Olive · Size L")).toBeInTheDocument();
 
     // Line totals: 2 x R 899, and 1 x R 449.
     expect(screen.getByText("R 1 798")).toBeInTheDocument();
@@ -123,78 +114,34 @@ describe("CartView", () => {
     );
   });
 
-  it("changes the colourway from the cart, without touching the artwork", async () => {
-    const user = userEvent.setup();
-    seed(line({ artworkId: "art-1", color: "White" }));
+  it("links every line back to the flow that built it, carrying colour and size", async () => {
+    seed(line({ artworkId: "art-1", color: "Lilac", size: "XL" }));
 
     render(<CartView />);
 
-    await user.selectOptions(
-      await screen.findByLabelText(
-        "Colour for The Kindred Hoodie, White, size M",
-      ),
-      "Lilac",
-    );
-
-    const [stored] = useCartStore.getState().items;
-    expect(stored.color).toBe("Lilac");
-    // Same portrait, same line: a colour is a garment decision.
-    expect(stored.artworkId).toBe("art-1");
-    expect(stored.size).toBe("M");
-    // And the thumbnail follows it.
+    // The artwork carries the profile; the URL carries only the two things it
+    // does not know.
+    const href = "/products/hoodie?artwork=art-1&color=Lilac&size=XL";
     expect(
-      screen.getByAltText("Your design for The Kindred Hoodie in Lilac"),
-    ).toBeInTheDocument();
+      await screen.findByRole("link", { name: "The Kindred Hoodie" }),
+    ).toHaveAttribute("href", href);
+    expect(
+      screen.getByRole("link", {
+        name: "Edit The Kindred Hoodie, Lilac, size XL",
+      }),
+    ).toHaveAttribute("href", href);
   });
 
-  it("changes the size from the cart", async () => {
-    const user = userEvent.setup();
-    seed(line({ artworkId: "art-1", size: "M" }));
+  it("offers no colour or size control of its own", async () => {
+    seed(line());
 
     render(<CartView />);
+    await screen.findByRole("link", { name: "The Kindred Hoodie" });
 
-    await user.selectOptions(
-      await screen.findByLabelText(
-        "Size for The Kindred Hoodie, White, size M",
-      ),
-      "XL",
-    );
-
-    expect(useCartStore.getState().items[0].size).toBe("XL");
-  });
-
-  it("re-prices a line from the catalogue rather than carrying the old price", async () => {
-    const user = userEvent.setup();
-    // A stale price, as a cart saved before a price change would hold.
-    seed(line({ artworkId: "art-1", color: "White", unitPriceZar: 1 }));
-
-    render(<CartView />);
-
-    await user.selectOptions(
-      await screen.findByLabelText(
-        "Colour for The Kindred Hoodie, White, size M",
-      ),
-      "Blue",
-    );
-
-    // The checkout re-derives every amount server-side. A cart that disagrees
-    // with it shows one number and charges another.
-    expect(useCartStore.getState().items[0].unitPriceZar).toBe(999);
-  });
-
-  it("offers only the sizes the chosen colourway is cut in", async () => {
-    // The crewneck stops at XL where the hoodie runs to XXL.
-    seed(line({ artworkId: "art-1", productSlug: "crewneck", color: "Peach" }));
-
-    render(<CartView />);
-
-    const size = await screen.findByLabelText(
-      "Size for The Kindred Crewneck, Peach, size M",
-    );
-    const offered = Array.from(size.querySelectorAll("option")).map(
-      (option) => option.textContent,
-    );
-    expect(offered).toEqual(["XS", "S", "M", "L", "XL"]);
+    // The cart is not an editor. It was briefly, and a pair of dropdowns in a
+    // cart row is a worse copy of a screen that already does this properly.
+    expect(document.querySelectorAll("select")).toHaveLength(0);
+    expect(screen.getByText("White · Size M")).toBeInTheDocument();
   });
 
   it("steps quantity and reprices the line and the total", async () => {

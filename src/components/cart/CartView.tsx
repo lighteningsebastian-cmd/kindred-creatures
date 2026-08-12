@@ -1,6 +1,7 @@
 "use client";
 
-import { Minus, Plus, X } from "@phosphor-icons/react";
+import Link from "next/link";
+import { Minus, PencilSimple, Plus, X } from "@phosphor-icons/react";
 import { LineThumbnail } from "@/components/cart/LineThumbnail";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
@@ -14,6 +15,7 @@ import {
   useCartHydrated,
   useCartItems,
   useCartStore,
+  type CartItem,
 } from "@/lib/cart-store";
 
 function productName(slug: ProductSlug): string {
@@ -21,53 +23,26 @@ function productName(slug: ProductSlug): string {
 }
 
 /**
- * One garment choice on a cart line, changeable in place.
+ * Back into the flow that built this line, with every answer still in it.
  *
- * A native select on purpose: it is one tap on a phone, it is keyboard
- * operable without anybody writing that part twice, and a cart is the last
- * place to be clever. Where there is only one thing to choose (the tote's one
- * size) it renders as plain text rather than a dropdown that cannot do
- * anything.
+ * THE CART IS NOT AN EDITOR. A colour swatch and a size in a cart row are the
+ * shopping half of a piece, and this shop's whole argument is that the piece is
+ * a commission rather than a garment with options. So the line goes back to the
+ * one screen that already holds all of it, with the plate on the right and
+ * their creature's name in the field, rather than growing a second, poorer set
+ * of controls of its own.
+ *
+ * The artwork carries the profile, so only the two things it does NOT know need
+ * carrying in the URL. The colour and size deep link is the one the product
+ * page already reads.
  */
-function LineOption({
-  label,
-  value,
-  options,
-  describe,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: string[];
-  /** What the line is, so the control names itself to a screen reader. */
-  describe: string;
-  onChange: (next: string) => void;
-}) {
-  if (options.length <= 1) {
-    return (
-      <span className="text-sm text-muted">
-        {label}: {value}
-      </span>
-    );
-  }
-
-  return (
-    <label className="inline-flex items-center gap-1.5 text-sm text-muted">
-      <span>{label}</span>
-      <select
-        aria-label={`${label} for ${describe}`}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="rounded-md border border-line bg-base px-2 py-1 text-sm text-ink transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base"
-      >
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
+function editHref(item: CartItem): string {
+  const params = new URLSearchParams({
+    artwork: item.artworkId,
+    color: item.color,
+    size: item.size,
+  });
+  return `/products/${item.productSlug}?${params.toString()}`;
 }
 
 /** Placeholder while the persisted cart is being read back on the client. */
@@ -112,16 +87,15 @@ function EmptyCart() {
  * garment controls and the remove control all address a portrait rather than a
  * product.
  *
- * Colour and size are CHANGEABLE HERE, and that is the point of them being
- * here: they belong to the garment rather than to the portrait, so changing
- * one is not a reason to answer five questions about a dog again. Anything
- * that belongs to the creature is still edited back in the flow.
+ * NOTHING IS EDITED HERE. Every line is a link back into the flow that built
+ * it, with the plate on screen and every answer still in its field, because
+ * that screen already knows how to change all of this and a cart row would
+ * only ever be a worse copy of it.
  */
 export function CartView() {
   const items = useCartItems();
   const hydrated = useCartHydrated();
   const setQty = useCartStore((state) => state.setQty);
-  const setLineOptions = useCartStore((state) => state.setLineOptions);
   const removeItem = useCartStore((state) => state.removeItem);
 
   const subtotal = subtotalZar(items);
@@ -147,47 +121,40 @@ export function CartView() {
                 {items.map((item) => {
                   const name = productName(item.productSlug);
                   const describe = `${name}, ${item.color}, size ${item.size}`;
-                  const product = getProduct(item.productSlug);
-                  const colours = product?.variants.map((v) => v.color) ?? [];
-                  const sizes =
-                    product?.variants.find((v) => v.color === item.color)
-                      ?.sizes ?? [];
+                  const edit = editHref(item);
                   return (
                     <li
                       key={item.artworkId}
                       className="flex gap-4 border-b border-line py-6 sm:gap-6"
                     >
-                      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md border border-line bg-surface sm:h-28 sm:w-28">
+                      <Link
+                        href={edit}
+                        tabIndex={-1}
+                        aria-hidden="true"
+                        className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md border border-line bg-surface sm:h-28 sm:w-28"
+                      >
                         <LineThumbnail item={item} productLabel={name} />
-                      </div>
+                      </Link>
 
                       <div className="flex min-w-0 flex-1 flex-col gap-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <h2 className="font-display text-lg leading-snug text-ink sm:text-xl">
-                              {name}
+                              {/* The whole line is editable, and the name is
+                                  the handle for it. The picture is a link too,
+                                  hidden from screen readers so the same
+                                  destination is not announced twice. */}
+                              <Link
+                                href={edit}
+                                className="rounded-sm transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base"
+                              >
+                                {name}
+                              </Link>
                             </h2>
-                            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
-                              <LineOption
-                                label="Colour"
-                                value={item.color}
-                                options={colours}
-                                describe={describe}
-                                onChange={(color) =>
-                                  setLineOptions(item.artworkId, { color })
-                                }
-                              />
-                              <LineOption
-                                label="Size"
-                                value={item.size}
-                                options={sizes}
-                                describe={describe}
-                                onChange={(size) =>
-                                  setLineOptions(item.artworkId, { size })
-                                }
-                              />
-                            </div>
-                            <p className="mt-2 text-sm text-muted">
+                            <p className="mt-1 text-sm text-muted">
+                              {item.color} · Size {item.size}
+                            </p>
+                            <p className="mt-1 text-sm text-muted">
                               {formatZar(item.unitPriceZar)} each
                             </p>
                           </div>
@@ -223,6 +190,15 @@ export function CartView() {
                               <Plus size={14} />
                             </button>
                           </div>
+
+                          <Link
+                            href={edit}
+                            aria-label={`Edit ${describe}`}
+                            className="inline-flex items-center gap-1.5 rounded-md text-sm text-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-base"
+                          >
+                            <PencilSimple size={14} />
+                            Edit
+                          </Link>
 
                           <button
                             type="button"

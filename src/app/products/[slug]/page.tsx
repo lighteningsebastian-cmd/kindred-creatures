@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { ProductFlow } from "@/components/products/ProductFlow";
+import { resumeArtwork } from "@/lib/artwork-resume";
 import { TrackProductView } from "@/components/analytics/TrackProductView";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
@@ -20,7 +21,7 @@ type ProductPageProps = {
   // /customize deep links redirect here preserving them, and both preselect
   // the flow. When both are present the portrait step is active on load. The
   // canonical URL carries no params, so indexing and metadata are unaffected.
-  searchParams: Promise<{ color?: string; size?: string }>;
+  searchParams: Promise<{ color?: string; size?: string; artwork?: string }>;
 };
 
 export function generateStaticParams() {
@@ -105,7 +106,12 @@ export default async function ProductPage({
   const product = getProduct(slug);
   if (!product) notFound();
 
-  const { color, size } = await searchParams;
+  const { color, size, artwork } = await searchParams;
+
+  // `?artwork=` means a cart line came back to be changed rather than a new
+  // piece being started. Null for everything else, including a stale id, which
+  // simply opens an empty flow instead of an error page.
+  const resumed = await resumeArtwork(artwork, product.slug);
 
   // The Offer quotes the cheapest variant, which is what the page's own
   // "from R x" label means. No rating or review markup: we have no reviews.
@@ -131,6 +137,7 @@ export default async function ProductPage({
           product={product}
           initialColor={color}
           initialSize={size}
+          resumed={resumed}
         />
 
         <div className="mt-16 grid gap-10 border-t border-line pt-12 md:grid-cols-2 md:gap-16">

@@ -92,6 +92,69 @@ describe("cart store", () => {
     expect(items()).toHaveLength(0);
   });
 
+  describe("replaceLine", () => {
+    const seed = (...lines: CartItem[]) => {
+      for (const item of lines) useCartStore.getState().addItem(item);
+    };
+
+    it("swaps a line in place, keeping its position and their quantity", () => {
+      seed(
+        line({ artworkId: "art-1", qty: 3 }),
+        line({ artworkId: "art-2", productSlug: "tee" }),
+      );
+
+      useCartStore
+        .getState()
+        .replaceLine("art-1", line({ artworkId: "art-1", color: "Lilac", size: "XL" }));
+
+      const [first, second] = items();
+      expect(first.artworkId).toBe("art-1");
+      expect(first.color).toBe("Lilac");
+      expect(first.size).toBe("XL");
+      // The flow only ever knows about one. They asked for three.
+      expect(first.qty).toBe(3);
+      // And the line after it has not moved.
+      expect(second.artworkId).toBe("art-2");
+    });
+
+    it("follows the line onto a new artwork when the photo was replaced", () => {
+      seed(line({ artworkId: "art-1", qty: 2 }));
+
+      // Choosing a different photograph mid-edit opens a new artwork; the line
+      // has to point at it rather than at the picture they replaced.
+      useCartStore
+        .getState()
+        .replaceLine("art-1", line({ artworkId: "art-9" }));
+
+      expect(items()).toHaveLength(1);
+      expect(items()[0].artworkId).toBe("art-9");
+      expect(items()[0].qty).toBe(2);
+    });
+
+    it("re-prices from the catalogue rather than trusting the incoming line", () => {
+      seed(line({ artworkId: "art-1" }));
+
+      useCartStore
+        .getState()
+        .replaceLine("art-1", line({ artworkId: "art-1", color: "White", unitPriceZar: 1 }));
+
+      // The checkout re-derives every amount server-side. A cart that
+      // disagrees shows one number and charges another.
+      expect(items()[0].unitPriceZar).toBe(999);
+    });
+
+    it("does nothing when the line was removed while they were editing", () => {
+      seed(line({ artworkId: "art-1" }));
+      useCartStore.getState().removeItem("art-1");
+
+      useCartStore.getState().replaceLine("art-1", line({ artworkId: "art-1" }));
+
+      // Another tab, or a Remove on the way past. Adding it back would
+      // resurrect something they threw away.
+      expect(items()).toHaveLength(0);
+    });
+  });
+
   it("counts quantities and sums the subtotal in whole rands", () => {
     const cart = [
       line({ artworkId: "art-1", qty: 2, unitPriceZar: 899 }),

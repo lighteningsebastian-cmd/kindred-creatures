@@ -4,7 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { ProductFlow } from "./ProductFlow";
 import { getProduct } from "@/lib/products";
 
-const { addItem } = vi.hoisted(() => ({ addItem: vi.fn() }));
+const { addItem, replaceLine } = vi.hoisted(() => ({
+  addItem: vi.fn(),
+  replaceLine: vi.fn(),
+}));
 const push = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -13,8 +16,12 @@ vi.mock("next/navigation", () => ({
 
 // Only the Customizer half touches the cart; a fake lets us read the payload.
 vi.mock("@/lib/cart-store", () => ({
-  useCartStore: (selector: (s: { addItem: typeof addItem }) => unknown) =>
-    selector({ addItem }),
+  useCartStore: (
+    selector: (s: {
+      addItem: typeof addItem;
+      replaceLine: typeof replaceLine;
+    }) => unknown,
+  ) => selector({ addItem, replaceLine }),
 }));
 
 // jsdom has no canvas/createImageBitmap; the flow only needs an uploadable blob.
@@ -52,6 +59,7 @@ const fileInput = (container: HTMLElement) =>
 
 beforeEach(() => {
   addItem.mockClear();
+  replaceLine.mockClear();
   push.mockClear();
   URL.createObjectURL = vi.fn(() => "blob:local-photo");
   URL.revokeObjectURL = vi.fn();
@@ -196,5 +204,78 @@ describe("ProductFlow", () => {
     expect(
       screen.getByRole("heading", { name: /Bartholomew's piece/i }),
     ).toBeVisible();
+  });
+
+  describe("a cart line come back to be changed", () => {
+    const ARTWORK = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+
+    const resumed = {
+      artworkId: ARTWORK,
+      profile: {
+        name: "Scout",
+        species: "dog" as const,
+        breedId: "border-collie",
+        temperament: ["loyal" as const],
+        togetherSince: 2021,
+        otherKind: null,
+        otherBreed: null,
+        otherOrigin: null,
+      },
+      photoUrl: "/api/asset/uploads/scout.png?exp=1&sig=abc",
+    };
+
+    it("opens at their piece, not at question one", () => {
+      render(
+        <ProductFlow
+          product={getProduct("hoodie")!}
+          resumed={resumed}
+          initialColor="Lilac"
+          initialSize="XL"
+        />,
+      );
+
+      // Somebody who came back to change a size has already told us about
+      // their dog. Walking them through it again is the thing that made the
+      // cart feel like a one-way door.
+      expect(
+        screen.getByRole("heading", { name: /Scout's piece/i }),
+      ).toBeVisible();
+      expect(screen.queryByLabelText(/what is their name/i)).toBeNull();
+    });
+
+    it("saves onto the line they came from instead of opening a second one", async () => {
+      const user = userEvent.setup();
+      render(
+        <ProductFlow
+          product={getProduct("hoodie")!}
+          resumed={resumed}
+          initialColor="Lilac"
+          initialSize="XL"
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: /choose a colour/i }));
+      await user.click(screen.getByRole("button", { name: "Next" }));
+      await user.click(screen.getByRole("button", { name: "Next" }));
+
+      // The photograph they already sent is on screen, so there is nothing to
+      // upload and the button is live as soon as the profile is written.
+      const save = await screen.findByRole("button", { name: "Save changes" });
+      await waitFor(() => expect(save).toBeEnabled());
+      await user.click(save);
+
+      expect(replaceLine).toHaveBeenCalledWith(
+        ARTWORK,
+        expect.objectContaining({
+          artworkId: ARTWORK,
+          productSlug: "hoodie",
+          color: "Lilac",
+          size: "XL",
+        }),
+      );
+      // Not a new piece: the line is swapped, never added alongside itself.
+      expect(addItem).not.toHaveBeenCalled();
+      expect(push).toHaveBeenCalledWith("/cart");
+    });
   });
 });

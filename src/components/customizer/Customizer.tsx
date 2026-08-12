@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { type Product, type Variant } from "@/lib/products";
 import { useCartStore } from "@/lib/cart-store";
+import type { ResumedArtwork } from "@/lib/artwork-resume";
 import { trackAddToCart, trackPhotoUploaded } from "@/lib/analytics";
 import { isProfileComplete, type CompanionProfile } from "@/lib/companion";
 import { downscaleImage } from "./downscale";
@@ -23,6 +24,12 @@ export type CustomizerProps = {
     artworkId: string,
     profile: CompanionProfile,
   ) => Promise<{ ok: boolean }>;
+  /**
+   * A cart line come back to be changed. The artwork and its photograph are
+   * already there, so this step opens finished rather than empty, and saving
+   * lands on the line they came from instead of opening a second one.
+   */
+  resumed?: ResumedArtwork | null;
 };
 
 type Phase =
@@ -63,16 +70,22 @@ export function Customizer({
   size,
   profile,
   save,
+  resumed = null,
 }: CustomizerProps) {
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
+  const replaceLine = useCartStore((state) => state.replaceLine);
 
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [phase, setPhase] = useState<Phase>(resumed ? "uploaded" : "idle");
+  const [photoPreview, setPhotoPreview] = useState<string | null>(
+    resumed?.photoUrl ?? null,
+  );
   const [rejectReason, setRejectReason] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const [artworkId, setArtworkId] = useState<string | null>(null);
+  const [artworkId, setArtworkId] = useState<string | null>(
+    resumed?.artworkId ?? null,
+  );
   /** The exact thing last written to the artwork, so "saved" is derived. */
   const [savedKey, setSavedKey] = useState<string | null>(null);
 
@@ -156,7 +169,7 @@ export function Customizer({
 
   const handleAddToCart = () => {
     if (!canAddToCart || !artworkId || !size) return;
-    addItem({
+    const line = {
       productSlug: product.slug,
       // Built from the CURRENT selection, not the one in force at upload time.
       color: color.color,
@@ -165,8 +178,19 @@ export function Customizer({
       artworkId,
       // Priced at add time so a later price change cannot re-price this line.
       unitPriceZar: color.priceZar,
-    });
-    trackAddToCart({ slug: product.slug, priceZar: color.priceZar });
+    };
+
+    if (resumed) {
+      // Their line, edited, in the place it was already in. Keyed on the
+      // artwork they ARRIVED with rather than the one they are leaving with:
+      // choosing a new photograph mid-edit opens a new artwork, and the line
+      // has to follow it rather than keep pointing at the picture they
+      // replaced. No tracking event: this is not a new piece being bought.
+      replaceLine(resumed.artworkId, line);
+    } else {
+      addItem(line);
+      trackAddToCart({ slug: product.slug, priceZar: color.priceZar });
+    }
     router.push("/cart");
   };
 
@@ -178,8 +202,9 @@ export function Customizer({
           Their photo
         </h2>
         <p className="max-w-md leading-relaxed text-muted">
-          Good light and a clear look at their face is all we need. We draw them
-          once your order is in, and you see it before anything is printed.
+          {resumed
+            ? "The photo you sent is below. Keep it, or choose another one. We draw them once your order is in, and you see it before anything is printed."
+            : "Good light and a clear look at their face is all we need. We draw them once your order is in, and you see it before anything is printed."}
         </p>
       </div>
 
@@ -209,7 +234,7 @@ export function Customizer({
           aria-disabled={!canAddToCart}
           className="w-full sm:w-auto"
         >
-          Add to cart
+          {resumed ? "Save changes" : "Add to cart"}
         </Button>
         {!artworkId ? (
           <p className="text-sm text-muted">
@@ -220,7 +245,11 @@ export function Customizer({
             We still need a few details about them further up the page.
           </p>
         ) : size === null ? (
-          <p className="text-sm text-muted">Choose a size to add to cart.</p>
+          <p className="text-sm text-muted">
+            {resumed
+              ? "Choose a size to save your changes."
+              : "Choose a size to add to cart."}
+          </p>
         ) : null}
       </div>
     </div>
