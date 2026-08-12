@@ -56,18 +56,44 @@ function createDb() {
   return USE_PROD_DB ? createNodePgDb() : createPgliteDb();
 }
 
-let dbPromise: Promise<Db> | null = null;
+/**
+ * THE CACHE HANGS OFF globalThis, AND IT HAS TO.
+ *
+ * A module-level variable is one instance per MODULE REGISTRY, not one per
+ * process, and in dev Next compiles server actions and route handlers into
+ * separate bundles with registries of their own. Each one therefore built its
+ * own client, and in dev that client is PGlite opening `.data/pgdata` a second
+ * time: the route handler then read a snapshot taken before the action wrote,
+ * and reported that a row saved seconds earlier did not exist.
+ *
+ * It cost an afternoon. The cart thumbnail rendered from a profile written by
+ * `saveArtworkDetails`, the route serving it could not see that profile, and
+ * everything looked like a bug in the thumbnail. It came right after a server
+ * restart, which is the tell: the data was on disk the whole time.
+ *
+ * Two PGlite handles on one directory is also a good way to lose writes, so
+ * this is not only about a stale read.
+ *
+ * Production was never affected (one bundle, and node-postgres pools against a
+ * shared server see each other's commits), but "works in production, lies in
+ * dev" is worse than a plain bug: it is only ever met while somebody is trying
+ * to check their own work.
+ */
+const DB_KEY = Symbol.for("kindred.db");
+type DbGlobal = typeof globalThis & { [DB_KEY]?: Promise<Db> };
 
 /**
  * Returns the shared database client, initialising it (and creating tables) on
- * first use. Cached across requests within a process. In dev/test this is a
- * local PGlite database that needs no external service.
+ * first use. Cached across requests, and across module registries, within a
+ * process. In dev/test this is a local PGlite database that needs no external
+ * service.
  */
 export function getDb(): Promise<Db> {
-  if (!dbPromise) {
-    dbPromise = createDb();
-  }
-  return dbPromise;
+  // One path, every environment. Tests still get a database each, because
+  // vitest isolates a worker per test file and the global goes with it.
+  const store = globalThis as DbGlobal;
+  if (!store[DB_KEY]) store[DB_KEY] = createDb();
+  return store[DB_KEY];
 }
 
 /**
