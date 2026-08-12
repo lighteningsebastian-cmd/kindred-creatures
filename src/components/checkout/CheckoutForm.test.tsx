@@ -103,6 +103,17 @@ describe("CheckoutForm", () => {
     expect(screen.getByText("Free")).toBeInTheDocument();
   });
 
+  it("shows the plate on every summary line, the same picture the cart showed", async () => {
+    seed(line({ artworkId: "art-1" }));
+    render(<CheckoutForm />);
+
+    // This is the screen where the address goes in and the money goes out.
+    // Seeing their own creature here is worth more than anywhere else.
+    expect(
+      await screen.findByAltText("Your design for The Kindred Hoodie in Stone"),
+    ).toHaveAttribute("src", "/api/artwork/art-1/plate");
+  });
+
   it("shows a warm empty state instead of a form when the cart is empty", async () => {
     render(<CheckoutForm />);
 

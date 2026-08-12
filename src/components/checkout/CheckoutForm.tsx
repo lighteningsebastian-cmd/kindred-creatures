@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { LineThumbnail } from "@/components/cart/LineThumbnail";
 import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Input } from "@/components/ui/Input";
@@ -631,23 +632,36 @@ export function CheckoutForm() {
               <aside className="h-fit rounded-lg border border-line bg-surface p-6 lg:sticky lg:top-24">
                 <h2 className="eyebrow text-xs text-muted">Order summary</h2>
 
+                {/*
+                  The plate on every line, the same picture the cart showed.
+                  This is the screen where somebody types their address and
+                  hands over R999, and until now it described what they were
+                  buying in two lines of grey text. Seeing their own creature
+                  at the moment of paying is worth more here than anywhere.
+                */}
                 <ul className="mt-5 flex flex-col gap-4 border-b border-line pb-5">
                   {items.map((item) => (
-                    <li
-                      key={item.artworkId}
-                      className="flex items-baseline justify-between gap-4"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-ink">
-                          {productName(item.productSlug)}
-                        </p>
-                        <p className="mt-1 text-sm text-muted">
-                          {item.color} · Size {item.size} · Qty {item.qty}
+                    <li key={item.artworkId} className="flex items-start gap-3">
+                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-line bg-base">
+                        <LineThumbnail
+                          item={item}
+                          productLabel={productName(item.productSlug)}
+                          sizes="56px"
+                        />
+                      </div>
+                      <div className="flex min-w-0 flex-1 items-baseline justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-ink">
+                            {productName(item.productSlug)}
+                          </p>
+                          <p className="mt-1 text-sm text-muted">
+                            {item.color} · Size {item.size} · Qty {item.qty}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-sm font-medium text-ink">
+                          {formatZar(item.qty * item.unitPriceZar)}
                         </p>
                       </div>
-                      <p className="shrink-0 text-sm font-medium text-ink">
-                        {formatZar(item.qty * item.unitPriceZar)}
-                      </p>
                     </li>
                   ))}
                 </ul>
