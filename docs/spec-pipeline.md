@@ -198,17 +198,25 @@ Each chip maps to a prompt adjustment **we** wrote, in `src/lib/images/prompts.t
 
 ---
 
-## 6. Safety · customer text never reaches the model
+## 6. Safety · what a customer writes reaches a person, not the model
 
-**This is a hard rule with no exceptions.**
+**The rule has exactly one hole in it, and it is named.** The answer to the standout-detail
+question reaches the model, sanitised and quoted as the owner's words. Everything else a
+customer writes goes to a human. See `spec-standout-detail.md`, which exists so that hole
+is a decision on the record rather than something discovered later in a diff.
 
-Free text goes to the **admin queue for a human to read**. It is never concatenated into a
-prompt, never passed to the image API, never used to build any instruction. A text box
-that feeds a prompt hands a stranger the controls on something we print and post.
+Free text everywhere else goes to the **admin queue for a human to read**. It is never
+concatenated into a prompt, never passed to the image API, never used to build any
+instruction. That covers the revision note, the typed breed, and anything added after this
+was written: a text box wired into a prompt hands a stranger the controls on something we
+print and post. `something-else` on the revision ladder still means *read my note*.
 
-Only two things influence generation: the **validated chip ids**, and the **photograph**.
-Chips are validated against a known set exactly as `isArtStyle` already validates styles.
-Never interpolate an unvalidated string.
+Three things influence generation: the **photograph**, the **validated chip ids**, and the
+**standout detail**. Chips are validated against a known set exactly as `isArtStyle` already
+validates styles. The detail goes through `lib/standout.ts` and reaches the model only as a
+pointer at the photograph, never as a description of the animal — the distinction is section
+2 of its spec and it is the reason the hole is safe to have. Never interpolate an
+unvalidated string.
 
 The name is printed, not prompted. Validate it for printable glyph coverage and run a
 profanity check at input time, so a customer learns their character cannot be printed
