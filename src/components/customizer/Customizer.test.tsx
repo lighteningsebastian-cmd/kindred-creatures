@@ -37,6 +37,16 @@ function jsonRes(status: number, body: unknown) {
 
 const photo = () => new File(["pretend-jpeg"], "pet.jpg", { type: "image/jpeg" });
 
+/**
+ * The standout question's props, so the five cases below stay about the
+ * photograph. The question has its own tests at the bottom of this file.
+ */
+const standoutProps = {
+  standoutDetail: null,
+  onStandoutDetailChange: vi.fn(),
+  saveDetail: vi.fn().mockResolvedValue({ ok: true }),
+};
+
 const fileInput = (container: HTMLElement) =>
   container.querySelector('input[type="file"]') as HTMLInputElement;
 
@@ -66,6 +76,7 @@ describe("Customizer: the photograph, and nothing drawn", () => {
         color={getProduct("hoodie")!.variants[0]}
         size="M"
         profile={fullProfile()}
+        {...standoutProps}
         save={save}
       />,
     );
@@ -105,6 +116,7 @@ describe("Customizer: the photograph, and nothing drawn", () => {
         color={getProduct("hoodie")!.variants[0]}
         size="M"
         profile={fullProfile()}
+        {...standoutProps}
         save={vi.fn().mockResolvedValue({ ok: true })}
       />,
     );
@@ -133,6 +145,7 @@ describe("Customizer: the photograph, and nothing drawn", () => {
         size="M"
         // No breed and no words: the plate could not be set from this.
         profile={emptyProfile("dog")}
+        {...standoutProps}
         save={save}
       />,
     );
@@ -160,6 +173,7 @@ describe("Customizer: the photograph, and nothing drawn", () => {
         color={getProduct("hoodie")!.variants[0]}
         size="M"
         profile={fullProfile()}
+        {...standoutProps}
         save={vi.fn()}
       />,
     );
@@ -186,6 +200,7 @@ describe("Customizer: the photograph, and nothing drawn", () => {
         color={getProduct("hoodie")!.variants[0]}
         size="M"
         profile={fullProfile()}
+        {...standoutProps}
         save={vi.fn().mockResolvedValue({ ok: true })}
       />,
     );
@@ -198,5 +213,124 @@ describe("Customizer: the photograph, and nothing drawn", () => {
     for (const gone of [/Classic portrait/i, /Line sketch/i, /Watercolor/i, /pick a style/i]) {
       expect(screen.queryByText(gone)).not.toBeInTheDocument();
     }
+  });
+});
+
+describe("Customizer: the standout detail", () => {
+  const QUESTION = /one thing about them that really stands out/i;
+
+  it("does not ask until there is a photograph to point at", () => {
+    // The answer is a pointer at the photograph. Asking first makes somebody
+    // describe a picture they have not chosen yet, and a description is the one
+    // thing this field must not collect (spec-standout-detail section 2).
+    render(
+      <Customizer
+        product={getProduct("hoodie")!}
+        color={getProduct("hoodie")!.variants[0]}
+        size="M"
+        profile={fullProfile()}
+        {...standoutProps}
+        save={vi.fn().mockResolvedValue({ ok: true })}
+      />,
+    );
+
+    expect(screen.queryByLabelText(QUESTION)).not.toBeInTheDocument();
+  });
+
+  it("asks once the photo is accepted, and saves what they type", async () => {
+    const user = userEvent.setup();
+    const onStandoutDetailChange = vi.fn();
+    const saveDetail = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonRes(201, { artworkId: "art-1" })),
+    );
+
+    const { container } = render(
+      <Customizer
+        product={getProduct("hoodie")!}
+        color={getProduct("hoodie")!.variants[0]}
+        size="M"
+        profile={fullProfile()}
+        standoutDetail="One ear flops over"
+        onStandoutDetailChange={onStandoutDetailChange}
+        saveDetail={saveDetail}
+        save={vi.fn().mockResolvedValue({ ok: true })}
+      />,
+    );
+
+    await user.upload(fileInput(container), photo());
+
+    const field = await screen.findByLabelText(QUESTION);
+    expect(field).toHaveValue("One ear flops over");
+
+    // It lands on the artwork, which is what the drawing reads after payment.
+    await waitFor(() =>
+      expect(saveDetail).toHaveBeenCalledWith("art-1", "One ear flops over"),
+    );
+
+    await user.type(field, "!");
+    expect(onStandoutDetailChange).toHaveBeenCalled();
+  });
+
+  it("lets the cart have a line with no answer at all", async () => {
+    // Optional means optional. A blank answer draws the portrait exactly as
+    // every portrait was drawn before this question existed, so nothing about
+    // the cart may depend on it.
+    const user = userEvent.setup();
+    const saveDetail = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonRes(201, { artworkId: "art-1" })),
+    );
+
+    const { container } = render(
+      <Customizer
+        product={getProduct("hoodie")!}
+        color={getProduct("hoodie")!.variants[0]}
+        size="M"
+        profile={fullProfile()}
+        standoutDetail={null}
+        onStandoutDetailChange={vi.fn()}
+        saveDetail={saveDetail}
+        save={vi.fn().mockResolvedValue({ ok: true })}
+      />,
+    );
+
+    await user.upload(fileInput(container), photo());
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Add to cart" })).toBeEnabled(),
+    );
+    expect(saveDetail).toHaveBeenCalledWith("art-1", null);
+  });
+
+  it("will not let the cart take a line whose answer has not been written yet", async () => {
+    // The whole point of folding the detail into the saved key: a line that
+    // reaches the cart without its answer is an order drawn without the one
+    // thing the customer asked us to look at.
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonRes(201, { artworkId: "art-1" })),
+    );
+
+    const { container } = render(
+      <Customizer
+        product={getProduct("hoodie")!}
+        color={getProduct("hoodie")!.variants[0]}
+        size="M"
+        profile={fullProfile()}
+        standoutDetail="One ear flops over"
+        onStandoutDetailChange={vi.fn()}
+        saveDetail={vi.fn().mockResolvedValue({ ok: false })}
+        save={vi.fn().mockResolvedValue({ ok: true })}
+      />,
+    );
+
+    await user.upload(fileInput(container), photo());
+    await screen.findByLabelText(QUESTION);
+
+    expect(screen.getByRole("button", { name: "Add to cart" })).toBeDisabled();
   });
 });

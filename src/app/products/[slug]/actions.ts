@@ -19,6 +19,7 @@ import {
 } from "@/lib/companion";
 import { backPlate, frontPlate } from "@/lib/print/plate";
 import { FRONT_PRINT } from "@/lib/products";
+import { STANDOUT_MAX } from "@/lib/standout";
 import { getStorage } from "@/lib/storage";
 
 /**
@@ -251,6 +252,36 @@ export async function saveArtworkDetails(
       otherBreed: profile.otherBreed?.trim() || null,
       otherOrigin: profile.otherOrigin?.trim() || null,
     })
+    .where(eq(artworks.id, artworkId))
+    .returning();
+
+  return { ok: updated.length > 0 };
+}
+
+/**
+ * Saves the owner's answer to "what is one thing about them that really stands
+ * out?" (docs/spec-standout-detail.md).
+ *
+ * SEPARATE FROM saveArtworkDetails on purpose. That action writes the companion
+ * profile, which is everything the plate PRINTS, and it refuses an incomplete
+ * one. This is an instruction, not a record, it is asked at a different moment
+ * in the flow, and it is optional — folding it into a call that can be rejected
+ * for an unrelated missing field would lose it silently.
+ *
+ * Stored exactly as typed. The filtering that matters happens in lib/standout.ts
+ * on the way to the prompt; what is kept here is what a person needs to read on
+ * the job sheet. All this does is bound the length, because an action is an
+ * untrusted entry point however well behaved the field in front of it is.
+ */
+export async function saveStandoutDetail(
+  artworkId: string,
+  detail: string | null,
+): Promise<{ ok: boolean }> {
+  const trimmed = typeof detail === "string" ? detail.trim() : "";
+  const db = await getDb();
+  const updated = await db
+    .update(artworks)
+    .set({ standoutDetail: trimmed ? trimmed.slice(0, STANDOUT_MAX) : null })
     .where(eq(artworks.id, artworkId))
     .returning();
 

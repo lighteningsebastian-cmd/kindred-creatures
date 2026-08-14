@@ -222,6 +222,7 @@ describe("ProductFlow", () => {
         otherOrigin: null,
       },
       photoUrl: "/api/asset/uploads/scout.png?exp=1&sig=abc",
+      standoutDetail: null,
     };
 
     it("opens at their piece, not at question one", () => {

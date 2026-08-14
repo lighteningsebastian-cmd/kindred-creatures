@@ -17,6 +17,12 @@ export interface ResumedArtwork {
   profile: CompanionProfile;
   /** A signed URL for the photo they already sent, or null if there is none. */
   photoUrl: string | null;
+  /**
+   * What they said stands out about their animal, if they answered. Carried
+   * back so somebody who reopened a cart line to change a size does not lose
+   * it, which is the same reason the profile comes back with them.
+   */
+  standoutDetail: string | null;
 }
 
 /**
@@ -75,5 +81,6 @@ export async function resumeArtwork(
     artworkId: artwork.id,
     profile: profileFromArtwork(artwork),
     photoUrl,
+    standoutDetail: artwork.standoutDetail,
   };
 }

@@ -8,6 +8,7 @@ import { useCartStore } from "@/lib/cart-store";
 import type { ResumedArtwork } from "@/lib/artwork-resume";
 import { trackAddToCart, trackPhotoUploaded } from "@/lib/analytics";
 import { isProfileComplete, type CompanionProfile } from "@/lib/companion";
+import { StandoutField } from "@/components/products/StandoutField";
 import { downscaleImage } from "./downscale";
 import { UploadDropzone } from "./UploadDropzone";
 
@@ -19,10 +20,25 @@ export type CustomizerProps = {
   size: string | null;
   /** Everything they told us about their animal, owned by the parent flow. */
   profile: CompanionProfile;
+  /**
+   * Their answer to the standout question, owned by the parent flow so it
+   * survives moving between stages and comes back with a resumed cart line.
+   */
+  standoutDetail: string | null;
+  onStandoutDetailChange: (next: string | null) => void;
   /** Persists the profile onto the artwork. Nothing is drawn. */
   save: (
     artworkId: string,
     profile: CompanionProfile,
+  ) => Promise<{ ok: boolean }>;
+  /**
+   * Persists the standout detail. Separate from `save` because it is an
+   * instruction rather than part of the plate's profile, and because the
+   * revision screen needs to write it without a profile in hand.
+   */
+  saveDetail: (
+    artworkId: string,
+    detail: string | null,
   ) => Promise<{ ok: boolean }>;
   /**
    * A cart line come back to be changed. The artwork and its photograph are
@@ -69,7 +85,10 @@ export function Customizer({
   color,
   size,
   profile,
+  standoutDetail,
+  onStandoutDetailChange,
   save,
+  saveDetail,
   resumed = null,
 }: CustomizerProps) {
   const router = useRouter();
@@ -97,20 +116,31 @@ export function Customizer({
   // rather than resetting a flag in the effect means editing a name after
   // picking a style makes this stale on the spot, with no render cascade and no
   // window where a changed profile still counts as written.
+  //
+  // THE STANDOUT DETAIL IS PART OF THIS KEY, so the cart cannot take a line
+  // whose answer has not landed on the artwork. Writing it on the way to the
+  // cart instead would have put a network call inside a click that navigates,
+  // which is how an answer gets lost quietly.
   const pending =
-    artworkId && profileReady ? JSON.stringify([artworkId, profile]) : null;
+    artworkId && profileReady
+      ? JSON.stringify([artworkId, profile, standoutDetail])
+      : null;
   const saved = pending !== null && savedKey === pending;
 
   useEffect(() => {
     if (!pending || !artworkId) return;
     let live = true;
-    void save(artworkId, profile).then((result) => {
-      if (live && result.ok) setSavedKey(pending);
-    });
+    // Sequential, not Promise.all: Next dispatches server actions one at a time
+    // per client anyway, so parallelising them here would only look parallel.
+    void (async () => {
+      const written = await save(artworkId, profile);
+      const noted = await saveDetail(artworkId, standoutDetail);
+      if (live && written.ok && noted.ok) setSavedKey(pending);
+    })();
     return () => {
       live = false;
     };
-  }, [pending, artworkId, profile, save]);
+  }, [pending, artworkId, profile, standoutDetail, save, saveDetail]);
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -224,6 +254,27 @@ export function Customizer({
           </p>
         ) : null}
       </div>
+
+      {/*
+        ASKED ONLY ONCE THE PHOTOGRAPH IS IN, and that is the whole reason it
+        lives on this screen rather than up in the profile questions. The answer
+        is a pointer at that photograph — "look at the ears" — so asking before
+        there is a photograph to point at makes somebody describe a picture they
+        have not chosen yet, and the answer we would get back would be a
+        description instead. See docs/spec-standout-detail.md sections 2 and 6.
+
+        Optional, and blank stays blank: no answer means the portrait is drawn
+        exactly as every portrait was drawn before this question existed, so
+        nothing about the button below depends on it.
+      */}
+      {phase === "uploaded" ? (
+        <div className="border-t border-line pt-6">
+          <StandoutField
+            value={standoutDetail}
+            onChange={onStandoutDetailChange}
+          />
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-3 border-t border-line pt-6">
         <Button

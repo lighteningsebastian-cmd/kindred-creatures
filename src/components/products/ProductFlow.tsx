@@ -12,6 +12,7 @@ import {
   logBreedRequest,
   previewPlates,
   saveArtworkDetails,
+  saveStandoutDetail,
 } from "@/app/products/[slug]/actions";
 import { emptyProfile } from "@/lib/companion";
 import type { ResumedArtwork } from "@/lib/artwork-resume";
@@ -88,6 +89,11 @@ export function ProductFlow({
   );
   const [profile, setProfile] = useState(
     () => resumed?.profile ?? emptyProfile(),
+  );
+  // Held here rather than inside the photo step so it survives moving between
+  // stages, and so a resumed cart line opens with the answer they already gave.
+  const [standoutDetail, setStandoutDetail] = useState<string | null>(
+    () => resumed?.standoutDetail ?? null,
   );
   /**
    * AN EDIT OPENS AT THE PIECE, not at question one.
@@ -286,7 +292,10 @@ export function ProductFlow({
             color={color}
             size={size}
             profile={profile}
+            standoutDetail={standoutDetail}
+            onStandoutDetailChange={setStandoutDetail}
             save={saveArtworkDetails}
+            saveDetail={saveStandoutDetail}
             resumed={resumed}
           />
         ) : null}

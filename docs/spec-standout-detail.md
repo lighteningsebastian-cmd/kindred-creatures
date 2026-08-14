@@ -153,12 +153,25 @@ line reopened to change a size keeps it, and it rides on the artwork through re-
 
 ## 6. In the flow
 
-A new `"detail"` stage in `ProductFlow`, immediately after `"photo"` and before the cart.
+On the photo step, revealed the moment the upload is accepted, above the cart button.
+
+**Not a stage of its own**, which is what the first draft of this spec said. The photo step
+already owns the add-to-cart path — the cart line, the re-order replacement, the tracking
+event — and a separate stage would have meant lifting that path out of the one component
+that has always held it, on the money path, to make room for one optional field. The
+question earns a place on a screen; it does not earn a refactor of the checkout handoff.
 
 It is asked after the photograph on purpose: the question is about what to look for in that
 photograph, and asking beforehand makes a customer describe a picture they have not chosen
 yet. It is also kept out of the profile run so the reveal — the emotional payoff of the
 flow — is not pushed further away.
+
+The answer is held by `ProductFlow`, not by the photo step, so it survives moving between
+stages and arrives filled in on a resumed cart line. It is written to the artwork by the
+same effect that writes the profile, and it is part of that effect's saved key: the cart
+will not take a line whose answer has not landed. Writing it inside the click that
+navigates to the cart would have been a network call racing a route change, which is how an
+answer goes missing quietly.
 
 Optional and skippable. Blank means no clause, which is exactly how every portrait was
 drawn before today. 140 characters, enforced in the field and again on the server, because
