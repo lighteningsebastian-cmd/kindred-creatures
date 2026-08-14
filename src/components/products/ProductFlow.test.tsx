@@ -32,6 +32,7 @@ vi.mock("@/app/products/[slug]/actions", () => ({
   checkCreatureName: vi.fn(async () => ({ ok: true })),
   logBreedRequest: vi.fn(async () => {}),
   saveArtworkDetails: vi.fn(async () => ({ ok: true })),
+  saveStandoutDetail: vi.fn(async () => ({ ok: true })),
   previewPlates: vi.fn(async () => ({
     front: { svg: "<svg/>", portrait: { x: 0, y: 0, width: 1, height: 1 } },
     back: { svg: "<svg/>", portrait: { x: 0, y: 0, width: 1, height: 1 } },

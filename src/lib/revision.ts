@@ -3,15 +3,22 @@ import { REVISION_ADJUSTMENT } from "@/lib/images/prompts";
 /**
  * What a customer can tell us about a portrait that is not quite right.
  *
- * THE BOUNDARY THIS FILE EXISTS TO HOLD: exactly two things influence what the
- * model draws, and neither of them is anything the customer wrote. One is the
- * photograph. The other is a chip id from the closed set below, which is bound
- * to a sentence we wrote in prompts.ts.
+ * THE BOUNDARY THIS FILE EXISTS TO HOLD: three things influence what the model
+ * draws, and this file owns two of them. The photograph. A chip id from the
+ * closed set below, bound to a sentence we wrote in prompts.ts. And, since 14
+ * August, the answer to one named question — "what is one thing about them that
+ * really stands out?" — which is sanitised by lib/standout.ts and reaches the
+ * model as a pointer at the photograph rather than a description of the animal.
+ * See docs/spec-standout-detail.md.
  *
- * Free text goes to a person, never to the model. A text box wired into a
- * prompt hands a stranger the controls on something we print and post, and
- * "ignore previous instructions" is the polite end of what arrives. See
- * docs/spec-pipeline.md section 6.
+ * THE NOTE BELOW IS NOT THAT QUESTION and must never become it. What somebody
+ * types into "anything else you would like us to know" goes to a person and
+ * only to a person. A general-purpose text box wired into a prompt hands a
+ * stranger the controls on something we print and post, and "ignore previous
+ * instructions" is the polite end of what arrives. The standout detail is
+ * affordable because it is one question with a known shape, a filter, and two
+ * humans between it and a garment; a free-form note has none of that.
+ * See docs/spec-pipeline.md section 6.
  */
 
 export const REVISION_REASONS = [

@@ -80,7 +80,14 @@ describe("ApprovalActions", () => {
     );
     await user.click(screen.getByRole("button", { name: /send this back/i }));
 
-    expect(onRevise).toHaveBeenCalledWith("t", ["too-dark"], "the ears are wrong");
+    // The fourth argument is the standout detail, untouched here because this
+    // artwork never had one.
+    expect(onRevise).toHaveBeenCalledWith(
+      "t",
+      ["too-dark"],
+      "the ears are wrong",
+      null,
+    );
     expect(await screen.findByText(/we are on it/i)).toBeVisible();
   });
 
@@ -105,5 +112,70 @@ describe("ApprovalActions", () => {
     setup({ approvedAt: new Date().toISOString() });
     expect(screen.getByText(/we are making it now/i)).toBeVisible();
     expect(screen.queryByRole("button", { name: /yes, print it/i })).toBeNull();
+  });
+
+  it("offers the standout detail back, editable, and sends the reworded one", async () => {
+    // Somebody whose detail was misread must be able to reword it. Without
+    // this their only recourse is the note, which reaches a person rather than
+    // the drawing (docs/spec-standout-detail.md section 7).
+    const user = userEvent.setup();
+    const { onRevise } = setup({ standoutDetail: "One ear flops over" });
+
+    await user.click(
+      screen.getByRole("button", { name: /something is not quite right/i }),
+    );
+
+    const field = screen.getByLabelText(
+      /one thing about them that really stands out/i,
+    );
+    expect(field).toHaveValue("One ear flops over");
+
+    await user.clear(field);
+    await user.type(field, "His LEFT ear flops, not the right");
+    await user.click(screen.getByRole("button", { name: "Wrong angle" }));
+    await user.click(screen.getByRole("button", { name: /send this back/i }));
+
+    expect(onRevise).toHaveBeenCalledWith(
+      "t",
+      ["wrong-angle"],
+      "",
+      "His LEFT ear flops, not the right",
+    );
+  });
+
+  it("keeps the note and the detail as visibly different things", async () => {
+    // One changes the drawing, the other reaches a person. A customer who
+    // cannot tell them apart will put the important sentence in the wrong box.
+    const user = userEvent.setup();
+    setup({ standoutDetail: "One ear flops over" });
+    await user.click(
+      screen.getByRole("button", { name: /something is not quite right/i }),
+    );
+
+    expect(
+      screen.getByLabelText(/one thing about them that really stands out/i),
+    ).toBeVisible();
+    expect(
+      screen.getByLabelText(/anything else you would like us to know/i),
+    ).toBeVisible();
+    expect(screen.getByText(/a person reads every one of these/i)).toBeVisible();
+  });
+
+  it("asks the question even when they never answered it the first time", async () => {
+    const user = userEvent.setup();
+    const { onRevise } = setup({ standoutDetail: null });
+    await user.click(
+      screen.getByRole("button", { name: /something is not quite right/i }),
+    );
+
+    const field = screen.getByLabelText(
+      /one thing about them that really stands out/i,
+    );
+    expect(field).toHaveValue("");
+
+    await user.click(screen.getByRole("button", { name: "Wrong angle" }));
+    await user.click(screen.getByRole("button", { name: /send this back/i }));
+    // null, not undefined: they were asked and left it blank.
+    expect(onRevise).toHaveBeenCalledWith("t", ["wrong-angle"], "", null);
   });
 });

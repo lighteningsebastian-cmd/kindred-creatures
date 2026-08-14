@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { NOTE_MAX, REVISION_LABELS, REVISION_REASONS } from "@/lib/revision";
+import { StandoutField } from "@/components/products/StandoutField";
 import type { ApprovalState } from "@/app/approve/[token]/actions";
 
 const chip =
@@ -26,16 +27,20 @@ const chip =
 export function ApprovalActions({
   token,
   approvedAt,
+  standoutDetail = null,
   onApprove,
   onRevise,
 }: {
   token: string;
   approvedAt: string | null;
+  /** What they told us stands out about their animal, when they answered. */
+  standoutDetail?: string | null;
   onApprove: (token: string) => Promise<ApprovalState>;
   onRevise: (
     token: string,
     reasons: string[],
     note: string,
+    standoutDetail?: string | null,
   ) => Promise<ApprovalState>;
 }) {
   const [state, setState] = useState<ApprovalState>(
@@ -44,6 +49,7 @@ export function ApprovalActions({
   const [panelOpen, setPanelOpen] = useState(false);
   const [reasons, setReasons] = useState<string[]>([]);
   const [note, setNote] = useState("");
+  const [detail, setDetail] = useState<string | null>(standoutDetail);
   const [pending, startTransition] = useTransition();
 
   if (state.state === "approved") {
@@ -169,6 +175,23 @@ export function ApprovalActions({
             </div>
           </fieldset>
 
+          {/*
+            THE ONE FIELD ON THIS SCREEN THAT REACHES THE MODEL, and it is above
+            the note rather than below it so the difference between the two is
+            visible: this one changes the drawing, the note below reaches a
+            person. Somebody whose detail was misread can reword it here, which
+            is the entire reason for letting them say it in the first place —
+            without this, their only recourse would be writing it in the note
+            and hoping somebody acted on it.
+          */}
+          <div className="border-t border-line pt-5">
+            <StandoutField
+              id="revision-standout"
+              value={detail}
+              onChange={setDetail}
+            />
+          </div>
+
           <div className="flex flex-col gap-2">
             <label
               htmlFor="revision-note"
@@ -195,7 +218,7 @@ export function ApprovalActions({
             disabled={pending || reasons.length === 0}
             onClick={() =>
               startTransition(async () =>
-                setState(await onRevise(token, reasons, note)),
+                setState(await onRevise(token, reasons, note, detail)),
               )
             }
           >

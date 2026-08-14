@@ -92,6 +92,22 @@ export default async function ApprovalsPage() {
                   ) : null}
                 </div>
 
+                {row.standoutDetail ? (
+                  // The one sentence the customer wrote that the model was also
+                  // given (docs/spec-standout-detail.md). It is here because
+                  // this is the screen where somebody decides whether the
+                  // portrait is right, and "does it have the flopped ear?" is
+                  // not a question you can answer without knowing it was asked.
+                  <div className="flex flex-col gap-1 border-t border-line pt-3">
+                    <p className="eyebrow text-[11px] text-accent">
+                      What stands out about them
+                    </p>
+                    <p className="rounded-md border border-line bg-base px-3 py-2 text-sm text-ink">
+                      {row.standoutDetail}
+                    </p>
+                  </div>
+                ) : null}
+
                 {row.revisions.length > 0 ? (
                   <div className="flex flex-col gap-2 border-t border-line pt-3">
                     {row.revisions.map((revision, index) => (

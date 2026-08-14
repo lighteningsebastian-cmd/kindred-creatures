@@ -128,6 +128,7 @@ export default async function ApprovePage({ params }: ApprovePageProps) {
         <ApprovalActions
           token={token}
           approvedAt={artwork.approvedAt ? artwork.approvedAt.toISOString() : null}
+          standoutDetail={artwork.standoutDetail}
           onApprove={approveAction}
           onRevise={reviseAction}
         />

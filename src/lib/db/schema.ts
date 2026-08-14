@@ -114,7 +114,9 @@ export const artworks = pgTable("artworks", {
   approvedAt: timestamp("approved_at", { withTimezone: true }),
   // JSON log of what the customer said was not right: validated chip ids and
   // their own words, one entry per round. The words are here for a PERSON to
-  // read and are never an input to anything the model sees.
+  // read and are never an input to anything the model sees. That is still true
+  // of THIS column: the standout detail is the one exception to the rule and it
+  // lives in its own column above, not in here.
   revisionNotes: text("revision_notes"),
   // The owner has taken this one off the automated path to deal with by hand.
   // Separate from orders.flagged, which narrates the money and print lifecycle:

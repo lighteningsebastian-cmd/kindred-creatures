@@ -17,6 +17,7 @@ import {
   normaliseNote,
   type RevisionReason,
 } from "@/lib/revision";
+import { STANDOUT_MAX } from "@/lib/standout";
 
 /**
  * Saying yes, and saying not quite.
@@ -110,6 +111,15 @@ export async function requestRevision(
   token: unknown,
   reasons: unknown,
   note: unknown,
+  /**
+   * The standout detail as the customer has just reworded it, if the screen
+   * offered it back for editing (docs/spec-standout-detail.md section 7).
+   *
+   * UNDEFINED MEANS LEAVE IT ALONE; null means they cleared it. The difference
+   * matters: a caller that does not know about this field must not silently
+   * erase an answer the customer gave before the portrait was drawn.
+   */
+  standoutDetail?: string | null,
 ): Promise<RevisionOutcome> {
   const found = await load(token);
   if (typeof found === "string") return { status: "refused", reason: found };
@@ -132,6 +142,17 @@ export async function requestRevision(
     .set({
       revisionCount: nextCount,
       revisionNotes: JSON.stringify([...readRevisions(found), entry]),
+      // Bounded but otherwise stored as typed: the filtering happens in
+      // lib/standout.ts on the way to the prompt, and a person may need to read
+      // this exactly as written.
+      ...(standoutDetail === undefined
+        ? {}
+        : {
+            standoutDetail:
+              typeof standoutDetail === "string" && standoutDetail.trim()
+                ? standoutDetail.trim().slice(0, STANDOUT_MAX)
+                : null,
+          }),
     })
     .where(eq(artworks.id, found.id))
     .returning();

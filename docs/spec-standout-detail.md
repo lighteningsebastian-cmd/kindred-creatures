@@ -145,9 +145,18 @@ A new nullable column, `artworks.standout_detail`, holding what the customer typ
 It is **not** part of `CompanionProfile`. That interface is strictly what the plate prints,
 and this is an instruction, not a record. Nothing about it reaches `plate.ts`.
 
-It appears in the admin approvals queue and on the job-sheet email, so the person checking
-a print sees the same sentence the model saw. It carries through `resumeArtwork`, so a cart
-line reopened to change a size keeps it, and it rides on the artwork through re-order.
+It appears in the **admin approvals queue**, which is the screen where a person decides
+whether a portrait is right. "Does it have the flopped ear?" is not a question anybody can
+answer without knowing it was asked, so the sentence sits beside the revision notes there.
+
+It is deliberately **not** on the job sheet, which the first draft of this spec called for.
+The job sheet reaches the print shop *after* the portrait is approved, and they print a
+finished file rather than redraw anything, so the detail is not actionable for them. That
+document says of itself that it has to survive being read in ten seconds; a line nobody can
+act on is a line that makes the other lines slower to find.
+
+It carries through `resumeArtwork`, so a cart line reopened to change a size keeps it, and
+it rides on the artwork through re-order.
 
 ---
 

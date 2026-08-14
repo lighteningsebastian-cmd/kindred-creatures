@@ -53,8 +53,13 @@ export async function reviseAction(
   token: string,
   reasons: string[],
   note: string,
+  /**
+   * The standout detail, as they have just reworded it. Undefined leaves
+   * whatever is on the artwork alone; null clears it.
+   */
+  standoutDetail?: string | null,
 ): Promise<ApprovalState> {
-  const result = await requestRevision(token, reasons, note);
+  const result = await requestRevision(token, reasons, note, standoutDetail);
   if (result.status === "refused") return { state: "error", message: GENERIC };
   revalidatePath(`/approve/${token}`);
   return result.status === "handed-over"

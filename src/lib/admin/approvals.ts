@@ -18,6 +18,15 @@ export interface AwaitingRow {
   email: string;
   firstName: string;
   creatureName: string | null;
+  /**
+   * What the owner said stands out about their animal, verbatim.
+   *
+   * The only customer-written text that also went to the model
+   * (docs/spec-standout-detail.md), which is exactly why it belongs on this
+   * screen: the person deciding whether a portrait is right should be able to
+   * see what the portrait was asked to look for.
+   */
+  standoutDetail: string | null;
   productSlug: string;
   revisionCount: number;
   revisions: RevisionEntry[];
@@ -57,6 +66,7 @@ export async function listAwaitingApproval(): Promise<AwaitingRow[]> {
       email: order.email,
       firstName: order.firstName,
       creatureName: artwork.creatureName,
+      standoutDetail: artwork.standoutDetail,
       productSlug: artwork.productSlug,
       revisionCount: artwork.revisionCount,
       revisions: readRevisions(artwork),
