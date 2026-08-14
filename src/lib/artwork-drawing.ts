@@ -118,9 +118,16 @@ export async function drawArtworkPlates(
     return { ok: false, reason: "no photograph and no reference illustration" };
   }
 
-  // Only ever our own sentences, and only from validated chips. What the
-  // customer wrote is not here and never will be.
+  // Only ever our own sentences, and only from validated chips. The note the
+  // customer wrote beside those chips is not here and never will be: it goes to
+  // a person (docs/spec-pipeline.md section 6).
   const reasons = readRevisions(artwork).at(-1)?.reasons ?? [];
+
+  // The one exception, and the only customer-written text in this function
+  // (docs/spec-standout-detail.md). Handed over raw: the provider sanitises it
+  // through lib/standout.ts, so there is no path to the model that skips the
+  // filter, and a null or unusable answer simply produces no clause.
+  const standoutDetail = artwork.standoutDetail;
 
   let lastError = "";
   for (let attempt = 1; attempt <= DRAW_ATTEMPTS; attempt += 1) {
@@ -132,16 +139,21 @@ export async function drawArtworkPlates(
       // has to be invented from a face-on photograph, and the reference is what
       // keeps it breed-accurate rather than a guess. The side is what decides
       // both the medium and the pose (lib/images/prompts.ts).
+      // The standout detail goes to BOTH sides. It is a fact about the animal,
+      // and a front that honours the flopped ear beside a back that ignores it
+      // is a worse product than either on its own.
       const front = await provider.generatePortrait({
         uploadKey: artwork.uploadKey,
         side: "front",
         reasons,
+        standoutDetail,
       });
       const back = await provider.generatePortrait({
         uploadKey: artwork.uploadKey,
         side: "back",
         reasons,
         referenceKey: reference,
+        standoutDetail,
       });
 
       const profile = profileFromArtwork(artwork);

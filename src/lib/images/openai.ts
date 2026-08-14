@@ -9,6 +9,7 @@ import {
   type PortraitSide,
 } from "./prompts";
 import { adjustmentsFor, type RevisionReason } from "@/lib/revision";
+import { standoutClause } from "@/lib/standout";
 import type { ImageProvider } from "./provider";
 
 /**
@@ -64,7 +65,15 @@ export function buildPortraitPrompt(
    * alone, and the prompt has to fall back with it.
    */
   hasReference = false,
+  /**
+   * The owner's answer to "what is one thing about them that really stands
+   * out?", raw and untrusted, exactly as they typed it. Sanitised here rather
+   * than by the caller so there is no route to these words that skips the
+   * filter. Null, blank and unusable all mean the same thing: no clause.
+   */
+  standoutDetail: string | null = null,
 ): string {
+  const standout = standoutClause(standoutDetail);
   return [
     SUBJECT,
     // Only when there really is a second image. Said unconditionally this
@@ -75,11 +84,17 @@ export function buildPortraitPrompt(
     ...(hasReference ? [REFERENCE] : []),
     STYLE_CLAUSE[side],
     ...adjustmentsFor(reasons),
-    // SEAM, deliberately empty (docs/spec-portrait-prompting.md section 5).
-    // The nature fragment chosen in the customer journey slots in HERE, between
-    // the style clause and the composition clause, and may modify light,
-    // expression and mood only. It is not built: the journey that collects it
-    // has not shipped, and a fragment with nothing to populate it is a guess.
+    // The seam that section 5 of docs/spec-portrait-prompting.md left open, now
+    // occupied by the owner's one detail. The nature fragment, if it is ever
+    // built, joins it here.
+    //
+    // THE POSITION IS THE SAFETY. These are the only customer-written words in
+    // the prompt, and everything that costs us a garment when it goes wrong
+    // comes AFTER them: COMPOSITION holds the back's strict side profile, which
+    // is the most fragile instruction we give, and CONSTRAINTS holds the
+    // transparent background and the ban on lettering. Nothing a customer types
+    // can unseat a clause that is stated after it. Never move this below them.
+    ...(standout ? [standout] : []),
     COMPOSITION[side],
     CONSTRAINTS,
   ].join(" ");
@@ -137,6 +152,7 @@ export class OpenAIImageProvider implements ImageProvider {
     side: PortraitSide,
     reasons: RevisionReason[],
     referenceKey: string | null,
+    standoutDetail: string | null,
   ): Promise<Uint8Array> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const client = (await this.client()) as any;
@@ -212,7 +228,20 @@ export class OpenAIImageProvider implements ImageProvider {
       // (the option is not in the interface), but it wants a SUBJECT that does
       // not refer to a photograph before half two ships. prompts.ts is yours;
       // this pass deliberately did not touch it.
-      prompt: buildPortraitPrompt(side, reasons, photograph !== null && reference !== null),
+      //
+      // THE STANDOUT DETAIL GOES ONLY WHERE THERE IS A PHOTOGRAPH. The clause
+      // says "that detail is in the photograph: find it there", which is the
+      // whole reason it is safe to send customer-written words at all. On a
+      // reference-only generation there is no photograph to find it in, and the
+      // sentence would become a description of an animal we are inventing —
+      // exactly the failure the pointer framing exists to prevent. Same
+      // conditional logic as REFERENCE, for the same kind of reason.
+      prompt: buildPortraitPrompt(
+        side,
+        reasons,
+        photograph !== null && reference !== null,
+        photograph !== null ? standoutDetail : null,
+      ),
       size: CANONICAL_SIZE,
       // A portrait printed on a Stone hoodie must be an animal, not a white
       // rectangle with an animal in it. Transparency requires a PNG or WebP
@@ -231,14 +260,22 @@ export class OpenAIImageProvider implements ImageProvider {
     side,
     reasons = [],
     referenceKey = null,
+    standoutDetail = null,
   }: {
     uploadKey: string | null;
     side: PortraitSide;
     reasons?: RevisionReason[];
     referenceKey?: string | null;
+    standoutDetail?: string | null;
   }): Promise<{ portraitBytes: Uint8Array; promptVersion: string }> {
     return {
-      portraitBytes: await this.render(uploadKey, side, reasons, referenceKey),
+      portraitBytes: await this.render(
+        uploadKey,
+        side,
+        reasons,
+        referenceKey,
+        standoutDetail,
+      ),
       promptVersion: PROMPT_VERSION,
     };
   }

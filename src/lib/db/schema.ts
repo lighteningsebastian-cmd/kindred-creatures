@@ -92,6 +92,17 @@ export const artworks = pgTable("artworks", {
   otherBreed: text("other_breed"),
   otherOrigin: text("other_origin"),
 
+  // The owner's answer to "what is one thing about them that really stands
+  // out?", stored exactly as they typed it (docs/spec-standout-detail.md).
+  //
+  // NOT PART OF THE PROFILE ABOVE and never printed. Everything above this is
+  // what the plate prints; this is an instruction, and it is the only
+  // customer-written text in the system that reaches the model. It is stored
+  // raw because the person reading the job sheet must see what was really
+  // written; lib/standout.ts filters it on the way to the prompt, not on the
+  // way in here.
+  standoutDetail: text("standout_detail"),
+
   // The two composited plates, drawn after payment. Canonical bytes: the print
   // file is a resize of these and is never regenerated.
   frontKey: text("front_key"),
@@ -665,6 +676,13 @@ ALTER TABLE artworks ADD COLUMN IF NOT EXISTS other_origin text;
 -- DROP NOT NULL on a column that is already nullable is a no-op, which covers
 -- both a fresh database created from the CREATE TABLE above and an existing one.
 ALTER TABLE artworks ALTER COLUMN upload_key DROP NOT NULL;
+
+-- The standout detail (owner, 14 August, docs/spec-standout-detail.md): the one
+-- sentence a customer writes that reaches the model. Stored as typed, filtered
+-- only on the way to the prompt. Nullable, and blank is the ordinary case: it
+-- is an optional question, and no answer means the portrait is drawn exactly as
+-- every portrait before this was.
+ALTER TABLE artworks ADD COLUMN IF NOT EXISTS standout_detail text;
 
 CREATE TABLE IF NOT EXISTS breed_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

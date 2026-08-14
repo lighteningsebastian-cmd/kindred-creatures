@@ -77,11 +77,24 @@ export interface ImageProvider {
      */
     side: PortraitSide;
     /**
-     * Revision chips, when this is a second attempt. A closed set: what the
-     * customer WROTE never reaches a prompt, only a person.
-     * docs/spec-pipeline.md section 6.
+     * Revision chips, when this is a second attempt. A closed set bound to
+     * sentences we wrote. What a customer writes in the note BESIDE these chips
+     * still never reaches a prompt, only a person. docs/spec-pipeline.md
+     * section 6.
      */
     reasons?: RevisionReason[];
+    /**
+     * The owner's answer to "what is one thing about them that really stands
+     * out?", raw and exactly as typed.
+     *
+     * THE ONE PLACE CUSTOMER-WRITTEN TEXT REACHES THE MODEL, opened
+     * deliberately (owner, 14 August 2026, docs/spec-standout-detail.md).
+     * Passed raw on purpose: implementations sanitise it themselves through
+     * lib/standout.ts, so no caller can hand these words to a model without the
+     * filter running. It is a pointer at the photograph, never a description of
+     * the animal — read section 2 of that spec before touching the wording.
+     */
+    standoutDetail?: string | null;
     /**
      * Storage key of the breed's hand-reviewed side-profile reference, used as
      * a SECOND input for the back portrait. Null or missing is an ordinary

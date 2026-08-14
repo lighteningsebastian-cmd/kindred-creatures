@@ -121,14 +121,20 @@ export class MockImageProvider implements ImageProvider {
     return { ok: true };
   }
 
-  // referenceKey is accepted and ignored: the stand-in draws the same paw
-  // whatever it is handed, and the point is that the seam exists. uploadKey is
-  // nullable for the same reason: a customer may order without a photograph.
+  // referenceKey and standoutDetail are accepted and ignored: the stand-in
+  // draws the same paw whatever it is handed, and the point is that the seam
+  // exists. uploadKey is nullable for the same reason: a customer may order
+  // without a photograph.
+  //
+  // Nothing offline can tell you whether the standout detail helps or hurts a
+  // portrait. That needs a live key and the protocol in
+  // docs/spec-portrait-prompting.md section 6.
   async generatePortrait({
     side,
   }: {
     uploadKey: string | null;
     side: PortraitSide;
+    standoutDetail?: string | null;
   }): Promise<{ portraitBytes: Uint8Array; promptVersion: string }> {
     await delay(latencyMs());
     return {
