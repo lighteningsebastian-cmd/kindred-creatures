@@ -3,6 +3,8 @@ import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
 import { PhotoFrame } from "@/components/ui/PhotoFrame";
 import { Reveal } from "@/components/motion/Reveal";
+import { GarmentShots } from "@/components/products/GarmentShots";
+import { catalogueShots } from "@/lib/garment-shots";
 import {
   PRODUCTS,
   fromPriceZar,
@@ -16,16 +18,6 @@ const cellSpan: Record<ProductSlug, string> = {
   tee: "md:col-span-2",
   crewneck: "",
   tote: "",
-};
-
-/** The shot each tile reserves. Art-directed flatlays, one per product. */
-const tileShot: Record<ProductSlug, string> = {
-  hoodie:
-    "flatlay: the blue kindred hoodie laid flat with a dog portrait printed on the chest, soft daylight, warm parchment backdrop",
-  tee: "flatlay: the white kindred tee laid flat with a cat portrait print, gentle overhead light, warm parchment backdrop",
-  crewneck:
-    "flatlay: the peach kindred crewneck folded, pet portrait print centred, soft daylight",
-  tote: "flatlay: the natural canvas kindred tote with a pet portrait print, propped upright, soft daylight",
 };
 
 export function ProductRange() {
@@ -49,6 +41,7 @@ export function ProductRange() {
             const price = formatZar(fromPriceZar(product));
             const href = `/products/${product.slug}`;
             const lead = cellSpan[product.slug] !== "";
+            const shots = catalogueShots(product.slug);
 
             return (
               <Reveal
@@ -56,16 +49,31 @@ export function ProductRange() {
                 delay={index * 0.08}
                 className={cellSpan[product.slug]}
               >
-                <Link
-                  href={href}
-                  className="group flex h-full flex-col overflow-hidden rounded-lg border border-line bg-surface transition-colors hover:border-line-strong"
-                >
-                  <PhotoFrame
-                    aspect={lead ? "3 / 2" : "4 / 3"}
-                    description={tileShot[product.slug]}
-                    className="rounded-none border-0"
-                  />
-                  <div className="flex flex-col gap-1 border-t border-line p-4">
+                <div className="group flex h-full flex-col overflow-hidden rounded-lg border border-line bg-surface transition-colors hover:border-line-strong">
+                  {shots.length > 0 ? (
+                    <GarmentShots
+                      shots={shots}
+                      slug={product.slug}
+                      aspect={lead ? "3 / 2" : "4 / 3"}
+                      className="p-3"
+                      sizes={
+                        lead
+                          ? "(min-width: 768px) 50vw, 100vw"
+                          : "(min-width: 768px) 25vw, 100vw"
+                      }
+                      preload={product.slug === "hoodie"}
+                    />
+                  ) : (
+                    <PhotoFrame
+                      aspect="4 / 3"
+                      description="flatlay: the natural canvas kindred tote with a pet portrait print, propped upright, soft daylight"
+                      className="rounded-none border-0"
+                    />
+                  )}
+                  <Link
+                    href={href}
+                    className="flex flex-col gap-1 border-t border-line p-4"
+                  >
                     <p className="font-display text-lg leading-[1.2] text-ink">
                       {product.name}
                     </p>
@@ -73,8 +81,8 @@ export function ProductRange() {
                       from{" "}
                       <span className="text-accent-secondary">{price}</span>
                     </p>
-                  </div>
-                </Link>
+                  </Link>
+                </div>
               </Reveal>
             );
           })}
