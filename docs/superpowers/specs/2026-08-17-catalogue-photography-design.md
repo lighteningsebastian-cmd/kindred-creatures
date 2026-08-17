@@ -218,8 +218,11 @@ One client component, used by both grids.
 - Renders the first shot; hover swaps to the next on a pointer device, and a
   row of dots beneath the image does the same on touch. Both grids get both:
   hover is not a feature a phone has, and dots are not clutter a mouse notices.
-- Cross-fades between shots, and swaps instantly under
-  `prefers-reduced-motion`, matching `Reveal`'s existing behaviour.
+- Swaps instantly, with no cross-fade. Each view is a different `src`, so the
+  browser remounts the image; fading across a remount is a flash rather than a
+  transition, and the honest cheap version is no transition at all. Nothing
+  here needs a `prefers-reduced-motion` branch as a result, which is the reason
+  to prefer it.
 - Dots are real buttons with `aria-label`s naming the view ("Back", "Chest
   print", "Side", "Fleece"), and the image's `alt` updates with the shot. A
   card that changes picture silently is a card a screen reader cannot follow.
