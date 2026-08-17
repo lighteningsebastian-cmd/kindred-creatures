@@ -63,7 +63,7 @@ function frontZoom(
   // different shapes: 110 by 150mm of print on a portrait photograph.
   const heightPct =
     ((placement.width * print.heightMm) / print.widthMm) *
-    photoAspect(product.slug, color.color);
+    photoAspect(product.slug, color.color, "front");
 
   return {
     scale: (FRONT_ZOOM_FILL * 100) / placement.width,
@@ -113,7 +113,7 @@ function GarmentView({
     <div className="flex h-full min-h-0 w-full items-center justify-center">
       <div
         className="relative h-full max-h-full max-w-full overflow-hidden rounded-md border border-line bg-surface"
-        style={{ aspectRatio: photoAspect(product.slug, color.color) }}
+        style={{ aspectRatio: photoAspect(product.slug, color.color, side) }}
       >
       {/*
         ONE WRAPPER, HOLDING BOTH, TRANSFORMED AS ONE. The plate is placed as a

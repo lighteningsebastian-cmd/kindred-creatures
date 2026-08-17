@@ -4,9 +4,11 @@ import { join } from "node:path";
 import sharp from "sharp";
 import { PRODUCTS, type ProductSlug } from "@/lib/products";
 import {
+  GARMENT_VIEWS,
   PLACEMENT,
   garmentImageUrl,
   garmentPhoto,
+  garmentViewUrl,
   photoAspect,
   unphotographedColours,
 } from "./garments";
@@ -54,27 +56,38 @@ describe("garment photography", () => {
     expect(garmentImageUrl("hoodie", "Not A Colour", "back")).toBeNull();
   });
 
-  it("knows each photograph's real shape, measured from the file", async () => {
+  it("knows every photograph's real shape, per view, measured from the file", async () => {
     // THE BUG THIS PREVENTS. Plate placement is a percentage of the
     // photograph, so the box the photo is drawn in has to BE the photograph's
     // shape; if it is not, the picture is letterboxed while the plate keeps
     // measuring itself against the box, and the plate lands beside the garment
     // instead of on it.
     //
-    // The shoot was not consistent, so this is per COLOURWAY. A single
-    // per-product ratio was wrong for half the range: the tee's Heritage Blue
-    // and Olive shots are landscape while its White is portrait.
+    // PER VIEW, not just per colourway. The shoot varies by both: tee/olive's
+    // front is 1.333 and its back is 1.250, and the earlier version of this
+    // test only looked at the front, so the back plate on that colourway was
+    // being placed against the wrong shape.
     for (const product of PRODUCTS) {
       if (product.slug === "tote") continue;
       for (const variant of product.variants) {
-        const url = garmentImageUrl(product.slug, variant.color, "front")!;
-        const meta = await sharp(join(PUBLIC, url)).metadata();
-        expect(
-          photoAspect(product.slug, variant.color),
-          `${product.slug}/${variant.color} is ${meta.width}x${meta.height}`,
-        ).toBeCloseTo(meta.width! / meta.height!, 2);
+        for (const view of GARMENT_VIEWS) {
+          const url = garmentViewUrl(product.slug, variant.color, view);
+          if (!url) continue; // not every garment has a fleece detail
+          const meta = await sharp(join(PUBLIC, url)).metadata();
+          expect(
+            photoAspect(product.slug, variant.color, view),
+            `${product.slug}/${variant.color}/${view} is ${meta.width}x${meta.height}`,
+          ).toBeCloseTo(meta.width! / meta.height!, 2);
+        }
       }
     }
+  });
+
+  it("reports the front and back shapes of tee/olive as the different numbers they are", () => {
+    // The regression guard for the bug above, named explicitly so that a future
+    // simplification back to one-shape-per-colourway fails loudly.
+    expect(photoAspect("tee", "Olive", "front")).toBeCloseTo(1.333, 2);
+    expect(photoAspect("tee", "Olive", "back")).toBeCloseTo(1.25, 2);
   });
 
   it("has no photograph for the tote, and says so plainly", () => {
