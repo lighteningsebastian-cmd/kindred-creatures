@@ -149,14 +149,24 @@ export function GarmentShots({
                 setHovered(false);
               }}
               className={cn(
-                "h-1.5 rounded-full transition-all",
+                // THE DOT IS 6px TALL; THE BUTTON MUST NOT BE. These dots are
+                // the touch affordance — hover is not something a phone has —
+                // and a 6px target is a control only a mouse can use. The
+                // padding is the hit area, the span is the thing you see.
+                "group/dot flex items-center justify-center rounded-full px-1 py-3",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                 "focus-visible:ring-offset-2 focus-visible:ring-offset-base",
-                showing === optionIndex
-                  ? "w-5 bg-accent-secondary"
-                  : "w-1.5 bg-line-strong hover:bg-accent-secondary/60",
               )}
-            />
+            >
+              <span
+                className={cn(
+                  "h-1.5 rounded-full transition-all",
+                  showing === optionIndex
+                    ? "w-5 bg-accent-secondary"
+                    : "w-1.5 bg-line-strong group-hover/dot:bg-accent-secondary/60",
+                )}
+              />
+            </button>
           ))}
         </div>
       ) : null}
