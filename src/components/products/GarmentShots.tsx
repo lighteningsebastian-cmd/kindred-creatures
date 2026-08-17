@@ -34,7 +34,7 @@ export function GarmentShots({
   slug,
   aspect = "4 / 5",
   className,
-  priority = false,
+  preload = false,
   sizes = "(min-width: 768px) 45vw, 100vw",
 }: {
   shots: Shot[];
@@ -43,7 +43,15 @@ export function GarmentShots({
   /** CSS aspect-ratio for the outer box, set by the grid. */
   aspect?: string;
   className?: string;
-  priority?: boolean;
+  /**
+   * Preload this card's first photograph, for the one tile above the fold.
+   *
+   * `preload`, not `priority`: Next 16 deprecated the latter in favour of this
+   * (see the image guide in node_modules/next/dist/docs/), and AGENTS.md says
+   * to heed deprecation notices. LivePreview.tsx still passes `priority` and
+   * predates the upgrade; that is debt, not a pattern to copy.
+   */
+  preload?: boolean;
   sizes?: string;
 }) {
   const [index, setIndex] = useState(0);
@@ -91,7 +99,7 @@ export function GarmentShots({
             alt={shot.alt}
             fill
             sizes={sizes}
-            priority={priority}
+            preload={preload}
             // multiply drops the white studio background to the parchment
             // beneath it. See the note at the top of this file.
             className="object-cover mix-blend-multiply"
