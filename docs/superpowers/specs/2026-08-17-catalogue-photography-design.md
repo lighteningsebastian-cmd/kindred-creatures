@@ -273,3 +273,40 @@ no special handling.
 - `/products/[slug]`, which has its own preview and is not a catalogue card.
 - Re-shooting to one aspect ratio per product. Still worth doing eventually;
   §2 makes the code tell the truth in the meantime.
+
+---
+
+## Status, 17 August 2026
+
+Built and verified in the browser. The home page and `/shop` show real
+photography, several aspects per card, plate composited by the same placement
+the customizer uses. Suite green, lint clean, `npm run build` clean with both
+pages prerendering static.
+
+Three things the build changed that this spec did not anticipate:
+
+- **`priority` became `preload`.** Next 16 deprecated the former and AGENTS.md
+  says to heed deprecation notices. `LivePreview.tsx` still passes `priority`;
+  it predates the upgrade and is debt, not a pattern to copy.
+- **The dots grew a hit area.** They were 6px tall, which is a control only a
+  mouse can use, and they are the *touch* affordance. The visible dot is
+  unchanged; the button around it is now 28 by 30.
+- **`scripts/alias-loader.mjs` needed a third case.** `opentype.js` ships no
+  `exports` field and a CJS `main` whose named exports Node cannot see, so the
+  hook prefers `module` for packages in exactly that position. Packages that
+  declare `exports` fall straight through untouched.
+
+**The one thing outstanding is the portrait.** `assets/demo-companion.png` does
+not exist, so every plate on every card has a hole where the animal belongs.
+The typography renders correctly around it, which is exactly why this must not
+ship as-is: it looks finished. Drop the illustration in, re-run
+
+    node --import ./scripts/alias-loader.mjs scripts/build-catalogue-plate.ts
+
+and commit `public/demo/`.
+
+Also open, as taste rather than correctness: the two lead tiles on the home
+page carry about a quarter of their width as parchment on each side, because
+`3 / 2` cells hold `0.8` portrait photographs (measured fill 53%, 55%, 60%).
+It reads as a catalogue plate rather than a mistake, but narrowing those cells
+is a defensible alternative and the owner has not seen it yet.
