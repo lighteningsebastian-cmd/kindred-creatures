@@ -129,15 +129,18 @@ describe("catalog seed", () => {
     }
   });
 
-  // photoAspect is per COLOURWAY, not per product, so the default colourway
-  // also sets the SHAPE of the preview box the whole profile flow renders
-  // into. Moving the hoodie's default from Blue to White would have resized
-  // that box if the two shots were different ratios, and the mobile layout
-  // would have had to hold at whatever it became. They are the same ratio, so
-  // it did not, and this asserts that rather than trusting it.
+  // photoAspect is per COLOURWAY AND PER VIEW, not per product, so the
+  // default colourway also sets the SHAPE of the preview box the whole
+  // profile flow renders into. LivePreview starts on the BACK side (its
+  // `side` state defaults to "back"), so that is the view the customer
+  // actually sees first and the view this must check. Moving the hoodie's
+  // default from Blue to White would have resized that box if the two shots
+  // were different ratios, and the mobile layout would have had to hold at
+  // whatever it became. They are the same ratio, so it did not, and this
+  // asserts that rather than trusting it.
   it("did not resize the preview box when the hoodie default moved to White", () => {
-    expect(photoAspect("hoodie", "White")).toBeCloseTo(
-      photoAspect("hoodie", "Blue"),
+    expect(photoAspect("hoodie", "White", "back")).toBeCloseTo(
+      photoAspect("hoodie", "Blue", "back"),
       4,
     );
   });

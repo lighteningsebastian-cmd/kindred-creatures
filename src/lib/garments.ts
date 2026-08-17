@@ -72,7 +72,7 @@ export interface PlatePlacement {
  * portrait. Per view turned out to be necessary too, and more quietly:
  * tee/olive's front is 1.333 and its back is 1.250, so a single number per
  * colourway placed that garment's back plate against a box six percent wrong.
- * Its profile is 1.501, wrong by a fifth.
+ * Its profile is 1.501, wrong by an eighth.
  *
  * Measured from the files with sharp, never assumed. Worth reshooting to one
  * ratio per product eventually; until then the code has to tell the truth about

@@ -99,8 +99,17 @@ export default function MockupsPage() {
                       <div
                         className="relative overflow-hidden rounded-md border border-line bg-surface"
                         // The photograph's own shape, so what is judged here is
-                        // the same geometry the customer sees.
-                        style={{ aspectRatio: photoAspect(product.slug, variant.color) }}
+                        // the same geometry the customer sees. MUST pass side:
+                        // photoAspect defaults its view to "front", and without
+                        // it every back card here would be sized to the front
+                        // photo's shape while the back photo drew inside it.
+                        style={{
+                          aspectRatio: photoAspect(
+                            product.slug,
+                            variant.color,
+                            side,
+                          ),
+                        }}
                       >
                         {garment ? (
                           <Image

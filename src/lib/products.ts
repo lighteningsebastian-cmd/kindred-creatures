@@ -65,10 +65,10 @@ export interface Product {
  * 5 August: **White, on every garment.** Reordering a variants array is
  * therefore a product decision, not tidying.
  *
- * It reaches further than the swatch. `photoAspect()` is per COLOURWAY rather
- * than per product, because the shoot was not consistent (see the note in
- * lib/garments.ts), so the default colourway also decides the SHAPE of the
- * preview box the whole flow renders into.
+ * It reaches further than the swatch. `photoAspect()` is per COLOURWAY AND
+ * PER VIEW rather than per product, because the shoot was not consistent (see
+ * the note in lib/garments.ts), so the default colourway also decides the
+ * SHAPE of the preview box the whole flow renders into.
  */
 
 /** The apparel size runs. The crewneck is cut smaller and stops at XL. */

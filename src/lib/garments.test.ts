@@ -56,6 +56,18 @@ describe("garment photography", () => {
     expect(garmentImageUrl("hoodie", "Not A Colour", "back")).toBeNull();
   });
 
+  it("returns nothing for a view the shoot has not covered", () => {
+    // Three different reasons to say null, all through the one function.
+    // "worn" is deliberately included: it is a real member of GARMENT_VIEWS
+    // (garments.ts), not a typo or a gap. There is no on-model photography
+    // yet, so today it is correct for every product to answer null; the view
+    // stays in the vocabulary so a later task can shoot it and light it up
+    // just by adding files, with no change here.
+    expect(garmentViewUrl("hoodie", "Not A Colour", "front")).toBeNull(); // no such colourway
+    expect(garmentViewUrl("tote", "Natural", "front")).toBeNull(); // no photography at all
+    expect(garmentViewUrl("hoodie", "White", "worn")).toBeNull(); // not shot yet
+  });
+
   it("knows every photograph's real shape, per view, measured from the file", async () => {
     // THE BUG THIS PREVENTS. Plate placement is a percentage of the
     // photograph, so the box the photo is drawn in has to BE the photograph's
@@ -67,12 +79,25 @@ describe("garment photography", () => {
     // front is 1.333 and its back is 1.250, and the earlier version of this
     // test only looked at the front, so the back plate on that colourway was
     // being placed against the wrong shape.
+    //
+    // WHY `checked` IS ASSERTED. Every expect() below lives after
+    // `if (!url) continue`, because not every garment has a fleece or profile
+    // shot. That guard is also a trapdoor: a `garmentViewUrl` that stopped
+    // resolving anything would make every iteration `continue`, and this test
+    // would pass having executed zero assertions. It did — a reviewer stubbed
+    // `garmentViewUrl` to always return null and all tests here stayed green.
+    // Asserting the count catches that, and also catches a photograph
+    // silently disappearing from disk while PHOTO_SHAPE still lists it. 33 is
+    // the number of .webp files actually under public/garments, verified with
+    // `find public/garments -type f -name '*.webp' | wc -l`.
+    let checked = 0;
     for (const product of PRODUCTS) {
       if (product.slug === "tote") continue;
       for (const variant of product.variants) {
         for (const view of GARMENT_VIEWS) {
           const url = garmentViewUrl(product.slug, variant.color, view);
           if (!url) continue; // not every garment has a fleece detail
+          checked += 1;
           const meta = await sharp(join(PUBLIC, url)).metadata();
           expect(
             photoAspect(product.slug, variant.color, view),
@@ -81,6 +106,7 @@ describe("garment photography", () => {
         }
       }
     }
+    expect(checked, "photographs actually checked, of 33 on disk").toBe(33);
   });
 
   it("reports the front and back shapes of tee/olive as the different numbers they are", () => {
