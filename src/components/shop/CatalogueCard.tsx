@@ -1,22 +1,14 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { PhotoFrame } from "@/components/ui/PhotoFrame";
+import { GarmentShots } from "@/components/products/GarmentShots";
+import { catalogueShots } from "@/lib/garment-shots";
 import {
   FIT_LABELS,
   formatZar,
   fromPriceZar,
   type Product,
 } from "@/lib/products";
-
-/** Art-directed flatlay per product, reserved until the real shoot. */
-const catalogueShot: Record<string, string> = {
-  hoodie:
-    "flatlay: the blue kindred hoodie pressed and squared to camera, a dog portrait print on the chest, soft daylight on a warm parchment backdrop",
-  tee: "flatlay: the white kindred tee pressed flat, a cat portrait print centred, gentle overhead light, warm parchment backdrop",
-  crewneck:
-    "flatlay: the peach kindred crewneck laid flat, a pet portrait print centred, soft daylight, warm parchment backdrop",
-  tote: "flatlay: the natural canvas kindred tote squared to camera, a pet portrait print centred, soft daylight, warm parchment backdrop",
-};
 
 /**
  * One large catalogue card for /shop: a generous flatlay, the name and "from"
@@ -38,20 +30,36 @@ export function CatalogueCard({ product }: { product: Product }) {
   const sizesHint =
     sizes.length === 1 ? sizes[0] : `${sizes[0]} to ${sizes[sizes.length - 1]}`;
 
+  // Empty for the tote, which is deferred and has no shoot. It keeps the
+  // hatched frame rather than borrowing a photograph of something else.
+  const shots = catalogueShots(product.slug);
+
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-lg border border-line bg-surface">
-      <Link href={href} className="block">
-        <PhotoFrame
-          aspect="5 / 4"
-          description={catalogueShot[product.slug]}
-          className="rounded-none border-0"
+      {shots.length > 0 ? (
+        <GarmentShots
+          shots={shots}
+          slug={product.slug}
+          aspect="4 / 5"
+          className="p-4 pb-5"
+          sizes="(min-width: 768px) 45vw, 100vw"
         />
-      </Link>
+      ) : (
+        <Link href={href} className="block">
+          <PhotoFrame
+            aspect="5 / 4"
+            description="flatlay: the natural canvas kindred tote squared to camera, a pet portrait print centred, soft daylight, warm parchment backdrop"
+            className="rounded-none border-0"
+          />
+        </Link>
+      )}
 
       <div className="flex flex-1 flex-col gap-4 p-6 md:p-8">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 className="font-display text-2xl leading-[1.15] text-ink">
-            {product.name}
+            <Link href={href} className="hover:text-accent-secondary">
+              {product.name}
+            </Link>
           </h2>
           <p className="whitespace-nowrap text-muted">
             from <span className="text-accent-secondary">{price}</span>

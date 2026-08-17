@@ -5,6 +5,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { CatalogueCard } from "@/components/shop/CatalogueCard";
 import { StartFromPhotoBand } from "@/components/shop/StartFromPhotoBand";
 import { ClosingCta } from "@/components/sections/ClosingCta";
+import { stockDisclosure } from "@/lib/companion";
 import { PRODUCTS } from "@/lib/products";
 import { buildItemList } from "@/lib/seo/jsonld";
 import { BRAND_NAME, siteUrl } from "@/lib/seo/site";
@@ -85,6 +86,17 @@ export default function ShopPage() {
               </Reveal>
             ))}
           </div>
+
+          {/*
+            Every card shows the same demo companion. stockDisclosure exists
+            because a stand-in illustration has to be named as one, and a
+            catalogue card's dog is a stand-in by definition. Once, beneath the
+            grid: four repetitions of the same sentence is noise, and none is a
+            claim about an animal that is not the customer's.
+          */}
+          <p className="mt-10 max-w-prose text-sm leading-relaxed text-muted">
+            {stockDisclosure("German Shepherd")}
+          </p>
         </Container>
       </section>
 

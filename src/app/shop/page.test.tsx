@@ -66,6 +66,45 @@ describe("shop page catalogue", () => {
     }
   });
 
+  it("shows real photography for the three shot garments, several aspects each", () => {
+    render(<ShopPage />);
+    // The hoodie leads on its Blue back, which is the plate: the product.
+    expect(
+      screen.getByAltText(
+        "The Kindred hoodie in Blue from the back, printed with a companion profile plate",
+      ),
+    ).toBeInTheDocument();
+
+    // Four aspects for the hoodie, three each for the tee and crewneck.
+    expect(
+      screen.getAllByRole("group", { name: "Which aspect to show" }),
+    ).toHaveLength(3);
+  });
+
+  it("keeps the hatched placeholder for the tote, which has no shoot", () => {
+    render(<ShopPage />);
+    // Deferred by docs/spec-print-layout.md. A photograph would be a lie.
+    expect(screen.getByText(/flatlay: the natural canvas kindred tote/i)).toBeInTheDocument();
+  });
+
+  it("names the demo companion as a stand-in, once, beneath the grid", () => {
+    render(<ShopPage />);
+    // Every card shows the same example dog. Saying so four times is noise;
+    // not saying it is a claim about an animal that is not the customer's.
+    const disclosures = screen.getAllByText(
+      /The illustration shown is a German Shepherd example/i,
+    );
+    expect(disclosures).toHaveLength(1);
+  });
+
+  it("never nests a button inside an anchor", () => {
+    // GarmentShots' aspect dots are <button>s. If a card's photo ever moved
+    // back inside its <Link>, this would be invalid HTML and the dots would
+    // stop working: the anchor swallows the click before the button sees it.
+    const { container } = render(<ShopPage />);
+    expect(container.querySelector("a button")).toBeNull();
+  });
+
   it("emits ItemList structured data for the four products in ZAR", () => {
     const { container } = render(<ShopPage />);
     const script = container.querySelector(
