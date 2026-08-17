@@ -938,7 +938,7 @@ export function GarmentShots({
   slug,
   aspect = "4 / 5",
   className,
-  priority = false,
+  preload = false,
   sizes = "(min-width: 768px) 45vw, 100vw",
 }: {
   shots: Shot[];
@@ -947,7 +947,7 @@ export function GarmentShots({
   /** CSS aspect-ratio for the outer box, set by the grid. */
   aspect?: string;
   className?: string;
-  priority?: boolean;
+  preload?: boolean;
   sizes?: string;
 }) {
   const [index, setIndex] = useState(0);
@@ -995,7 +995,7 @@ export function GarmentShots({
             alt={shot.alt}
             fill
             sizes={sizes}
-            priority={priority}
+            preload={preload}
             // multiply drops the white studio background to the parchment
             // beneath it. See the note at the top of this file.
             className="object-cover mix-blend-multiply"
@@ -1269,7 +1269,7 @@ Now replace the whole tile body — lines 59-77, the `<Link>` wrapping a `PhotoF
                           ? "(min-width: 768px) 50vw, 100vw"
                           : "(min-width: 768px) 25vw, 100vw"
                       }
-                      priority={product.slug === "hoodie"}
+                      preload={product.slug === "hoodie"}
                     />
                   ) : (
                     <PhotoFrame
@@ -1293,7 +1293,7 @@ Now replace the whole tile body — lines 59-77, the `<Link>` wrapping a `PhotoF
                 </div>
 ```
 
-`priority` on the hoodie only: it is the lead tile and the largest image above the fold, and marking all four defeats the purpose.
+`preload` on the hoodie only: it is the lead tile and the largest image above the fold, and marking all four defeats the purpose.
 
 - [ ] **Step 2: Check whether a test asserted the old whole-tile link**
 
