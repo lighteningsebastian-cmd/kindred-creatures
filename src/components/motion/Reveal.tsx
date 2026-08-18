@@ -1,8 +1,17 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useSyncExternalStore } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/cn";
+
+/**
+ * "Are we past hydration yet." The server snapshot is false and the client
+ * snapshot is true, which is exactly the question, and the answer never
+ * changes afterwards — so subscribe is a no-op rather than a real
+ * subscription.
+ */
+const subscribe = () => () => {};
 
 export type RevealProps = {
   children: ReactNode;
@@ -26,7 +35,27 @@ export function Reveal({
   y = 16,
   as = "div",
 }: RevealProps) {
-  const reducedMotion = useReducedMotion() ?? false;
+  const prefersReduced = useReducedMotion() ?? false;
+
+  /**
+   * WHY THIS IS NOT SIMPLY `if (prefersReduced)`, which is what it used to be.
+   *
+   * useReducedMotion() answers null on the server and true in a browser with
+   * Reduce Motion switched on. Branching on it during the FIRST render
+   * therefore made the server send the animated markup — opacity:0, waiting to
+   * be scrolled into view — while the client rendered the static one. React
+   * does not patch up style mismatches during hydration; it says so in the
+   * warning. So the server's `opacity: 0` stayed on the element while the
+   * client sat on the branch that never animates anything, and every Reveal on
+   * the page was invisible. Permanently, and only for the people who asked for
+   * less motion: the whole home page below the hero, the whole shop, gone.
+   *
+   * The first client render has to match the server's. The static path is only
+   * safe once hydration is behind us, so it waits for that.
+   */
+  const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
+  const reducedMotion = prefersReduced && hydrated;
+
   const MotionTag = motion[as];
 
   if (reducedMotion) {
