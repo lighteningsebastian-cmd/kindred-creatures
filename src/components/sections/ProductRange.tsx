@@ -69,7 +69,11 @@ export function ProductRange() {
                   )}
                   <Link
                     href={href}
-                    className="flex flex-col gap-1 border-t border-line p-4"
+                    // justify-end because the tote has no swatch row and the
+                    // others do. Its picture block is 49px shorter, so in a row
+                    // of equal tiles its name floated that far above the other
+                    // three. The bento hid this; four equal squares do not.
+                    className="mt-auto flex flex-col justify-end gap-1 border-t border-line p-4"
                   >
                     <p className="font-display text-lg leading-[1.2] text-ink">
                       {product.name}
