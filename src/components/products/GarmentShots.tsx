@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { PLACEMENT, type GarmentSide } from "@/lib/garments";
 import type { Shot } from "@/lib/garment-shots";
+import { PrintLightbox } from "./PrintLightbox";
 import type { ProductSlug } from "@/lib/products";
 
 /**
@@ -36,6 +37,7 @@ export function GarmentShots({
   className,
   preload = false,
   sizes = "(min-width: 768px) 45vw, 100vw",
+  zoomable = false,
 }: {
   shots: Shot[];
   /** Whose placement to use. Required: a printed shot cannot be placed without it. */
@@ -53,9 +55,19 @@ export function GarmentShots({
    */
   preload?: boolean;
   sizes?: string;
+  /**
+   * Whether the picture opens a lightbox. Shop only.
+   *
+   * The home page deliberately does not get this. A modal on a teaser tile is
+   * a different proposition from one on a product card: the tile's job is the
+   * range, and the card's job is the detail. Owner decision, 18 August.
+   */
+  zoomable?: boolean;
 }) {
   const [index, setIndex] = useState(0);
   const [hovered, setHovered] = useState(false);
+  const [zoomed, setZoomed] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   // The tote. Rendering an empty bordered box beside a real card is worse than
   // rendering nothing and letting the caller fall back to its placeholder.
@@ -64,8 +76,20 @@ export function GarmentShots({
   // HOVER ADVANCES BY ONE, it does not cycle. A card that walks through four
   // pictures while the cursor rests on it is a card nobody can read. One nudge
   // to show there is more here; the dots are how you get to the rest.
-  const showing =
-    hovered && shots.length > 1 ? (index + 1) % shots.length : index;
+  //
+  // NOT WHEN THE PICTURE IS CLICKABLE, and this is not a preference. You
+  // cannot click a thing without hovering it, so on a zoomable card the
+  // advance fires at the exact moment someone reaches to enlarge: they press
+  // "Chest print", move the cursor onto the picture, and the hover bumps them
+  // to fleece before the click lands. They can never enlarge the view they
+  // asked for. It is the same failure the setHovered(false) below guards the
+  // dots against, and here the only fix is not to advance at all.
+  //
+  // Nothing is lost. Hover-advance exists to hint "there is more here" on a
+  // tile you cannot interact with; a zoomable picture already says that with a
+  // zoom cursor, a focus ring and a real button.
+  const hoverAdvances = hovered && shots.length > 1 && !zoomable;
+  const showing = hoverAdvances ? (index + 1) % shots.length : index;
   const shot = shots[showing]!;
   // `printed` is true only for "front" and "back", which are exactly the two
   // keys PLACEMENT has, so the cast is the type system catching up with the
@@ -74,25 +98,26 @@ export function GarmentShots({
     ? PLACEMENT[slug][shot.view as GarmentSide]
     : null;
 
-  return (
-    <div className={cn("flex flex-col gap-3", className)}>
+  const closeZoom = () => {
+    setZoomed(false);
+    // Focus has to come back out of a dialog that is about to stop existing,
+    // or it lands on <body> and a keyboard visitor loses their place on the
+    // page entirely.
+    triggerRef.current?.focus();
+  };
+
+  const picture = (
+    <>
+      {/*
+        The photograph's own shape, centred in whatever box the grid gave us.
+        isolate creates a stacking context so the multiply below blends
+        against this box's parchment and not against whatever the page has
+        behind the card.
+      */}
       <div
-        data-testid="garment-shots"
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        className="relative flex w-full items-center justify-center overflow-hidden bg-surface"
-        style={{ aspectRatio: aspect }}
+        className="relative isolate h-full max-h-full max-w-full bg-surface"
+        style={{ aspectRatio: shot.aspect }}
       >
-        {/*
-          The photograph's own shape, centred in whatever box the grid gave us.
-          isolate creates a stacking context so the multiply below blends
-          against this box's parchment and not against whatever the page has
-          behind the card.
-        */}
-        <div
-          className="relative isolate h-full max-h-full max-w-full bg-surface"
-          style={{ aspectRatio: shot.aspect }}
-        >
           <Image
             key={shot.url}
             src={shot.url}
@@ -126,8 +151,52 @@ export function GarmentShots({
               />
             </div>
           ) : null}
-        </div>
       </div>
+    </>
+  );
+
+  // A REAL BUTTON WHEN IT DOES SOMETHING, a plain div when it does not. A
+  // click handler on a div is unreachable by keyboard and announces nothing;
+  // rendering the element the behaviour deserves is cheaper than bolting
+  // tabIndex and a key handler onto the wrong one.
+  const frameClass =
+    "relative flex w-full items-center justify-center overflow-hidden bg-surface";
+
+  return (
+    <div className={cn("flex flex-col gap-3", className)}>
+      {zoomable ? (
+        <button
+          ref={triggerRef}
+          type="button"
+          data-testid="garment-shots"
+          onClick={() => setZoomed(true)}
+          aria-label={`Enlarge: ${shot.label.toLowerCase()}`}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          className={cn(
+            frameClass,
+            "cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+            "focus-visible:ring-offset-2 focus-visible:ring-offset-base",
+          )}
+          style={{ aspectRatio: aspect }}
+        >
+          {picture}
+        </button>
+      ) : (
+        <div
+          data-testid="garment-shots"
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          className={frameClass}
+          style={{ aspectRatio: aspect }}
+        >
+          {picture}
+        </div>
+      )}
+
+      {zoomed ? (
+        <PrintLightbox shot={shot} slug={slug} onClose={closeZoom} />
+      ) : null}
 
       {shots.length > 1 ? (
         <div

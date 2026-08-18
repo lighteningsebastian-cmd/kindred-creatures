@@ -158,3 +158,93 @@ describe("GarmentShots as a colour picker", () => {
     expect(screen.getByAltText(/crewneck in Olive from the back/i)).toBeInTheDocument();
   });
 });
+
+describe("GarmentShots zoom", () => {
+  it("offers no zoom at all unless asked, so the home page is unchanged", () => {
+    render(<GarmentShots shots={catalogueShots("hoodie")} slug="hoodie" />);
+    expect(
+      screen.queryByRole("button", { name: /enlarge/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("gives the picture a real button when zoomable, not a clickable div", () => {
+    render(
+      <GarmentShots shots={catalogueShots("hoodie")} slug="hoodie" zoomable />,
+    );
+    expect(
+      screen.getByRole("button", { name: /enlarge/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the lightbox on the shot being shown", async () => {
+    const user = userEvent.setup();
+    render(
+      <GarmentShots shots={catalogueShots("hoodie")} slug="hoodie" zoomable />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /enlarge/i }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("enlarges whichever aspect the visitor switched to", async () => {
+    const user = userEvent.setup();
+    render(
+      <GarmentShots shots={catalogueShots("hoodie")} slug="hoodie" zoomable />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Chest print" }));
+    await user.click(screen.getByRole("button", { name: /enlarge/i }));
+
+    expect(screen.getByRole("dialog")).toHaveAccessibleName(/chest print/i);
+  });
+
+  it("closes again, and puts focus back where it came from", async () => {
+    const user = userEvent.setup();
+    render(
+      <GarmentShots shots={catalogueShots("hoodie")} slug="hoodie" zoomable />,
+    );
+    const trigger = screen.getByRole("button", { name: /enlarge/i });
+
+    await user.click(trigger);
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("still shows the aspect dots while zoomable", () => {
+    render(
+      <GarmentShots shots={catalogueShots("hoodie")} slug="hoodie" zoomable />,
+    );
+    expect(screen.getByRole("group")).toHaveAccessibleName(
+      "Which aspect to show",
+    );
+  });
+});
+
+describe("hover advance versus a clickable picture", () => {
+  it("still nudges to the next picture on a plain tile", async () => {
+    const user = userEvent.setup();
+    render(<GarmentShots shots={catalogueShots("hoodie")} slug="hoodie" />);
+
+    await user.hover(screen.getByTestId("garment-shots"));
+
+    expect(screen.getByAltText(/chest print on/i)).toBeInTheDocument();
+  });
+
+  it("does not nudge when the picture is the thing you click", async () => {
+    // Hovering is unavoidable on the way to a click. If it advanced, nobody
+    // could ever enlarge the view they just selected.
+    const user = userEvent.setup();
+    render(
+      <GarmentShots shots={catalogueShots("hoodie")} slug="hoodie" zoomable />,
+    );
+
+    await user.hover(screen.getByTestId("garment-shots"));
+
+    expect(
+      screen.getByAltText(/from the back, printed with a companion/i),
+    ).toBeInTheDocument();
+  });
+});
