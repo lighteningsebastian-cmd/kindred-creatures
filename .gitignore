@@ -59,3 +59,6 @@ design/ui-kit-readable.html
 
 # per-machine tool settings, not a project decision
 .claude/settings.local.json
+
+# Brainstorming visual companion sessions
+.superpowers/
