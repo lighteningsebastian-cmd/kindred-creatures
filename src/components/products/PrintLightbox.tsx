@@ -41,16 +41,30 @@ export function PrintLightbox({
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const [boxWidth, setBoxWidth] = useState(0);
+  const [box, setBox] = useState({ width: 0, height: 0 });
   const reducedMotion = useReducedMotion() ?? false;
 
   const placement = shot.printed
     ? PLACEMENT[slug][shot.view as GarmentSide]
     : null;
 
+  /**
+   * How wide the photograph is drawn before any scaling.
+   *
+   * THE PHOTOGRAPH IS NOT AS WIDE AS THE BOX and the difference is the whole
+   * point of the landscape frame. The photo keeps its own shape and is height
+   * constrained inside the box, so at 88vh on a 1280x800 screen an 845-wide
+   * box holds a 563-wide photograph. Handing zoomScale the box's width instead
+   * renders the print at 41% of the lightbox when 62% was asked for — which is
+   * what shipped for about ten minutes before the browser said otherwise.
+   */
+  const photoWidth = Math.min(box.width, box.height * shot.aspect);
+  const photoHeight = photoWidth / shot.aspect;
+
   const scale = zoomScale({
     plateWidthPct: placement?.width ?? null,
-    boxWidth,
+    photoWidth,
+    boxWidth: box.width,
     photoSourceWidth: shot.sourceWidth,
   });
 
@@ -69,12 +83,15 @@ export function PrintLightbox({
    * jumps, which reads as a bug rather than an animation.
    */
   useLayoutEffect(() => {
-    const box = boxRef.current;
-    if (!box) return;
-    const measure = () => setBoxWidth(box.getBoundingClientRect().width);
+    const node = boxRef.current;
+    if (!node) return;
+    const measure = () => {
+      const rect = node.getBoundingClientRect();
+      setBox({ width: rect.width, height: rect.height });
+    };
     measure();
     const observer = new ResizeObserver(measure);
-    observer.observe(box);
+    observer.observe(node);
     return () => observer.disconnect();
   }, []);
 
@@ -134,9 +151,28 @@ export function PrintLightbox({
         style={{ aspectRatio: placement ? "1.2" : String(shot.aspect) }}
         className="relative h-[88vh] max-w-full overflow-hidden rounded bg-surface"
       >
+        {/*
+          The photograph, positioned so the PRINT is at the middle of the box,
+          and scaled about that same point.
+
+          THE ORIGIN IS A PERCENTAGE OF THE PHOTOGRAPH, so it has to be set on
+          the photograph. Setting it on a wrapper that fills the box instead
+          measures those percentages against the wrong width — the photo is 563
+          wide in an 845 box — and the error is then multiplied by the scale.
+          At 5.97x it framed the drawstring instead of the badge.
+
+          Left and top place the print's centre on the box's centre; the origin
+          then pins that same point through the scale. A view with no plate
+          falls out of the same arithmetic as a plain centred photograph,
+          because its origin is 50/50 and its scale is 1.
+        */}
         <div
-          className="absolute inset-0"
+          className="absolute isolate bg-surface"
           style={{
+            width: `${photoWidth}px`,
+            height: `${photoHeight}px`,
+            left: `calc(50% - ${(origin.x / 100) * photoWidth}px)`,
+            top: `calc(50% - ${(origin.y / 100) * photoHeight}px)`,
             transform: `scale(${scale})`,
             transformOrigin: `${origin.x}% ${origin.y}%`,
             transition: reducedMotion
@@ -144,17 +180,7 @@ export function PrintLightbox({
               : "transform 320ms cubic-bezier(0.2, 0.7, 0.3, 1)",
           }}
         >
-          {/*
-            The photograph's own shape, centred. Same nested-box rule as
-            GarmentShots: plate placement is a percentage of the PHOTOGRAPH, so
-            a box of any other shape letterboxes the picture while the plate
-            keeps measuring against the box, and the print lands on the
-            parchment beside the garment.
-          */}
-          <div
-            className="absolute left-1/2 top-1/2 isolate h-full max-h-full max-w-full -translate-x-1/2 -translate-y-1/2 bg-surface"
-            style={{ aspectRatio: shot.aspect }}
-          >
+          <div className="absolute inset-0">
             <Image
               src={shot.url}
               alt={shot.alt}

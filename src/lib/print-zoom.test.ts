@@ -54,14 +54,48 @@ describe("plateCentre", () => {
 describe("zoomScale", () => {
   const source = 1120;
 
+  // The lightbox box is LANDSCAPE when it frames a print, and the photographs
+  // are portrait, so the photograph never fills the box's width. At 88vh on a
+  // 1280x800 screen the box is 845 wide and the hoodie photo inside it is 563.
+  // Every number below uses that real pair, because assuming they were equal
+  // is exactly the bug this suite now guards.
+  const box = 845;
+  const photo = 563;
+
+  it("fills the target fraction of the BOX, not of the photograph inside it", () => {
+    // The plate is a percentage of the PHOTOGRAPH, and the photograph is
+    // narrower than the box it sits in. Measuring the target against the photo
+    // renders the print at 41% of the lightbox when 62% was asked for.
+    const scale = zoomScale({
+      plateWidthPct: 46,
+      photoWidth: photo,
+      boxWidth: box,
+      photoSourceWidth: source,
+    });
+    const plateOnScreen = 0.46 * photo * scale;
+    expect(plateOnScreen / box).toBeCloseTo(TARGET_PRINT_FRACTION, 2);
+  });
+
+  it("measures the upscale against the photograph, which is what gets stretched", () => {
+    const scale = zoomScale({
+      plateWidthPct: 13,
+      photoWidth: photo,
+      boxWidth: box,
+      photoSourceWidth: source,
+    });
+    expect((photo * scale) / source).toBeLessThanOrEqual(MAX_UPSCALE + 0.001);
+  });
+
   it("magnifies the chest badge far more than the back plate", () => {
     const front = zoomScale({
       plateWidthPct: 13,
+      photoWidth: 375,
       boxWidth: 375,
       photoSourceWidth: source,
     });
     const back = zoomScale({
       plateWidthPct: 46,
+      photoWidth: 375,
       boxWidth: 375,
       photoSourceWidth: source,
     });
@@ -72,18 +106,25 @@ describe("zoomScale", () => {
     // 0.62 / 0.46 = 1.35. If this ever returns 1 the back view has become a
     // modal that does nothing, and it should be made un-clickable instead.
     expect(
-      zoomScale({ plateWidthPct: 46, boxWidth: 375, photoSourceWidth: source }),
+      zoomScale({
+        plateWidthPct: 46,
+        photoWidth: 375,
+        boxWidth: 375,
+        photoSourceWidth: source,
+      }),
     ).toBeCloseTo(TARGET_PRINT_FRACTION / 0.46, 2);
   });
 
   it("lets the ceiling bind on a wide screen and not on a phone", () => {
     const wide = zoomScale({
       plateWidthPct: 13,
+      photoWidth: 1200,
       boxWidth: 1200,
       photoSourceWidth: source,
     });
     const phone = zoomScale({
       plateWidthPct: 13,
+      photoWidth: 375,
       boxWidth: 375,
       photoSourceWidth: source,
     });
@@ -92,16 +133,17 @@ describe("zoomScale", () => {
   });
 
   it("never enlarges the photograph past the cap, at any width", () => {
-    for (let box = 320; box <= 2560; box += 40) {
+    for (let width = 320; width <= 2560; width += 40) {
       for (const pct of [13, 46]) {
         const scale = zoomScale({
           plateWidthPct: pct,
-          boxWidth: box,
+          photoWidth: width,
+          boxWidth: width,
           photoSourceWidth: source,
         });
         expect(
-          (box * scale) / source,
-          `box ${box}, plate ${pct}%`,
+          (width * scale) / source,
+          `box ${width}, plate ${pct}%`,
         ).toBeLessThanOrEqual(MAX_UPSCALE + 0.001);
       }
     }
@@ -111,7 +153,12 @@ describe("zoomScale", () => {
     // A huge box and a small source would otherwise return a scale below 1 and
     // shrink the garment inside its own lightbox.
     expect(
-      zoomScale({ plateWidthPct: 46, boxWidth: 4000, photoSourceWidth: 400 }),
+      zoomScale({
+        plateWidthPct: 46,
+        photoWidth: 4000,
+        boxWidth: 4000,
+        photoSourceWidth: 400,
+      }),
     ).toBeGreaterThanOrEqual(1);
   });
 
@@ -120,6 +167,7 @@ describe("zoomScale", () => {
     expect(
       zoomScale({
         plateWidthPct: null,
+        photoWidth: 900,
         boxWidth: 900,
         photoSourceWidth: source,
       }),
@@ -131,7 +179,12 @@ describe("zoomScale", () => {
     // asks with zero. Answering anything but 1 would paint one frame at a
     // nonsense scale.
     expect(
-      zoomScale({ plateWidthPct: 13, boxWidth: 0, photoSourceWidth: source }),
+      zoomScale({
+        plateWidthPct: 13,
+        photoWidth: 0,
+        boxWidth: 0,
+        photoSourceWidth: source,
+      }),
     ).toBe(1);
   });
 });

@@ -81,6 +81,7 @@ export function plateCentre(
  */
 export function zoomScale({
   plateWidthPct,
+  photoWidth,
   boxWidth,
   photoSourceWidth,
   target = TARGET_PRINT_FRACTION,
@@ -88,16 +89,40 @@ export function zoomScale({
 }: {
   /** The plate's width as a % of the photograph, or null for a view with no print. */
   plateWidthPct: number | null;
+  /**
+   * The photograph's DRAWN width in the lightbox, before scaling.
+   *
+   * NOT the same as boxWidth, and conflating the two is a bug that survives
+   * review because the numbers look plausible. The box is landscape when it
+   * frames a print and the photographs are portrait, so the photograph is
+   * height-constrained inside it: at 88vh on a 1280x800 screen the box is 845
+   * wide and the photograph in it is 563. The plate is a percentage of the
+   * PHOTOGRAPH, so the plate's on-screen size is a fraction of this number,
+   * while the share of the lightbox it fills is measured against boxWidth.
+   */
+  photoWidth: number;
   /** The lightbox's own width in CSS pixels. Zero before it has been measured. */
   boxWidth: number;
-  /** The photograph's width in real pixels. */
+  /** The photograph's width in real pixels, on disk. */
   photoSourceWidth: number;
   target?: number;
   maxUpscale?: number;
 }): number {
-  if (!plateWidthPct || boxWidth <= 0 || photoSourceWidth <= 0) return 1;
-  const wanted = target / (plateWidthPct / 100);
-  const ceiling = (maxUpscale * photoSourceWidth) / boxWidth;
+  if (
+    !plateWidthPct ||
+    photoWidth <= 0 ||
+    boxWidth <= 0 ||
+    photoSourceWidth <= 0
+  ) {
+    return 1;
+  }
+  // How far to scale so the plate covers `target` of the BOX. The plate starts
+  // at plateWidthPct of the PHOTOGRAPH, hence a photoWidth denominator against
+  // a boxWidth numerator.
+  const wanted = (target * boxWidth) / ((plateWidthPct / 100) * photoWidth);
+  // The photograph is the thing being stretched, so the ceiling is measured
+  // against it too.
+  const ceiling = (maxUpscale * photoSourceWidth) / photoWidth;
   // Never below 1: a small source in a large box would otherwise shrink the
   // garment inside its own lightbox, which is the opposite of the request.
   return Math.max(1, Math.min(wanted, ceiling));
