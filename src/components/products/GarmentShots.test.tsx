@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { catalogueShots } from "@/lib/garment-shots";
+import { catalogueShots, colourwayShots } from "@/lib/garment-shots";
 import { GarmentShots } from "./GarmentShots";
 
 describe("GarmentShots", () => {
@@ -91,5 +91,70 @@ describe("GarmentShots", () => {
     // empty bordered box next to it.
     const { container } = render(<GarmentShots shots={[]} slug="tote" />);
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("GarmentShots as a colour picker", () => {
+  it("names each control after its colour", () => {
+    render(<GarmentShots shots={colourwayShots("crewneck")} slug="crewneck" />);
+    const dots = screen.getAllByRole("button");
+    expect(dots.map((dot) => dot.getAttribute("aria-label"))).toEqual([
+      "Peach",
+      "White",
+      "Grey",
+      "Olive",
+    ]);
+  });
+
+  it("fills the control with the colour it selects", () => {
+    render(<GarmentShots shots={colourwayShots("hoodie")} slug="hoodie" />);
+    const swatch = screen
+      .getByRole("button", { name: "Lilac" })
+      .querySelector("span");
+    expect(swatch).toHaveStyle({ backgroundColor: "#A898A6" });
+  });
+
+  it("tells a screen reader it is choosing a colour, not an aspect", () => {
+    render(<GarmentShots shots={colourwayShots("hoodie")} slug="hoodie" />);
+    expect(screen.getByRole("group")).toHaveAccessibleName(
+      "Which colour to show",
+    );
+  });
+
+  it("keeps saying aspect when the shots are views", () => {
+    render(<GarmentShots shots={catalogueShots("hoodie")} slug="hoodie" />);
+    expect(screen.getByRole("group")).toHaveAccessibleName(
+      "Which aspect to show",
+    );
+  });
+
+  it("switches the photograph when a colour is pressed", async () => {
+    const user = userEvent.setup();
+    render(<GarmentShots shots={colourwayShots("hoodie")} slug="hoodie" />);
+
+    await user.click(screen.getByRole("button", { name: "Lilac" }));
+
+    expect(
+      screen.getByAltText(/hoodie in Lilac from the back/i),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps four colourways as four distinct controls", async () => {
+    // Every colourway shot is a "back", so keying the list on the view would
+    // collapse all four onto one React key. This is the test for that.
+    const user = userEvent.setup();
+    render(<GarmentShots shots={colourwayShots("crewneck")} slug="crewneck" />);
+
+    await user.click(screen.getByRole("button", { name: "Olive" }));
+
+    expect(screen.getByRole("button", { name: "Olive" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Peach" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.getByAltText(/crewneck in Olive from the back/i)).toBeInTheDocument();
   });
 });

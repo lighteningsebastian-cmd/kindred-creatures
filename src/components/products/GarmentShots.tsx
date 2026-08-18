@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { PLACEMENT, type GarmentSide } from "@/lib/garments";
-import { viewLabel, type Shot } from "@/lib/garment-shots";
+import type { Shot } from "@/lib/garment-shots";
 import type { ProductSlug } from "@/lib/products";
 
 /**
@@ -133,13 +133,19 @@ export function GarmentShots({
         <div
           className="flex items-center justify-center gap-2"
           role="group"
-          aria-label="Which aspect to show"
+          aria-label={
+            shots[0]!.swatchHex ? "Which colour to show" : "Which aspect to show"
+          }
         >
           {shots.map((option, optionIndex) => (
             <button
-              key={option.view}
+              // NOT option.view. Every colourway shot is a "back", so keying on
+              // the view collapses four controls onto one React key and the
+              // list stops updating correctly. The label is unique on both
+              // axes: a view name on the shop, a colour name on the home page.
+              key={option.label}
               type="button"
-              aria-label={viewLabel(option.view)}
+              aria-label={option.label}
               aria-pressed={showing === optionIndex}
               onClick={() => {
                 setIndex(optionIndex);
@@ -158,14 +164,35 @@ export function GarmentShots({
                 "focus-visible:ring-offset-2 focus-visible:ring-offset-base",
               )}
             >
-              <span
-                className={cn(
-                  "h-1.5 rounded-full transition-all",
-                  showing === optionIndex
-                    ? "w-5 bg-accent-secondary"
-                    : "w-1.5 bg-line-strong group-hover/dot:bg-accent-secondary/60",
-                )}
-              />
+              {option.swatchHex ? (
+                <span
+                  // THE INSET BORDER IS NOT DECORATION. Hoodie White is #F3EFE9
+                  // against a #EAE7E1 tile; without an edge a near-white swatch
+                  // is invisible on parchment. CatalogueCard's own swatch row
+                  // solves this the same way and the two must not diverge.
+                  //
+                  // Selection is a RING rather than a fill change, because
+                  // changing the fill would mean the control no longer shows
+                  // the colour it selects — and on White or Grey there is no
+                  // darker fill available that still reads as that colour.
+                  style={{ backgroundColor: option.swatchHex }}
+                  className={cn(
+                    "h-[13px] w-[13px] rounded-full transition-shadow",
+                    showing === optionIndex
+                      ? "shadow-[inset_0_0_0_1px_rgba(0,0,0,0.16),0_0_0_2px_var(--color-surface),0_0_0_3.5px_var(--color-accent-secondary)]"
+                      : "shadow-[inset_0_0_0_1px_rgba(0,0,0,0.16)]",
+                  )}
+                />
+              ) : (
+                <span
+                  className={cn(
+                    "h-1.5 rounded-full transition-all",
+                    showing === optionIndex
+                      ? "w-5 bg-accent-secondary"
+                      : "w-1.5 bg-line-strong group-hover/dot:bg-accent-secondary/60",
+                  )}
+                />
+              )}
             </button>
           ))}
         </div>
