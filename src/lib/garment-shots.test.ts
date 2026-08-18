@@ -1,8 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import sharp from "sharp";
 import { PRODUCTS } from "@/lib/products";
-import { catalogueShots, heroColour } from "./garment-shots";
+import {
+  catalogueShots,
+  colourwayShots,
+  heroColour,
+} from "./garment-shots";
 
 const PUBLIC = join(process.cwd(), "public");
 
@@ -107,5 +112,114 @@ describe("catalogue shots", () => {
         expect(shot.aspect, `${product.slug}/${shot.view}`).toBeGreaterThan(0);
       }
     }
+  });
+});
+
+describe("colourwayShots", () => {
+  it("offers one shot per colourway, and every one is the back", () => {
+    // The home page varies colour; the shop varies view. A front shot here
+    // would be the 19px chest badge this change exists to remove.
+    for (const product of PRODUCTS) {
+      if (product.slug === "tote") continue;
+      const shots = colourwayShots(product.slug);
+      expect(shots.length, product.slug).toBe(product.variants.length);
+      expect(
+        shots.every((shot) => shot.view === "back"),
+        product.slug,
+      ).toBe(true);
+    }
+  });
+
+  it("counts three, four and three", () => {
+    expect(colourwayShots("hoodie")).toHaveLength(3);
+    expect(colourwayShots("crewneck")).toHaveLength(4);
+    expect(colourwayShots("tee")).toHaveLength(3);
+    expect(colourwayShots("tote")).toEqual([]);
+  });
+
+  it("starts on the hero colourway", () => {
+    expect(colourwayShots("hoodie")[0]!.label).toBe("Blue");
+    expect(colourwayShots("crewneck")[0]!.label).toBe("Peach");
+    expect(colourwayShots("tee")[0]!.label).toBe("White");
+  });
+
+  it("takes every swatch colour from products.ts, so it cannot drift from stock", () => {
+    for (const product of PRODUCTS) {
+      for (const shot of colourwayShots(product.slug)) {
+        const variant = product.variants.find((v) => v.color === shot.label);
+        expect(
+          variant,
+          `${product.slug} has no variant named ${shot.label}`,
+        ).toBeDefined();
+        expect(shot.swatchHex).toBe(variant!.colorHex);
+      }
+    }
+  });
+
+  it("points every colourway at a photograph that really exists", () => {
+    for (const product of PRODUCTS) {
+      for (const shot of colourwayShots(product.slug)) {
+        expect(existsSync(join(PUBLIC, shot.url)), shot.url).toBe(true);
+      }
+    }
+  });
+});
+
+describe("what every shot carries", () => {
+  it("gives a printed shot the shape of its own plate", () => {
+    // The tee's back plate is 900x1080 and the others are 900x1125. One number
+    // for all of them mis-frames the tee's zoom.
+    const tee = catalogueShots("tee").find((shot) => shot.view === "back")!;
+    const hoodie = catalogueShots("hoodie").find(
+      (shot) => shot.view === "back",
+    )!;
+    expect(tee.plateAspect).toBeCloseTo(900 / 1080, 4);
+    expect(hoodie.plateAspect).toBeCloseTo(900 / 1125, 4);
+  });
+
+  it("leaves plateAspect null exactly where there is no plate", () => {
+    for (const product of PRODUCTS) {
+      for (const shot of catalogueShots(product.slug)) {
+        expect(shot.plateAspect === null, `${product.slug}/${shot.view}`).toBe(
+          !shot.printed,
+        );
+      }
+    }
+  });
+
+  it("carries the source width the zoom ceiling needs", () => {
+    for (const product of PRODUCTS) {
+      for (const shot of catalogueShots(product.slug)) {
+        expect(shot.sourceWidth, `${product.slug}/${shot.view}`).toBeGreaterThan(
+          0,
+        );
+      }
+    }
+  });
+
+  it("measures every plate shape from the file it names", async () => {
+    // The comment over PLATE_SHAPE says these are measured, not assumed. This
+    // is what makes that true. A re-exported plate at a new size, or a fourth
+    // product whose plate nobody measured, fails here rather than silently
+    // framing the zoom off the print.
+    let checked = 0;
+    for (const product of PRODUCTS) {
+      for (const shot of catalogueShots(product.slug)) {
+        if (!shot.plateUrl) continue;
+        checked += 1;
+        const meta = await sharp(join(PUBLIC, shot.plateUrl)).metadata();
+        expect(
+          shot.plateAspect,
+          `${shot.plateUrl} is ${meta.width}x${meta.height}`,
+        ).toBeCloseTo(meta.width! / meta.height!, 4);
+      }
+    }
+    expect(checked, "plates actually checked").toBeGreaterThan(0);
+  });
+
+  it("labels a view shot with its view and leaves it unswatched", () => {
+    const shots = catalogueShots("hoodie");
+    expect(shots[0]!.label).toBe("Back");
+    expect(shots.every((shot) => shot.swatchHex === null)).toBe(true);
   });
 });

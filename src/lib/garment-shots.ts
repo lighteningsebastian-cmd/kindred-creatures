@@ -1,9 +1,10 @@
 import {
   garmentViewUrl,
   photoAspect,
+  photoSourceWidth,
   type GarmentView,
 } from "@/lib/garments";
-import type { ProductSlug } from "@/lib/products";
+import { getProduct, type ProductSlug } from "@/lib/products";
 
 /**
  * Which photographs a catalogue card shows, and in what order.
@@ -30,6 +31,26 @@ export interface Shot {
   plateUrl: string | null;
   /** The photograph's own shape, for the box it is drawn in. */
   aspect: number;
+  /**
+   * The PLATE's own shape, which is neither the photograph's nor a constant.
+   * Null wherever `plateUrl` is null. The zoom origin cannot be found without
+   * it: a plate is placed by width alone, so its height — and therefore its
+   * centre — has to be recovered from both shapes. See lib/print-zoom.ts.
+   */
+  plateAspect: number | null;
+  /** The photograph's real width in pixels, for the zoom ceiling. */
+  sourceWidth: number;
+  /** What the control for this shot announces: a view name, or a colour name. */
+  label: string;
+  /**
+   * The colour to fill this shot's control with, or null for a plain dot.
+   *
+   * Present means "this control picks a colour", and that is the whole of what
+   * GarmentShots needs to know about which page it is on. Keeping the decision
+   * here rather than passing a surface flag is what stops the component from
+   * growing a home-page branch.
+   */
+  swatchHex: string | null;
 }
 
 /**
@@ -135,6 +156,49 @@ function plateFor(slug: ProductSlug, view: GarmentView): string | null {
   return null;
 }
 
+/**
+ * Each plate's own shape, keyed by the file it comes from.
+ *
+ * NOT ONE NUMBER, and the exception is easy to miss. The back print area is
+ * 280 by 350mm on the hoodie and crewneck but 250 by 300 on the tee, so the
+ * tee's plate is 900 x 1080 where the others are 900 x 1125. Handing the tee
+ * the hoodie's ratio puts its zoom origin about 4% of the photograph off
+ * centre, which reads as a frame that has slipped off the print.
+ *
+ * Measured from the files, and asserted against them in the tests, for the
+ * same reason PHOTO_SIZE is: a number nobody checked is a number that drifts.
+ */
+const PLATE_SHAPE: Record<string, number> = {
+  "/demo/plate-front.png": 600 / 818,
+  "/demo/plate-back-hoodie.png": 900 / 1125,
+  "/demo/plate-back-crewneck.png": 900 / 1125,
+  "/demo/plate-back-tee.png": 900 / 1080,
+};
+
+/** One shot, or null when that photograph does not exist. */
+function shotFor(
+  slug: ProductSlug,
+  colour: string,
+  view: GarmentView,
+): Shot | null {
+  const url = garmentViewUrl(slug, colour, view);
+  if (!url) return null;
+  const printed = view === "front" || view === "back";
+  const plateUrl = plateFor(slug, view);
+  return {
+    view,
+    url,
+    alt: altFor(slug, colour, view),
+    printed,
+    plateUrl,
+    aspect: photoAspect(slug, colour, view),
+    plateAspect: plateUrl ? (PLATE_SHAPE[plateUrl] ?? null) : null,
+    sourceWidth: photoSourceWidth(slug, colour, view) ?? 0,
+    label: viewLabel(view),
+    swatchHex: null,
+  };
+}
+
 /** Ordered shots for a product's hero colourway. Empty for the tote. */
 export function catalogueShots(slug: ProductSlug): Shot[] {
   const colour = heroColour(slug);
@@ -142,16 +206,47 @@ export function catalogueShots(slug: ProductSlug): Shot[] {
 
   const shots: Shot[] = [];
   for (const view of VIEWS[slug]) {
-    const url = garmentViewUrl(slug, colour, view);
-    if (!url) continue;
-    const printed = view === "front" || view === "back";
+    const shot = shotFor(slug, colour, view);
+    if (shot) shots.push(shot);
+  }
+  return shots;
+}
+
+/**
+ * The back print in every colourway the product comes in. The home page's list.
+ *
+ * A DIFFERENT AXIS FROM catalogueShots, not a variant of it. That one varies
+ * view within one colour, for a shop card whose job is "here is the print, and
+ * you can look closely". This one varies colour within one view, for a home
+ * tile whose job is "here are four pieces and here is the range". Two
+ * functions rather than one with a surface flag, because they answer two
+ * different questions and only happen to share a shot shape.
+ *
+ * BACK ONLY. The chest badge renders at 19 to 37px in a home tile — a control
+ * promising something it cannot show. Owner decision, 18 August.
+ *
+ * Both lists start on the hero colourway; the note over HERO explains why that
+ * ordering is worth keeping, and it still holds now that the hero is where a
+ * tile STARTS rather than the only colour it ever shows.
+ */
+export function colourwayShots(slug: ProductSlug): Shot[] {
+  const product = getProduct(slug);
+  const hero = heroColour(slug);
+  if (!product || !hero) return [];
+
+  const ordered = [
+    ...product.variants.filter((variant) => variant.color === hero),
+    ...product.variants.filter((variant) => variant.color !== hero),
+  ];
+
+  const shots: Shot[] = [];
+  for (const variant of ordered) {
+    const shot = shotFor(slug, variant.color, "back");
+    if (!shot) continue;
     shots.push({
-      view,
-      url,
-      alt: altFor(slug, colour, view),
-      printed,
-      plateUrl: plateFor(slug, view),
-      aspect: photoAspect(slug, colour, view),
+      ...shot,
+      label: variant.color,
+      swatchHex: variant.colorHex,
     });
   }
   return shots;
