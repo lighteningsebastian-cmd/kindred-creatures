@@ -10,6 +10,7 @@ import {
   garmentPhoto,
   garmentViewUrl,
   photoAspect,
+  photoSourceWidth,
   unphotographedColours,
 } from "./garments";
 
@@ -120,6 +121,34 @@ describe("garment photography", () => {
     // Deferred by docs/spec-print-layout.md. Null is the honest answer and the
     // caller shows the garment colour instead of an empty image element.
     expect(garmentImageUrl("tote", "Natural", "back")).toBeNull();
+  });
+
+  it("reports each photograph's real pixel width, because the zoom ceiling needs it", async () => {
+    // Not the aspect ratio. The upscale cap in print-zoom.ts asks "how many
+    // pixels does this file actually have", and a ratio cannot answer that.
+    // Sources are NOT uniform: crewneck Grey is 1211 and the tee's Heritage
+    // Blue is 1400, so a single assumed number would license a 25% overzoom on
+    // some colourways and underuse others.
+    let checked = 0;
+    for (const product of PRODUCTS) {
+      for (const variant of product.variants) {
+        for (const view of GARMENT_VIEWS) {
+          const url = garmentViewUrl(product.slug, variant.color, view);
+          if (!url) continue;
+          checked += 1;
+          const meta = await sharp(join(PUBLIC, url)).metadata();
+          expect(
+            photoSourceWidth(product.slug, variant.color, view),
+            `${product.slug}/${variant.color}/${view}`,
+          ).toBe(meta.width);
+        }
+      }
+    }
+    expect(checked, "photographs actually checked, of 33 on disk").toBe(33);
+  });
+
+  it("has no source width for a garment nobody has photographed", () => {
+    expect(photoSourceWidth("tote", "Natural", "back")).toBeNull();
   });
 
   it("places every plate inside the garment image", () => {

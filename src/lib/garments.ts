@@ -58,8 +58,16 @@ export interface PlatePlacement {
  * can be judged in one screen.
  */
 /**
- * The shape of each photograph, width over height, keyed by product, colourway
+ * The size of each photograph in real pixels, keyed by product, colourway
  * AND VIEW.
+ *
+ * THE MEASUREMENTS, NOT THE RATIO. This held `w / h` and answered only "what
+ * shape is it". Two callers now need two different things from one truth:
+ * `photoAspect` wants the shape, and `photoSourceWidth` wants the pixel count,
+ * because the zoom ceiling in lib/print-zoom.ts decides how far a photograph
+ * may be enlarged past its own resolution. Dividing here would force a second
+ * table holding the same measurements twice, and two tables of the same
+ * numbers drift.
  *
  * PLACEMENT IS A PERCENTAGE OF THE PHOTOGRAPH, so the box the photo is drawn in
  * has to BE the photograph's shape. Let the box be any other shape and the
@@ -78,40 +86,40 @@ export interface PlatePlacement {
  * ratio per product eventually; until then the code has to tell the truth about
  * what is on disk.
  */
-const PHOTO_SHAPE: Record<string, number> = {
-  "hoodie/blue/back": 1120 / 1400,
-  "hoodie/blue/front": 1120 / 1400,
-  "hoodie/blue/profile": 1120 / 1400,
-  "hoodie/blue/fleece": 1400 / 1120,
-  "hoodie/lilac/back": 1120 / 1400,
-  "hoodie/lilac/front": 1120 / 1400,
-  "hoodie/lilac/profile": 1120 / 1400,
-  "hoodie/lilac/fleece": 1400 / 1120,
-  "hoodie/white/back": 1120 / 1400,
-  "hoodie/white/front": 1120 / 1400,
-  "hoodie/white/profile": 1120 / 1400,
-  "hoodie/white/fleece": 1400 / 1120,
-  "crewneck/white/back": 1120 / 1400,
-  "crewneck/white/front": 1120 / 1400,
-  "crewneck/white/profile": 1120 / 1400,
-  "crewneck/peach/back": 1120 / 1400,
-  "crewneck/peach/front": 1120 / 1400,
-  "crewneck/peach/profile": 1120 / 1400,
-  "crewneck/grey/back": 1211 / 1299,
-  "crewneck/grey/front": 1211 / 1299,
-  "crewneck/grey/profile": 1212 / 1297,
-  "crewneck/olive/back": 1212 / 1298,
-  "crewneck/olive/front": 1212 / 1298,
-  "crewneck/olive/profile": 1212 / 1297,
-  "tee/white/back": 1144 / 1375,
-  "tee/white/front": 1144 / 1375,
-  "tee/white/profile": 1313 / 1198,
-  "tee/heritage-blue/back": 1400 / 1111,
-  "tee/heritage-blue/front": 1400 / 1114,
-  "tee/heritage-blue/profile": 1400 / 1117,
-  "tee/olive/back": 1400 / 1120,
-  "tee/olive/front": 1400 / 1050,
-  "tee/olive/profile": 1400 / 933,
+const PHOTO_SIZE: Record<string, { w: number; h: number }> = {
+  "hoodie/blue/back": { w: 1120, h: 1400 },
+  "hoodie/blue/front": { w: 1120, h: 1400 },
+  "hoodie/blue/profile": { w: 1120, h: 1400 },
+  "hoodie/blue/fleece": { w: 1400, h: 1120 },
+  "hoodie/lilac/back": { w: 1120, h: 1400 },
+  "hoodie/lilac/front": { w: 1120, h: 1400 },
+  "hoodie/lilac/profile": { w: 1120, h: 1400 },
+  "hoodie/lilac/fleece": { w: 1400, h: 1120 },
+  "hoodie/white/back": { w: 1120, h: 1400 },
+  "hoodie/white/front": { w: 1120, h: 1400 },
+  "hoodie/white/profile": { w: 1120, h: 1400 },
+  "hoodie/white/fleece": { w: 1400, h: 1120 },
+  "crewneck/white/back": { w: 1120, h: 1400 },
+  "crewneck/white/front": { w: 1120, h: 1400 },
+  "crewneck/white/profile": { w: 1120, h: 1400 },
+  "crewneck/peach/back": { w: 1120, h: 1400 },
+  "crewneck/peach/front": { w: 1120, h: 1400 },
+  "crewneck/peach/profile": { w: 1120, h: 1400 },
+  "crewneck/grey/back": { w: 1211, h: 1299 },
+  "crewneck/grey/front": { w: 1211, h: 1299 },
+  "crewneck/grey/profile": { w: 1212, h: 1297 },
+  "crewneck/olive/back": { w: 1212, h: 1298 },
+  "crewneck/olive/front": { w: 1212, h: 1298 },
+  "crewneck/olive/profile": { w: 1212, h: 1297 },
+  "tee/white/back": { w: 1144, h: 1375 },
+  "tee/white/front": { w: 1144, h: 1375 },
+  "tee/white/profile": { w: 1313, h: 1198 },
+  "tee/heritage-blue/back": { w: 1400, h: 1111 },
+  "tee/heritage-blue/front": { w: 1400, h: 1114 },
+  "tee/heritage-blue/profile": { w: 1400, h: 1117 },
+  "tee/olive/back": { w: 1400, h: 1120 },
+  "tee/olive/front": { w: 1400, h: 1050 },
+  "tee/olive/profile": { w: 1400, h: 933 },
 };
 
 /** Fallback shape for a garment with no photograph, such as the tote. */
@@ -130,7 +138,30 @@ export function photoAspect(
 ): number {
   const photo = garmentPhoto(slug, color);
   if (!photo) return DEFAULT_SHAPE;
-  return PHOTO_SHAPE[`${slug}/${photo.dir}/${view}`] ?? DEFAULT_SHAPE;
+  const size = PHOTO_SIZE[`${slug}/${photo.dir}/${view}`];
+  return size ? size.w / size.h : DEFAULT_SHAPE;
+}
+
+/**
+ * The photograph's real width in pixels.
+ *
+ * The zoom ceiling in lib/print-zoom.ts is the only caller, and it needs
+ * PIXELS, not a ratio: "may this be drawn at 3400px wide" is a question about
+ * how many pixels the file actually has, and a shape cannot answer it. That is
+ * the whole reason PHOTO_SIZE stores the measurements rather than dividing them
+ * away.
+ *
+ * Null where there is no such photograph — the tote, and any colourway or view
+ * the shoot has not covered.
+ */
+export function photoSourceWidth(
+  slug: ProductSlug,
+  color: string,
+  view: GarmentView,
+): number | null {
+  const photo = garmentPhoto(slug, color);
+  if (!photo) return null;
+  return PHOTO_SIZE[`${slug}/${photo.dir}/${view}`]?.w ?? null;
 }
 
 export const PLACEMENT: Record<
@@ -241,7 +272,7 @@ export function garmentViewUrl(
 ): string | null {
   const photo = garmentPhoto(slug, color);
   if (!photo) return null;
-  if (!(`${slug}/${photo.dir}/${view}` in PHOTO_SHAPE)) return null;
+  if (!(`${slug}/${photo.dir}/${view}` in PHOTO_SIZE)) return null;
   return `/garments/${slug}/${photo.dir}/${view}.webp`;
 }
 
