@@ -67,11 +67,17 @@ export function heroColour(slug: ProductSlug): string | null {
  * A manifest rather than a filesystem probe because a server component cannot
  * stat a file on the edge, and a missing image should fail in review rather
  * than in production.
+ *
+ * PROFILE IS DELIBERATELY ABSENT, and the files for it exist. The
+ * three-quarter shot shows a garment with no print on it, which is the one
+ * thing a catalogue card is not for: every view a card offers should be
+ * selling the thing that is printed. Owner decision, 18 August. Re-adding it
+ * is one word per line below; nothing else has to change.
  */
 const VIEWS: Record<ProductSlug, GarmentView[]> = {
-  hoodie: ["back", "front", "profile", "fleece"],
-  crewneck: ["back", "front", "profile"],
-  tee: ["back", "front", "profile"],
+  hoodie: ["back", "front", "fleece"],
+  crewneck: ["back", "front"],
+  tee: ["back", "front"],
   // Deferred (docs/spec-print-layout.md): no shoot, no plate. Its card keeps
   // the hatched PhotoFrame, which is the honest treatment for a garment that
   // does not exist yet.

@@ -14,23 +14,31 @@ describe("catalogue shots", () => {
     }
   });
 
-  it("offers the hoodie four aspects and the tee and crewneck three", () => {
+  it("offers the hoodie three aspects and the tee and crewneck two", () => {
     expect(catalogueShots("hoodie").map((shot) => shot.view)).toEqual([
       "back",
       "front",
-      "profile",
       "fleece",
     ]);
     expect(catalogueShots("tee").map((shot) => shot.view)).toEqual([
       "back",
       "front",
-      "profile",
     ]);
     expect(catalogueShots("crewneck").map((shot) => shot.view)).toEqual([
       "back",
       "front",
-      "profile",
     ]);
+  });
+
+  it("offers no three-quarter shot, though the photographs exist", () => {
+    // Owner decision, 18 August: every view a card offers should be selling
+    // the thing that is printed, and the profile shows a blank garment. The
+    // files are still on disk and garments.ts still knows their shape, so this
+    // is a manifest decision and not a deletion.
+    for (const product of PRODUCTS) {
+      const views = catalogueShots(product.slug).map((shot) => shot.view);
+      expect(views, product.slug).not.toContain("profile");
+    }
   });
 
   it("offers the tote nothing, so its card keeps the placeholder", () => {
@@ -76,7 +84,7 @@ describe("catalogue shots", () => {
     expect(shots[0]!.alt).toBe(
       "The Kindred hoodie in Blue from the back, printed with a companion profile plate",
     );
-    expect(shots[3]!.alt).toBe(
+    expect(shots[2]!.alt).toBe(
       "The brushed fleece inside of the Kindred hoodie in Blue",
     );
     for (const shot of shots) expect(shot.alt).not.toMatch(/\.webp|\//);

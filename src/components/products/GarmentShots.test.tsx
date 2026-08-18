@@ -15,11 +15,10 @@ describe("GarmentShots", () => {
   it("gives one dot per aspect, naming each one", () => {
     render(<GarmentShots shots={catalogueShots("hoodie")} slug="hoodie" />);
     const dots = screen.getAllByRole("button");
-    expect(dots).toHaveLength(4);
+    expect(dots).toHaveLength(3);
     expect(dots.map((dot) => dot.getAttribute("aria-label"))).toEqual([
       "Back",
       "Chest print",
-      "Side",
       "Fleece",
     ]);
   });
@@ -45,8 +44,8 @@ describe("GarmentShots", () => {
       "true",
     );
 
-    await user.click(screen.getByRole("button", { name: "Side" }));
-    expect(screen.getByRole("button", { name: "Side" })).toHaveAttribute(
+    await user.click(screen.getByRole("button", { name: "Fleece" }));
+    expect(screen.getByRole("button", { name: "Fleece" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -78,7 +77,7 @@ describe("GarmentShots", () => {
       container.querySelector('img[src*="plate-back-hoodie"]'),
     ).not.toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Side" }));
+    await user.click(screen.getByRole("button", { name: "Fleece" }));
     expect(container.querySelector('img[src*="plate-"]')).toBeNull();
   });
 
