@@ -117,14 +117,14 @@ describe("GarmentShots as a colour picker", () => {
   it("tells a screen reader it is choosing a colour, not an aspect", () => {
     render(<GarmentShots shots={colourwayShots("hoodie")} slug="hoodie" />);
     expect(screen.getByRole("group")).toHaveAccessibleName(
-      "Which colour to show",
+      "Which colour of The Kindred Hoodie to show",
     );
   });
 
   it("keeps saying aspect when the shots are views", () => {
     render(<GarmentShots shots={catalogueShots("hoodie")} slug="hoodie" />);
     expect(screen.getByRole("group")).toHaveAccessibleName(
-      "Which aspect to show",
+      "Which aspect of The Kindred Hoodie to show",
     );
   });
 
@@ -218,7 +218,7 @@ describe("GarmentShots zoom", () => {
       <GarmentShots shots={catalogueShots("hoodie")} slug="hoodie" zoomable />,
     );
     expect(screen.getByRole("group")).toHaveAccessibleName(
-      "Which aspect to show",
+      "Which aspect of The Kindred Hoodie to show",
     );
   });
 });

@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 import { PLACEMENT, type GarmentSide } from "@/lib/garments";
 import type { Shot } from "@/lib/garment-shots";
 import { PrintLightbox } from "./PrintLightbox";
-import type { ProductSlug } from "@/lib/products";
+import { getProduct, type ProductSlug } from "@/lib/products";
 
 /**
  * A card's image area: the garment, the print on it, and the other aspects of
@@ -97,6 +97,8 @@ export function GarmentShots({
   const placement = shot.printed
     ? PLACEMENT[slug][shot.view as GarmentSide]
     : null;
+
+  const productName = getProduct(slug)?.name ?? slug;
 
   const closeZoom = () => {
     setZoomed(false);
@@ -202,8 +204,16 @@ export function GarmentShots({
         <div
           className="flex items-center justify-center gap-2"
           role="group"
+          // NAMED AFTER THE PRODUCT, not just after the axis. The home page
+          // renders three of these at once and "White" is a colourway of all
+          // three garments, so nine controls would otherwise share four names
+          // and a screen reader would hear "White" three times with nothing to
+          // tell them apart. The product name is already reachable from the
+          // slug, so this cannot drift from the catalogue.
           aria-label={
-            shots[0]!.swatchHex ? "Which colour to show" : "Which aspect to show"
+            shots[0]!.swatchHex
+              ? `Which colour of ${productName} to show`
+              : `Which aspect of ${productName} to show`
           }
         >
           {shots.map((option, optionIndex) => (
