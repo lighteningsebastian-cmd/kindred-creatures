@@ -43,6 +43,7 @@ export function CatalogueCard({ product }: { product: Product }) {
           aspect="4 / 5"
           className="p-4 pb-5"
           sizes="(min-width: 768px) 45vw, 100vw"
+          zoomable
         />
       ) : (
         <Link href={href} className="block">

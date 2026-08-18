@@ -51,7 +51,9 @@ if (hasWindow && !("ResizeObserver" in window)) {
   }
   // @ts-expect-error - assigning a minimal mock to the global.
   window.ResizeObserver = MockResizeObserver;
-  // @ts-expect-error - keep global reference in sync for libraries reading it.
+  // No ts-expect-error on this one: unlike the IntersectionObserver mock above,
+  // this shape satisfies the global's type, and an unused directive is itself a
+  // type error.
   global.ResizeObserver = MockResizeObserver;
 }
 

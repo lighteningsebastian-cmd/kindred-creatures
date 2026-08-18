@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import ShopPage, { metadata } from "./page";
 import { PRODUCTS, fromPriceZar, formatZar } from "@/lib/products";
 
@@ -75,10 +76,16 @@ describe("shop page catalogue", () => {
       ),
     ).toBeInTheDocument();
 
-    // Four aspects for the hoodie, three each for the tee and crewneck.
-    expect(
-      screen.getAllByRole("group", { name: "Which aspect to show" }),
-    ).toHaveLength(3);
+    // One aspect group per photographed garment, each named after the garment
+    // so that three sets of dots on one page are told apart.
+    for (const name of ["Hoodie", "Tee", "Crewneck"]) {
+      expect(
+        screen.getByRole("group", {
+          name: `Which aspect of The Kindred ${name} to show`,
+        }),
+        name,
+      ).toBeInTheDocument();
+    }
   });
 
   it("keeps the hatched placeholder for the tote, which has no shoot", () => {
@@ -120,5 +127,27 @@ describe("shop page catalogue", () => {
     const first = data.itemListElement[0].item;
     expect(first["@type"]).toBe("Product");
     expect(first.offers.priceCurrency).toBe("ZAR");
+  });
+});
+
+describe("shop page zoom", () => {
+  it("lets every photographed card open its print", () => {
+    // Three of the four: the tote is deferred and keeps its placeholder, which
+    // has nothing to enlarge.
+    render(<ShopPage />);
+    expect(screen.getAllByRole("button", { name: /enlarge/i })).toHaveLength(3);
+  });
+
+  it("opens on the back plate, which is the view a card leads with", async () => {
+    const user = userEvent.setup();
+    render(<ShopPage />);
+
+    await user.click(
+      screen.getAllByRole("button", { name: /enlarge/i })[0]!,
+    );
+
+    expect(screen.getByRole("dialog")).toHaveAccessibleName(
+      /from the back, printed with a companion profile plate/i,
+    );
   });
 });
