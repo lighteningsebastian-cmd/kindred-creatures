@@ -37,6 +37,24 @@ if (hasWindow && !("IntersectionObserver" in window)) {
   global.IntersectionObserver = MockIntersectionObserver;
 }
 
+// jsdom lacks ResizeObserver (used by PrintLightbox to measure its own box, so
+// the zoom can be a fraction of it). The mock never fires, which is correct for
+// a test environment with no layout: the component's first measurement reads 0
+// and zoomScale answers 1, so the DOM assertions are about behaviour rather
+// than about numbers. The numbers are tested in lib/print-zoom.test.ts, where
+// they can be tested properly.
+if (hasWindow && !("ResizeObserver" in window)) {
+  class MockResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  // @ts-expect-error - assigning a minimal mock to the global.
+  window.ResizeObserver = MockResizeObserver;
+  // @ts-expect-error - keep global reference in sync for libraries reading it.
+  global.ResizeObserver = MockResizeObserver;
+}
+
 afterEach(() => {
   if (hasWindow) cleanup();
 });
