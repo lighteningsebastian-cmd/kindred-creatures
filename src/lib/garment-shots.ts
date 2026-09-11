@@ -70,6 +70,11 @@ const HERO: Partial<Record<ProductSlug, string>> = {
   hoodie: "Blue",
   crewneck: "Peach",
   tee: "White",
+  // Not a choice: the tote comes in one colourway. It is SQUARE rather than
+  // portrait, which the shape argument above would otherwise argue against,
+  // but a 1:1 tile among 0.80s is far less jarring than the tee's landscape
+  // shots would be — and there is no alternative to lead with.
+  tote: "Natural",
 };
 
 export function heroColour(slug: ProductSlug): string | null {
@@ -99,10 +104,19 @@ const VIEWS: Record<ProductSlug, GarmentView[]> = {
   hoodie: ["back", "front", "fleece"],
   crewneck: ["back", "front"],
   tee: ["back", "front"],
-  // Deferred (docs/spec-print-layout.md): no shoot, no plate. Its card keeps
-  // the hatched PhotoFrame, which is the honest treatment for a garment that
-  // does not exist yet.
-  tote: [],
+  /*
+   * The tote arrived shot on mid grey, which the parchment lift at the top of
+   * GarmentShots.tsx cannot use: it drops the background with
+   * `mix-blend-mode: multiply`, and multiply over parchment only disappears a
+   * background that is already near-white. Measured, the difference is not
+   * subtle — a garment's 254 background lands within 1 of the parchment it sits
+   * on, while the tote's grey came out around 40% darker than it, a muddy brown
+   * card. It was held out of the cards for exactly one commit, and the owner
+   * supplied a white-background reshoot on 11 September.
+   *
+   * NO FLEECE AND NO PROFILE: there is one frame, and it is the bag's face.
+   */
+  tote: ["back", "front"],
 };
 
 /** Names used in alt text and on the dot controls. */
@@ -173,6 +187,9 @@ const PLATE_SHAPE: Record<string, number> = {
   "/demo/plate-back-hoodie.png": 900 / 1125,
   "/demo/plate-back-crewneck.png": 900 / 1125,
   "/demo/plate-back-tee.png": 900 / 1080,
+  // 260 by 300mm, which is a fourth shape again — neither the hoodie and
+  // crewneck's 280 by 350 nor the tee's 250 by 300.
+  "/demo/plate-back-tote.png": 900 / 1038,
 };
 
 /** One shot, or null when that photograph does not exist. */
@@ -228,11 +245,20 @@ export function catalogueShots(slug: ProductSlug): Shot[] {
  * Both lists start on the hero colourway; the note over HERO explains why that
  * ordering is worth keeping, and it still holds now that the hero is where a
  * tile STARTS rather than the only colour it ever shows.
+ *
+ * IT ASKS VIEWS THE SAME QUESTION catalogueShots DOES, and that is load-bearing
+ * rather than symmetry for its own sake. This function reaches straight for the
+ * back shot of every colourway, so for most of its life it never consulted the
+ * manifest at all — which meant the day the tote's photograph landed on disk,
+ * the home page started rendering it while the shop card correctly did not.
+ * VIEWS is documented above as the whole of the availability question; a second
+ * function answering that question its own way is how the two surfaces drift.
  */
 export function colourwayShots(slug: ProductSlug): Shot[] {
   const product = getProduct(slug);
   const hero = heroColour(slug);
   if (!product || !hero) return [];
+  if (!VIEWS[slug].includes("back")) return [];
 
   const ordered = [
     ...product.variants.filter((variant) => variant.color === hero),

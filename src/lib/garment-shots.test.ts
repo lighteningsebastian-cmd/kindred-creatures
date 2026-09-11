@@ -14,7 +14,6 @@ const PUBLIC = join(process.cwd(), "public");
 describe("catalogue shots", () => {
   it("leads with the back, because the plate is the product", () => {
     for (const product of PRODUCTS) {
-      if (product.slug === "tote") continue;
       expect(catalogueShots(product.slug)[0]!.view, product.slug).toBe("back");
     }
   });
@@ -46,9 +45,30 @@ describe("catalogue shots", () => {
     }
   });
 
-  it("offers the tote nothing, so its card keeps the placeholder", () => {
-    // Deferred by docs/spec-print-layout.md. No shoot, no plate, no card image.
-    expect(catalogueShots("tote")).toEqual([]);
+  it("gives the tote a card now that it is shot on white", () => {
+    // It had no card for one commit, on a grey-background shoot the parchment
+    // lift could not use. The owner reshot it; this is the assertion that the
+    // placeholder is gone. One frame, so back and front are the same picture
+    // with different plates on it.
+    expect(catalogueShots("tote").map((shot) => shot.view)).toEqual([
+      "back",
+      "front",
+    ]);
+  });
+
+  it("agrees with itself about which products have card photography", () => {
+    // THE BUG THIS PREVENTS, and it was live for the length of one commit.
+    // colourwayShots reaches straight for the back shot of every colourway and
+    // never consulted VIEWS, so the day the tote's files landed on disk the
+    // home page began rendering it while the shop card correctly did not. The
+    // two surfaces vary different axes and share a manifest; a product that is
+    // on one and missing from the other is that manifest being answered twice.
+    for (const product of PRODUCTS) {
+      expect(
+        colourwayShots(product.slug).length > 0,
+        `${product.slug}: shop card and home tile disagree`,
+      ).toBe(catalogueShots(product.slug).length > 0);
+    }
   });
 
   it("points every shot at a file that really exists", () => {
@@ -102,7 +122,6 @@ describe("catalogue shots", () => {
     expect(heroColour("crewneck")).toBe("Peach");
     expect(heroColour("tee")).toBe("White");
     for (const product of PRODUCTS) {
-      if (product.slug === "tote") continue;
       const hero = heroColour(product.slug);
       expect(
         product.variants.some((variant) => variant.color === hero),
@@ -120,7 +139,6 @@ describe("colourwayShots", () => {
     // The home page varies colour; the shop varies view. A front shot here
     // would be the 19px chest badge this change exists to remove.
     for (const product of PRODUCTS) {
-      if (product.slug === "tote") continue;
       const shots = colourwayShots(product.slug);
       expect(shots.length, product.slug).toBe(product.variants.length);
       expect(
@@ -134,7 +152,7 @@ describe("colourwayShots", () => {
     expect(colourwayShots("hoodie")).toHaveLength(3);
     expect(colourwayShots("crewneck")).toHaveLength(4);
     expect(colourwayShots("tee")).toHaveLength(3);
-    expect(colourwayShots("tote")).toEqual([]);
+    expect(colourwayShots("tote")).toHaveLength(1); // one colourway, one shot
   });
 
   it("starts on the hero colourway", () => {

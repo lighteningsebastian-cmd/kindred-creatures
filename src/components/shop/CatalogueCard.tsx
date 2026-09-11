@@ -30,8 +30,9 @@ export function CatalogueCard({ product }: { product: Product }) {
   const sizesHint =
     sizes.length === 1 ? sizes[0] : `${sizes[0]} to ${sizes[sizes.length - 1]}`;
 
-  // Empty for the tote, which is deferred and has no shoot. It keeps the
-  // hatched frame rather than borrowing a photograph of something else.
+  // Never empty today: all four products are photographed. The hatched frame
+  // below is the guard for a product added to the catalogue ahead of its
+  // shoot, which must look incomplete rather than broken.
   const shots = catalogueShots(product.slug);
 
   return (

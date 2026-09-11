@@ -88,10 +88,15 @@ describe("shop page catalogue", () => {
     }
   });
 
-  it("keeps the hatched placeholder for the tote, which has no shoot", () => {
+  it("has a photograph for every card, with no hatched frame left", () => {
     render(<ShopPage />);
-    // Deferred by docs/spec-print-layout.md. A photograph would be a lie.
-    expect(screen.getByText(/flatlay: the natural canvas kindred tote/i)).toBeInTheDocument();
+    // The tote was the last placeholder on this page; its shoot landed on
+    // 11 September. The frame is kept in CatalogueCard as the guard for a
+    // product added ahead of its photography, so this asserts the ABSENCE of
+    // the caption rather than its removal from the component.
+    expect(
+      screen.queryByText(/flatlay: the natural canvas kindred tote/i),
+    ).not.toBeInTheDocument();
   });
 
   it("names the demo companion as a stand-in, once, beneath the grid", () => {
@@ -132,10 +137,9 @@ describe("shop page catalogue", () => {
 
 describe("shop page zoom", () => {
   it("lets every photographed card open its print", () => {
-    // Three of the four: the tote is deferred and keeps its placeholder, which
-    // has nothing to enlarge.
+    // All four now. The tote was the exception until its shoot landed.
     render(<ShopPage />);
-    expect(screen.getAllByRole("button", { name: /enlarge/i })).toHaveLength(3);
+    expect(screen.getAllByRole("button", { name: /enlarge/i })).toHaveLength(4);
   });
 
   it("opens on the back plate, which is the view a card leads with", async () => {

@@ -76,7 +76,10 @@ async function main(): Promise<void> {
   const portrait = await portraitBytes();
 
   for (const product of PRODUCTS) {
-    if (product.slug === "tote") continue; // deferred, no plate
+    // The tote is in here now: its photography landed and its card overlays a
+    // plate like any other. Its back print area is 260 by 300mm against the
+    // garments' 280 by 350 and 250 by 300, so it renders to its own shape and
+    // gets its own file, which is the whole reason this loop is per product.
     const area = product.printArea.back;
     const height = Math.round((BACK_WIDTH * area.heightMm) / area.widthMm);
     const layout = backPlate(DEMO, null, BACK_WIDTH, height);

@@ -20,9 +20,27 @@
  * hyphens and spaces, and takes the first token as the product, the last as the
  * view and whatever is between as the colour, ignoring the word "premium".
  * Output is always public/garments/<product>/<colour>/<view>.webp.
+ *
+ * THE TOTE IS ONE PHOTOGRAPH SERVING TWO VIEWS, and it is the reason parseName
+ * returns a LIST of views rather than one. A tote's two faces are the same
+ * blank canvas panel, so the shoot produced a single frame ("Tote/tote-beige.png")
+ * where every garment produced three. Writing it to both front.webp and
+ * back.webp is what lets the rest of the codebase stay uniform: garments.ts
+ * builds a path from a view name, and a tote that answered only to "front"
+ * would need a special case in every caller instead of one here.
+ *
+ * Its name carries a colour and no view ("tote-beige"), so the rule is "a tote
+ * file whose last token is not a view names a COLOUR". That keeps the door open
+ * for the colourways the name implies are coming: drop in "tote-black.png" and
+ * it lands at tote/black/ with no change here. A tote file that DOES end in a
+ * view ("tote-black-front.png") falls through to the ordinary parser, so a
+ * later shoot that photographs the two faces separately needs no new rule.
+ *
+ * That the two files are byte-identical is the honest result, not a bug to
+ * deduplicate. Reshoot a printed back and only this file changes.
  */
 
-import { readdir, mkdir, stat } from "node:fs/promises";
+import { readdir, mkdir, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
@@ -52,6 +70,14 @@ function parseName(file) {
     .map((p) => p.trim())
     .filter((p) => p !== "" && !NOISE.has(p));
 
+  // The tote: no view in the name, so one file stands for both faces of the
+  // bag. See THE TOTE IS ONE PHOTOGRAPH at the top of this file.
+  if (parts[0] === "tote" && !VIEWS.has(parts[parts.length - 1])) {
+    // "tote.png" is the unnamed original; "tote-beige.png" names its colour.
+    const colour = parts.slice(1).join("-") || "natural";
+    return { product: "tote", colour, views: ["front", "back"] };
+  }
+
   if (parts.length < 3) return null;
 
   const product = parts[0] === "hoodies" ? "hoodie" : parts[0];
@@ -59,7 +85,7 @@ function parseName(file) {
   const colour = parts.slice(1, -1).join("-");
 
   if (!VIEWS.has(view) || colour === "") return null;
-  return { product, colour, view };
+  return { product, colour, views: [view] };
 }
 
 async function* walk(dir) {
@@ -94,25 +120,35 @@ async function main() {
       continue;
     }
 
-    const { product, colour, view } = parsed;
+    const { product, colour, views } = parsed;
     const dir = path.join(OUT, product, colour);
-    const out = path.join(dir, `${view}.webp`);
 
-    if (existsSync(out) && !FORCE) {
-      skipped += 1;
-      continue;
-    }
+    // Encoded once and written to each view it stands for, which is one view
+    // for every garment and two for the tote.
+    const wanted = views.filter((view) => {
+      const out = path.join(dir, `${view}.webp`);
+      if (existsSync(out) && !FORCE) {
+        skipped += 1;
+        return false;
+      }
+      return true;
+    });
+    if (wanted.length === 0) continue;
 
     await mkdir(dir, { recursive: true });
-    await sharp(file)
+    const encoded = await sharp(file)
       .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: "inside", withoutEnlargement: true })
       .webp({ quality: QUALITY })
-      .toFile(out);
+      .toBuffer();
 
     bytesIn += (await stat(file)).size;
-    bytesOut += (await stat(out)).size;
-    written += 1;
-    console.log(`  + ${product}/${colour}/${view}.webp`);
+    for (const view of wanted) {
+      const out = path.join(dir, `${view}.webp`);
+      await writeFile(out, encoded);
+      bytesOut += (await stat(out)).size;
+      written += 1;
+      console.log(`  + ${product}/${colour}/${view}.webp`);
+    }
   }
 
   const mb = (n) => (n / 1024 / 1024).toFixed(1);

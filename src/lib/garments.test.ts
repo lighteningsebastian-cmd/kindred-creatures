@@ -22,7 +22,6 @@ describe("garment photography", () => {
     // reads as a broken page. Every swatch resolves to a file on disk, even the
     // colourways nobody has shot yet.
     for (const product of PRODUCTS) {
-      if (product.slug === "tote") continue; // deferred, and has no photography
       for (const variant of product.variants) {
         for (const side of ["front", "back"] as const) {
           const url = garmentImageUrl(product.slug, variant.color, side);
@@ -42,7 +41,6 @@ describe("garment photography", () => {
     // catalogue still listed Stone, Charcoal, Olive and Ecru while the shoot
     // had produced the colours we actually sell. Nothing stands in now.
     for (const product of PRODUCTS) {
-      if (product.slug === "tote") continue;
       const colors = product.variants.map((variant) => variant.color);
       expect(unphotographedColours(product.slug, colors), product.slug).toEqual(
         [],
@@ -65,7 +63,7 @@ describe("garment photography", () => {
     // stays in the vocabulary so a later task can shoot it and light it up
     // just by adding files, with no change here.
     expect(garmentViewUrl("hoodie", "Not A Colour", "front")).toBeNull(); // no such colourway
-    expect(garmentViewUrl("tote", "Natural", "front")).toBeNull(); // no photography at all
+    expect(garmentViewUrl("tote", "Natural", "profile")).toBeNull(); // shot front-on only
     expect(garmentViewUrl("hoodie", "White", "worn")).toBeNull(); // not shot yet
   });
 
@@ -90,10 +88,11 @@ describe("garment photography", () => {
     // Asserting the count catches that, and also catches a photograph
     // silently disappearing from disk while PHOTO_SHAPE still lists it. 33 is
     // the number of .webp files actually under public/garments, verified with
-    // `find public/garments -type f -name '*.webp' | wc -l`.
+    // `find public/garments -type f -name '*.webp' | wc -l`. Two of the 35 are the
+    // tote's, which is one photograph written to both front and back because a
+    // tote's faces are identical.
     let checked = 0;
     for (const product of PRODUCTS) {
-      if (product.slug === "tote") continue;
       for (const variant of product.variants) {
         for (const view of GARMENT_VIEWS) {
           const url = garmentViewUrl(product.slug, variant.color, view);
@@ -107,7 +106,7 @@ describe("garment photography", () => {
         }
       }
     }
-    expect(checked, "photographs actually checked, of 33 on disk").toBe(33);
+    expect(checked, "photographs actually checked, of 35 on disk").toBe(35);
   });
 
   it("reports the front and back shapes of tee/olive as the different numbers they are", () => {
@@ -117,10 +116,23 @@ describe("garment photography", () => {
     expect(photoAspect("tee", "Olive", "back")).toBeCloseTo(1.25, 2);
   });
 
-  it("has no photograph for the tote, and says so plainly", () => {
-    // Deferred by docs/spec-print-layout.md. Null is the honest answer and the
-    // caller shows the garment colour instead of an empty image element.
-    expect(garmentImageUrl("tote", "Natural", "back")).toBeNull();
+  it("shows the tote the same photograph on both of its faces", () => {
+    // A tote's two faces are the same blank canvas panel, so the shoot produced
+    // one frame and the importer writes it to both names. Asserting the SHAPE
+    // matches on both sides is what would catch a later reshoot landing a
+    // differently-cropped back without PHOTO_SIZE being told.
+    // The path says "beige" while the swatch says Natural: the shoot's word
+    // for the colour and the catalogue's, reconciled in the PHOTOS map rather
+    // than by the importer renaming files behind everyone's back.
+    expect(garmentImageUrl("tote", "Natural", "front")).toBe(
+      "/garments/tote/beige/front.webp",
+    );
+    expect(garmentImageUrl("tote", "Natural", "back")).toBe(
+      "/garments/tote/beige/back.webp",
+    );
+    expect(photoAspect("tote", "Natural", "front")).toBe(
+      photoAspect("tote", "Natural", "back"),
+    );
   });
 
   it("reports each photograph's real pixel width, because the zoom ceiling needs it", async () => {
@@ -144,11 +156,12 @@ describe("garment photography", () => {
         }
       }
     }
-    expect(checked, "photographs actually checked, of 33 on disk").toBe(33);
+    expect(checked, "photographs actually checked, of 35 on disk").toBe(35);
   });
 
-  it("has no source width for a garment nobody has photographed", () => {
-    expect(photoSourceWidth("tote", "Natural", "back")).toBeNull();
+  it("has no source width for a view nobody has photographed", () => {
+    expect(photoSourceWidth("hoodie", "White", "worn")).toBeNull();
+    expect(photoSourceWidth("tote", "Natural", "profile")).toBeNull();
   });
 
   it("places every plate inside the garment image", () => {

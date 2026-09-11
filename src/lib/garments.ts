@@ -120,9 +120,26 @@ const PHOTO_SIZE: Record<string, { w: number; h: number }> = {
   "tee/olive/back": { w: 1400, h: 1120 },
   "tee/olive/front": { w: 1400, h: 1050 },
   "tee/olive/profile": { w: 1400, h: 933 },
+  // ONE PHOTOGRAPH, TWO ENTRIES. A tote's two faces are the same blank canvas
+  // panel, so the shoot produced a single square frame and the importer writes
+  // it to both front.webp and back.webp (see scripts/import-garments.mjs). The
+  // duplicate entry is not redundancy to collapse: the moment a printed back is
+  // shot separately, only this line changes.
+  //
+  // SQUARE, where every garment is portrait or landscape. photoAspect is per
+  // view for exactly this reason, so nothing here needs to special-case it.
+  "tote/beige/front": { w: 1254, h: 1254 },
+  "tote/beige/back": { w: 1254, h: 1254 },
 };
 
-/** Fallback shape for a garment with no photograph, such as the tote. */
+/**
+ * Fallback shape for a colourway or view with no photograph behind it.
+ *
+ * Nothing in the catalogue reaches this today — the tote, which used to be the
+ * example here, is photographed. It stays because `unphotographedColours` only
+ * catches a missing COLOURWAY, and a colourway whose photograph exists in one
+ * view but not another would otherwise letterbox silently.
+ */
 const DEFAULT_SHAPE = 4 / 5;
 
 /**
@@ -151,8 +168,8 @@ export function photoAspect(
  * the whole reason PHOTO_SIZE stores the measurements rather than dividing them
  * away.
  *
- * Null where there is no such photograph — the tote, and any colourway or view
- * the shoot has not covered.
+ * Null where there is no such photograph: any colourway or view the shoot has
+ * not covered.
  */
 export function photoSourceWidth(
   slug: ProductSlug,
@@ -184,11 +201,30 @@ export const PLACEMENT: Record<
     front: { top: 26, left: 56, width: 13 },
     back: { top: 27, left: 27, width: 46 },
   },
-  // The tote is deferred (docs/spec-print-layout.md) and has no photography, so
-  // it has no plate to place. Kept here so the record stays exhaustive.
+  /*
+   * CALIBRATED AGAINST THE PHOTOGRAPH, NOT AGAINST A RATIFIED PRINT LAYOUT.
+   * The other three placements implement docs/spec-print-layout.md; that spec
+   * says in its own first lines that the tote is deferred, so there is no owner
+   * decision to implement here. These numbers were measured off
+   * public/garments/tote/beige/: the bag's front panel spans 17% to 79%
+   * across and 37% to 90% down, and the handle tabs are stitched onto it as far
+   * as 47%, so both plates start below that and stop above the bottom seam.
+   *
+   * THE BACK PLATE IS DRAWN SMALLER THAN ITS OWN PRINT AREA CLAIMS, and that
+   * is the honest reading rather than a mistake. products.ts declares the
+   * tote's back print 260 by 300mm, copied from the garment plates while the
+   * tote was deferred. Drawn to that scale on a bag this shape it would cover
+   * the handle stitching and run into the bottom seam — 300mm of print down a
+   * panel around 340mm tall is not a layout anyone would print. So the width
+   * here is what sits correctly on the bag, and the gap between the two is the
+   * evidence that the tote's print area still needs an owner decision. Once it
+   * has one, set the width from it and delete this paragraph.
+   */
   tote: {
-    front: { top: 30, left: 25, width: 50 },
-    back: { top: 30, left: 25, width: 50 },
+    // No chest to sit on: a small print on a tote goes centred, high on the
+    // panel and clear of the handle tabs.
+    front: { top: 50, left: 40, width: 16 },
+    back: { top: 48, left: 30, width: 33 },
   },
 };
 
@@ -229,8 +265,21 @@ const PHOTOS: Record<ProductSlug, Record<string, PhotoChoice>> = {
     Olive: { dir: "olive" },
     "Heritage Blue": { dir: "heritage-blue" },
   },
-  // No tote photography, and no plate for it either. It is deferred.
-  tote: {},
+  /*
+   * THE CATALOGUE CALLS IT NATURAL AND THE SHOOT CALLS IT BEIGE. Same undyed
+   * canvas, two names, and this map is the one place designed to reconcile
+   * them — which is why the directory keeps the shoot's word rather than the
+   * script quietly renaming the file on import. Someone grepping for "beige"
+   * after looking at Stock Images finds it.
+   *
+   * This is NOT the stand-in layer the note above warns about: that was
+   * colourways pointed at a photograph of a DIFFERENT colour. This is the
+   * bag's own photograph under the name the photographer gave it. The swatch
+   * a customer taps is the garment they will be sent.
+   */
+  tote: {
+    Natural: { dir: "beige" },
+  },
 };
 
 /** The photo directory a colourway shows, or null where there is none. */
@@ -244,8 +293,9 @@ export function garmentPhoto(
 /**
  * The public path to a garment photograph, or null where there is none.
  *
- * Null is a real answer (the tote), and callers must render something sensible
- * rather than an empty image element.
+ * Null is still a real answer — every colourway in the catalogue is
+ * photographed today, but one added ahead of its shoot would land here — and
+ * callers must render something sensible rather than an empty image element.
  */
 export function garmentImageUrl(
   slug: ProductSlug,
@@ -261,9 +311,9 @@ export function garmentImageUrl(
  * The public path to any view of a garment, or null where there is none.
  *
  * The generalisation of `garmentImageUrl` past the two printable sides. Null is
- * a real answer twice over: the tote has no photography at all, and no garment
- * has a `worn` shot yet. Callers must render something sensible rather than an
- * empty image element.
+ * a real answer: no garment has a `worn` shot yet, and only the hoodie has
+ * `fleece`. Callers must render something sensible rather than an empty image
+ * element.
  */
 export function garmentViewUrl(
   slug: ProductSlug,
@@ -279,8 +329,8 @@ export function garmentViewUrl(
 /**
  * Colourways in the catalogue with no photograph of their own: the shot list.
  *
- * Empty for the three garments today, and the tote's whole range for as long as
- * it stays deferred. It is kept because the failure it catches is silent: a
+ * Empty for all four garments today, the tote included since its shoot landed.
+ * It is kept because the failure it catches is silent: a
  * colour added to products.ts before its shoot renders an empty frame, and the
  * page looks broken rather than incomplete.
  */
