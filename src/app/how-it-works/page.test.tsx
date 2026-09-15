@@ -1,17 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import HowItWorksPage, { metadata } from "./page";
 import { FAQS, HOW_IT_WORKS_PAGE_STEPS } from "@/lib/content";
-
-// next/image needs config it does not have in jsdom; the page only cares that an
-// <img> (or, for the decorative shots, no accessible name) is present.
-vi.mock("next/image", () => ({
-  default: (props: Record<string, unknown>) => {
-    const { src, alt } = props as { src: string; alt: string };
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} />;
-  },
-}));
 
 const ldNodes = (container: HTMLElement) =>
   Array.from(
@@ -41,6 +31,12 @@ describe("how-it-works trust page", () => {
         screen.getByRole("heading", { level: 2, name: step.title }),
       ).toBeInTheDocument();
     }
+  });
+
+  it("shows no photo placeholders beside the steps", () => {
+    // The steps stand on their words until there is real photography to show.
+    const { container } = render(<HowItWorksPage />);
+    expect(container.querySelector('[style*="aspect-ratio"]')).toBeNull();
   });
 
   it("offers no style choice, because there is one house style", () => {

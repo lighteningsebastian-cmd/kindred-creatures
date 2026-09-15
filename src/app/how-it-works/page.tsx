@@ -80,7 +80,7 @@ export default function HowItWorksPage() {
       <JsonLd data={structuredData} />
 
       {/* Header */}
-      <section className="py-16 md:py-24">
+      <section className="pb-12 pt-16 md:pb-16 md:pt-24">
         <Container>
           <div className="max-w-2xl">
             <Reveal>
@@ -102,10 +102,10 @@ export default function HowItWorksPage() {
         </Container>
       </section>
 
-      {/* Numbered process */}
-      <section className="pb-4 md:pb-8">
+      {/* Numbered process: ruled rows, closed top and bottom by a hairline. */}
+      <section>
         <Container>
-          <ol className="flex flex-col">
+          <ol className="flex flex-col border-t border-line">
             {HOW_IT_WORKS_PAGE_STEPS.map((step, index) => (
               <ProcessStep key={step.key} step={step} index={index} />
             ))}
