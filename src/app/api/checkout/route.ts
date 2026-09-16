@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
-import { getDb } from "@/lib/db/client";
+import { getDb, type Db } from "@/lib/db/client";
 import { isProfileComplete } from "@/lib/companion";
 import { profileFromArtwork } from "@/lib/artwork-approval";
 import { artworks, orderItems, orders } from "@/lib/db/schema";
@@ -30,6 +30,22 @@ const MAX_LINES = 20;
 
 function bad(error: string, status: number) {
   return Response.json({ error }, { status });
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * A failure that is ours: logged in full, and answered so the customer does not
+ * go looking for a mistake in what they typed. Checkout is where "please try
+ * again" costs a sale, so it is worth saying plainly that the fault is here.
+ */
+function ourSide(where: string, error: unknown) {
+  console.error(`[checkout] ${where}:`, error);
+  return bad(
+    "Something went wrong on our side and your order was not opened. Nothing has been charged. Please try again in a few minutes.",
+    503,
+  );
 }
 
 /** A line as the client sends it: identity and choices only, never a price. */
@@ -180,15 +196,22 @@ export async function POST(request: Request) {
     return bad("The same portrait appears twice in this cart.", 400);
   }
 
-  const db = await getDb();
+  // A malformed id can never match a portrait. Refused here, by shape, so the
+  // query below only fails for reasons that are ours. It used to be refused by
+  // catching the query's error, which also turned a database outage into "we
+  // could not find one of these portraits" and sent the customer to start
+  // their portrait again.
+  if (!ids.every((id) => UUID_RE.test(id))) {
+    return bad("We could not find one of these portraits.", 400);
+  }
 
+  let db: Db;
   let found;
   try {
+    db = await getDb();
     found = await db.select().from(artworks).where(inArray(artworks.id, ids));
-  } catch {
-    // A malformed uuid never matches a row; treat it as an unknown portrait
-    // rather than surfacing a database error.
-    return bad("We could not find one of these portraits.", 400);
+  } catch (error) {
+    return ourSide("could not read the cart's portraits", error);
   }
 
   const byId = new Map(found.map((artwork) => [artwork.id, artwork]));
@@ -269,8 +292,8 @@ export async function POST(request: Request) {
         .where(eq(orders.publicRef, candidate));
       return taken !== undefined;
     });
-  } catch {
-    return bad("We could not open your order. Please try again.", 500);
+  } catch (error) {
+    return ourSide("could not mint a public reference", error);
   }
 
   try {
@@ -308,8 +331,8 @@ export async function POST(request: Request) {
         })),
       );
     });
-  } catch {
-    return bad("We could not open your order. Please try again.", 500);
+  } catch (error) {
+    return ourSide("could not write the order", error);
   }
 
   // Read the order back rather than signing the totals still sitting in memory.
@@ -320,13 +343,13 @@ export async function POST(request: Request) {
   let row;
   try {
     [row] = await db.select().from(orders).where(eq(orders.id, orderId));
-  } catch {
-    row = undefined;
-  }
-  if (!row) {
+  } catch (error) {
     // The order may well be sitting in the table; we just cannot prove what it
     // costs, and a payment request we cannot stand behind is worse than none.
-    return bad("We could not open your order. Please try again.", 500);
+    return ourSide("could not read the new order back", error);
+  }
+  if (!row) {
+    return ourSide("the new order was not there to read back", orderId);
   }
 
   // The one-time welcome login token (D3): if the buyer pays and comes back,

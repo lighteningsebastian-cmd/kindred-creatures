@@ -21,6 +21,19 @@ function bad(error: string, status: number) {
 }
 
 /**
+ * Storage, the database or the screening service let us down. Logged in full,
+ * and said so, because "that upload did not go through" reads like the photo
+ * was the problem and sends people looking for a different one.
+ */
+function ourSide(where: string, error: unknown) {
+  console.error(`[upload] ${where}:`, error);
+  return bad(
+    "Something went wrong on our side, not with your photo. Please try again in a few minutes.",
+    503,
+  );
+}
+
+/**
  * Accepts a pet photo, screens it for moderation, and (if clean) stores it and
  * opens an artwork record. Rejected photos create no record and return 422 with
  * a friendly reason the UI can show inline.
@@ -59,8 +72,13 @@ export async function POST(request: Request) {
 
   const bytes = new Uint8Array(await file.arrayBuffer());
 
-  const provider = await getImageProvider();
-  const verdict = await provider.moderate({ bytes });
+  let verdict: { ok: boolean; reason?: string };
+  try {
+    const provider = await getImageProvider();
+    verdict = await provider.moderate({ bytes });
+  } catch (error) {
+    return ourSide("the photo could not be screened", error);
+  }
   if (!verdict.ok) {
     // No artwork row is created for a rejected upload.
     return bad(
@@ -72,15 +90,19 @@ export async function POST(request: Request) {
 
   const artworkId = randomUUID();
   const uploadKey = `uploads/${artworkId}/original.${ext}`;
-  await getStorage().put(uploadKey, bytes, file.type);
+  try {
+    await getStorage().put(uploadKey, bytes, file.type);
 
-  const db = await getDb();
-  await db.insert(artworks).values({
-    id: artworkId,
-    uploadKey,
-    productSlug,
-    status: "uploaded",
-  });
+    const db = await getDb();
+    await db.insert(artworks).values({
+      id: artworkId,
+      uploadKey,
+      productSlug,
+      status: "uploaded",
+    });
+  } catch (error) {
+    return ourSide("the photo could not be saved", error);
+  }
 
   return Response.json({ artworkId, uploadKey }, { status: 201 });
 }

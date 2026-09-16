@@ -239,6 +239,30 @@ describe("CheckoutForm", () => {
     expect(useCartStore.getState().items).toHaveLength(1);
   });
 
+  it("says a server crash is ours, not the customer's connection", async () => {
+    // A platform 500 is an HTML page. Parsing it used to throw into the
+    // network catch, which told the customer to check their connection.
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => {
+        throw new SyntaxError("Unexpected token <");
+      },
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+    const user = userEvent.setup();
+    seed(line());
+
+    render(<CheckoutForm />);
+    await screen.findByLabelText("First name");
+    await fillForm(user);
+    await user.click(screen.getByRole("button", { name: /continue to payment/i }));
+
+    expect(await screen.findByText(/went wrong on our side/)).toBeInTheDocument();
+    expect(screen.getByText(/Nothing has been charged/)).toBeInTheDocument();
+    expect(screen.queryByText(/check your connection/)).toBeNull();
+  });
+
   it("surfaces a rejection from the server and keeps the form filled in", async () => {
     const fetchSpy = vi.fn().mockResolvedValue({
       ok: false,

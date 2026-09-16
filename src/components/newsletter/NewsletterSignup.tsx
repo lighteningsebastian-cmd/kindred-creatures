@@ -74,7 +74,11 @@ export function NewsletterSignup() {
           message:
             typeof json?.error === "string"
               ? json.error
-              : "We could not sign you up. Please try again.",
+              : response.status >= 500
+                ? // A crash with no message is still ours, and saying "we could
+                  // not sign you up" makes it sound like the address.
+                  "Something went wrong on our side, not with your address. Please try again in a few minutes."
+                : "We could not sign you up. Please try again.",
         });
         return;
       }

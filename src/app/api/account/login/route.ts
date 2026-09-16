@@ -38,7 +38,21 @@ export async function POST(request: Request) {
     );
   }
 
-  const issued = await issueLoginToken(email);
+  let issued: Awaited<ReturnType<typeof issueLoginToken>>;
+  try {
+    issued = await issueLoginToken(email);
+  } catch (error) {
+    // The database, not the address. Safe to say so: it fails the same way for
+    // every address, so it tells nobody whether one has an account.
+    console.error("[account] could not issue a sign-in link:", error);
+    return Response.json(
+      {
+        error:
+          "Something went wrong on our side, not with your address. Please try again in a few minutes.",
+      },
+      { status: 503 },
+    );
+  }
   if (issued.ok) {
     const loginUrl = `${siteUrl()}/api/account/callback?token=${encodeURIComponent(issued.rawToken)}`;
     const sent = await sendMagicLink(email.trim(), loginUrl);

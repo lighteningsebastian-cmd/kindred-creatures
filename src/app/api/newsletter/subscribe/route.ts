@@ -16,6 +16,14 @@ function bad(error: string, status: number) {
 }
 
 /**
+ * What the customer is told when WE are the problem. It must never read like
+ * the one for a mistyped address: "We could not sign you up" said both, and it
+ * sent two debugging sessions after the wrong system.
+ */
+const OUR_SIDE =
+  "Something went wrong on our side, not with your address. Please try again in a few minutes.";
+
+/**
  * Adds an address to the newsletter list. The subscribers row is the source of
  * truth: it is written first, and a failure to push the contact to the sending
  * provider or to send the welcome mail is logged but never fails the request or
@@ -43,10 +51,19 @@ export async function POST(request: Request) {
     return bad("Unknown signup source.", 400);
   }
 
-  const { outcome, subscriber } = await upsertSubscriber({
-    email,
-    source: source as SubscriberSource,
-  });
+  let joined: Awaited<ReturnType<typeof upsertSubscriber>>;
+  try {
+    joined = await upsertSubscriber({
+      email,
+      source: source as SubscriberSource,
+    });
+  } catch (error) {
+    // The database, not the customer. Logged in full, answered as a 503 so
+    // neither the form nor anyone reading the logs mistakes it for a rejection.
+    console.error("[newsletter] could not save a subscriber:", error);
+    return bad(OUR_SIDE, 503);
+  }
+  const { outcome, subscriber } = joined;
 
   // Best-effort side effects. Neither can undo the subscribe above.
   const provider = await getNewsletterProvider();

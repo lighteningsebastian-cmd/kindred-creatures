@@ -89,6 +89,28 @@ describe("NewsletterSignup", () => {
     expect(screen.getByRole("button", { name: /sign up/i })).toBeEnabled();
   });
 
+  it("blames our side, not the address, when the server fails with no message", async () => {
+    // A platform 500 arrives as an HTML page: no JSON, no error to show.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => {
+          throw new SyntaxError("Unexpected token <");
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    render(<NewsletterSignup />);
+
+    await user.type(screen.getByLabelText("Email"), "server@example.co.za");
+    await user.click(screen.getByRole("button", { name: /sign up/i }));
+
+    expect(await screen.findByText(/on our side, not with your address/)).toBeInTheDocument();
+    expect(screen.queryByText(/could not sign you up/)).toBeNull();
+  });
+
   it("does not post an empty or malformed email", async () => {
     const fetchSpy = stubFetchResolving(okBody());
     const spy = vi.spyOn(analytics, "trackNewsletterSignup");

@@ -66,6 +66,25 @@ describe("POST /api/upload", () => {
     expect(after).toBe(before);
   });
 
+  it("answers a storage or database failure as ours, not as a bad photo", async () => {
+    const storage = await import("@/lib/storage");
+    vi.spyOn(storage, "getStorage").mockReturnValueOnce({
+      put: async () => {
+        throw new Error("blob store unavailable");
+      },
+    } as never);
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await POST(uploadRequest(pngFile(), "tee"));
+
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toMatch(/on our side, not with your photo/);
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringContaining("[upload]"),
+      expect.objectContaining({ message: "blob store unavailable" }),
+    );
+  });
+
   it("rejects an unknown product with 400", async () => {
     const res = await POST(uploadRequest(pngFile(), "spaceship"));
     expect(res.status).toBe(400);

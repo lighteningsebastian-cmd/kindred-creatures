@@ -63,6 +63,24 @@ describe("POST /api/account/login", () => {
     expect(sendMagicLinkMock).not.toHaveBeenCalled();
   });
 
+  it("answers a database outage as ours, the same for every address", async () => {
+    const tokens = await import("@/lib/account/login-tokens");
+    vi.spyOn(tokens, "issueLoginToken").mockRejectedValueOnce(
+      new Error("connect ECONNREFUSED"),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await POST(
+      new Request("http://test/api/account/login", {
+        method: "POST",
+        body: JSON.stringify({ email: "anyone@example.co.za" }),
+      }),
+    );
+
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toMatch(/on our side, not with your address/);
+  });
+
   it("still answers generically when the email cannot be sent", async () => {
     sendMagicLinkMock.mockResolvedValue({ ok: false, error: new Error("down") });
     const res = await post({ email: freshEmail() });

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { EmailSuggestion } from "@/components/ui/EmailSuggestion";
 import { trackAccountLoginRequested } from "@/lib/analytics";
 
-type State = "idle" | "submitting" | "sent" | "error";
+type State = "idle" | "submitting" | "sent" | "invalid" | "error";
 
 /**
  * The passwordless sign-in form. It never reports whether an address has an
@@ -29,7 +29,9 @@ export function LoginForm({ expired }: { expired: boolean }) {
         body: JSON.stringify({ email }),
       });
       if (!res.ok) {
-        setState("error");
+        // A 400 is the address; anything else is us, and the form must not
+        // paint the address red for it.
+        setState(res.status === 400 ? "invalid" : "error");
         return;
       }
       trackAccountLoginRequested();
@@ -70,11 +72,15 @@ export function LoginForm({ expired }: { expired: boolean }) {
         value={email}
         onChange={(event) => setEmail(event.target.value)}
         error={
-          state === "error"
-            ? "Something went wrong. Please try again in a moment."
-            : undefined
+          state === "invalid" ? "Please enter a valid email address." : undefined
         }
       />
+      {state === "error" ? (
+        <p role="alert" className="text-sm leading-relaxed text-btn">
+          Something went wrong on our side, not with your address. Please try
+          again in a few minutes.
+        </p>
+      ) : null}
       <EmailSuggestion email={email} onAccept={setEmail} />
       <Button type="submit" disabled={state === "submitting"}>
         {state === "submitting" ? "Sending the link" : "Email me a link"}

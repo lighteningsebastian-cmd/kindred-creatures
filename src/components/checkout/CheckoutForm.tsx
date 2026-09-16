@@ -416,14 +416,17 @@ export function CheckoutForm() {
         }),
       });
 
-      const json = await response.json();
+      // A platform error page is HTML, not JSON. Parsing it must not throw into
+      // the catch below, which would tell the customer to check a connection
+      // that is working fine.
+      const json = await response.json().catch(() => null);
 
-      if (!response.ok) {
+      if (!response.ok || !json) {
         if (json?.fields) setErrors(json.fields as CustomerErrors);
         setFormError(
           typeof json?.error === "string"
             ? json.error
-            : "We could not open your order. Please try again.",
+            : "Something went wrong on our side and your order was not opened. Nothing has been charged. Please try again in a few minutes.",
         );
         return;
       }

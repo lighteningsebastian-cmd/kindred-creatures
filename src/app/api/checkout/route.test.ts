@@ -338,6 +338,33 @@ describe("POST /api/checkout", () => {
     expect((await res.json()).error).toMatch(/could not find/i);
   });
 
+  it("rejects a portrait id that is not an id, without asking the database", async () => {
+    const res = await checkout(order([hoodieLine("not-a-uuid")]));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/could not find/i);
+  });
+
+  it("answers a database outage as ours, not as a missing portrait", async () => {
+    // It used to say "we could not find one of these portraits", which sends a
+    // customer off to redo a portrait that was never the problem.
+    const artworkId = await readyArtwork();
+    const client = await import("@/lib/db/client");
+    vi.spyOn(client, "getDb").mockRejectedValueOnce(new Error("connect ECONNREFUSED"));
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await checkout(order([hoodieLine(artworkId)]));
+
+    expect(res.status).toBe(503);
+    const { error } = await res.json();
+    expect(error).toMatch(/on our side/);
+    expect(error).toMatch(/Nothing has been charged/);
+    expect(error).not.toMatch(/could not find/i);
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringContaining("[checkout]"),
+      expect.objectContaining({ message: "connect ECONNREFUSED" }),
+    );
+  });
+
   it("rejects the same portrait appearing on two lines", async () => {
     const artworkId = await readyArtwork();
     const res = await checkout(

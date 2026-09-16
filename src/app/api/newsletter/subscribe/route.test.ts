@@ -108,6 +108,29 @@ describe("POST /api/newsletter/subscribe", () => {
     expect(res.status).toBe(400);
   });
 
+  it("answers a database outage as ours, not as a bad address", async () => {
+    // The sentence that cost two debugging sessions: an unreachable database
+    // reached the customer as "We could not sign you up".
+    const newsletter = await import("@/lib/newsletter");
+    vi.spyOn(newsletter, "upsertSubscriber").mockRejectedValueOnce(
+      new Error("connect ECONNREFUSED"),
+    );
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const res = await post({ email: freshEmail(), source: "footer" });
+
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error).toMatch(/on our side/);
+    expect(body.error).not.toMatch(/valid email/i);
+    // The real reason is in the log, where somebody debugging will look.
+    expect(logged).toHaveBeenCalledWith(
+      expect.stringContaining("[newsletter]"),
+      expect.objectContaining({ message: "connect ECONNREFUSED" }),
+    );
+    expect(sendWelcomeMock).not.toHaveBeenCalled();
+  });
+
   it("still records the subscriber when the provider push fails", async () => {
     subscribeMock.mockResolvedValue({ ok: false });
     const email = freshEmail();
