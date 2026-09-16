@@ -3,6 +3,11 @@
 **16 September 2026.** Work against `docs/spec-first-real-order-16-sep.md`, stopped at a
 session limit. Read this first, then the spec.
 
+**Update from the owner, after the session:** this was a TEST order, not a live one. The
+site is still in development and PayFast is still the sandbox, so no customer is waiting
+and no real money moved. Both emails did land; the approval email went to **spam**.
+Possibility 3 is now confirmed, not just inferred.
+
 ## Diagnosis (spec section 1): possibility 3, it was sent
 
 Read from the live admin page for order **KC-2609-48D35**
@@ -25,14 +30,16 @@ at 08:37.
 - **So it is possibility 3.** Resend accepted the mail and it did not reach the inbox. The
   confirmation, sent seconds earlier to the same address, did arrive.
 
-Still to do by hand:
-1. In the Resend dashboard, search for mail to that address at 08:37 and read the approval
-   mail's status (delivered, bounced or delayed). The site did not record its message id; it
-   does now (see below).
-2. Check spam, and Microsoft 365 or Defender quarantine if lightningdigital.co.za uses it. A
-   short mail with one button and "This link is yours alone... your account" looks a lot like
-   phishing. That is a guess, not a finding.
-3. **Delivery monitoring is blind in production.** Both mails still read `sent`, including
+What this leaves to do:
+1. **The approval email lands in spam, and that is now the real problem.** The confirmation,
+   sent from the same domain seconds earlier, reached the inbox, so domain authentication
+   (SPF/DKIM) is probably not the cause. The difference is likely the content: a short email
+   with one button, a long tokenised link, and "This link is yours alone... your account",
+   which is how phishing reads. Worth a look before launch: more body text, the portrait
+   itself in the email (never built, see `docs/spec-email-testing-6-aug.md`), less
+   account-style wording. Check with mail-tester.com or Gmail's "show original". This is a
+   copy and design decision for the owner, not a code fix.
+2. **Delivery monitoring is blind.** Both mails still read `sent`, including
    the confirmation that arrived, so no Resend delivery event has ever reached
    `/api/webhooks/resend`. Set `RESEND_WEBHOOK_SECRET` in Vercel and add the webhook in
    Resend (the delivered, bounced and complained events).
@@ -131,6 +138,6 @@ Still to do by hand:
 5. Verify (spec section 4): `npm run build`, `npx vitest run`, `npm run lint`, the dash grep,
    then the manual checks. Manual step 1 needs a deploy, and the Approvals button from item 1.
 
-When the re-send commit is final, its message must say: **possibility 3 (Resend accepted it;
-fulfillment_events artwork-ready ok, order_emails row present; delivery unconfirmed because
-the Resend webhook is not configured).**
+When the re-send commit is final, its message must say: **possibility 3. Resend accepted it
+(fulfillment_events artwork-ready ok, order_emails row present) and the owner found it in
+spam. It was a sandbox test order.**
