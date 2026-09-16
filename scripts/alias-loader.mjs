@@ -13,7 +13,7 @@
  *
  *   node --import ./scripts/alias-loader.mjs scripts/build-catalogue-plate.ts
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { createRequire, register } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join, resolve as resolvePath } from "node:path";
@@ -29,7 +29,9 @@ function firstThatExists(base) {
     `${base}.tsx`,
     join(base, "index.ts"),
   ]) {
-    if (existsSync(candidate) && !candidate.endsWith("/")) return candidate;
+    // A file, not merely a path: "@/lib/email" names a directory that exists,
+    // and returning it hands Node a directory import it refuses.
+    if (statSync(candidate, { throwIfNoEntry: false })?.isFile()) return candidate;
   }
   return null;
 }
