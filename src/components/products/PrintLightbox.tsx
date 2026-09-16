@@ -13,7 +13,7 @@ import type { ProductSlug } from "@/lib/products";
  *
  * FRAMES THE PLATE, NOT THE PHOTOGRAPH, and that is the whole design. A modal
  * showing the whole hoodie at 92% of screen height puts the chest badge at
- * about 105px, against the 67px it already is on the card, all this machinery
+ * about 105px, against the 67px it already is on the card: all this machinery
  * bought for 1.6x, still unreadable. The scale and the origin both come from
  * lib/print-zoom.ts; see the note there for why one constant serves both sides
  * and every screen size.

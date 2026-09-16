@@ -13,8 +13,8 @@ import { PRODUCTS, fromPriceZar, formatZar } from "@/lib/products";
  *
  * Two problems with one cause killed it. The tiles asked for landscape boxes
  * and every garment photograph is portrait, so the inner box shrank to fit the
- * height and left 47% of a lead tile as bare parchment, 64% of the grid used,
- * on average. And once the dots started cycling COLOURWAYS rather than views,
+ * height and left 47% of a lead tile as bare parchment (64% of the grid used,
+ * on average). And once the dots started cycling COLOURWAYS rather than views,
  * the shoot's inconsistency became visible: the tee's White is portrait at
  * 0.832 and its Heritage Blue and Olive are landscape at 1.26, so the garment
  * changed size mid-cycle in any box that was not square.
