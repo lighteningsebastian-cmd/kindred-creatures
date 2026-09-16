@@ -85,59 +85,41 @@ What this leaves to do:
   files, and there are no type errors in them. `npx tsc` reports older errors in
   BreedPicker.test, email/index.test and order-token.test, which were not touched.
 
-## Remaining, in order
+## Status after the second session: all built, not yet deployed
 
-1. **UI for the re-send (spec section 1). No button exists yet.**
-   - `src/components/admin/OrderActions.tsx`: export a `ResendApprovalMail({ orderId })`
-     built like `ResendJobSheet`, using `useActionState(resendArtworkReadyAction)`. Add an
-     optional `awaitingApproval` prop. When `concern === "awaiting-print"` and
-     `awaitingApproval` is true, say "Drawn and waiting on the customer. Nothing prints until
-     they approve." and show `ResendApprovalMail` *instead of* Retry. Add
-     `resendArtworkReadyAction` to the `vi.mock` in `OrderActions.test.tsx`.
-   - New `src/components/admin/ApprovalMailStatus.tsx`, a server component taking an
-     `ApprovalMailState`:
-     - never sent: "Approval link never sent. The customer has not been told." (error colour)
-     - last attempt failed: the date and detail
-     - otherwise: "Sent N times, last <date>", with a note that sent means the provider
-       accepted it and the Email delivery panel says whether it arrived.
-   - `src/app/admin/(dashboard)/orders/[id]/page.tsx`: pass
-     `awaitingApproval={isAwaitingApproval(order, lines)}`, and render
-     `ApprovalMailStatus` at the top of the timeline panel when the order is awaiting
-     approval or has any `artwork-ready` events.
-   - `src/app/admin/(dashboard)/approvals/page.tsx`: render `ApprovalMailStatus` for each
-     row, and `ResendApprovalMail orderId={row.orderId}` when `row.drawn` is true (show
-     "Still drawing" when it is false).
-2. **Fix the approval page** (above).
-3. **Reorder preview (spec section 2).** Nothing started. The plan:
-   - Lift `GarmentView` out of `LivePreview.tsx` into `src/components/products/GarmentPreview.tsx`
-     (not "GarmentView", which clashes with the type in `lib/garments`). Props:
-     `{ product, color, side, children }`, where `children` is the plate layer placed inside
-     the `PLACEMENT` box. Keep zoom and the `photoAspect` box inside it.
-   - LivePreview passes its SVG and stock image as `children`.
-   - Reorder passes `<div style={{aspectRatio: back.widthMm/back.heightMm}}><img
-     className="absolute inset-0 h-full w-full object-contain"/></div>`. That is contain,
-     matching `derivePrintBytes`, so the preview matches what a different product prints.
-   - `getReorderableCreature` returns `frontUrl` (`frontKey ?? previewKey`) and `backUrl`
-     (`backKey ?? previewKey`). Update the page and `page.test.tsx`.
-   - The props become `{ artworkId, styleLabel, frontUrl, backUrl }`. Back is the default,
-     with a front toggle. Drop `aspect-square`. The empty state takes the garment's own shape.
-   - Watch the page weight: `backKey` is print resolution (about 3000px). The account card
-     already serves `frontKey` that way, but a downscaled route would be kinder on phones.
-4. **Error messages (spec section 3).**
-   - `src/app/api/newsletter/subscribe/route.ts`: wrap `upsertSubscriber` in a try/catch,
-     `console.error` the real error, and return a 503 with "Something went wrong on our side.
-     Your address is fine; please try again in a few minutes." In `NewsletterSignup.tsx`,
-     fall back to that sentence on a response of 500 or above.
-   - Same shape in `src/app/api/checkout/route.ts` at about line 188. A database error on the
-     artwork lookup returns a 400 "We could not find one of these portraits". Check the
-     artwork ids against a UUID pattern first, then return a 503 in the catch.
-   - `CheckoutForm.tsx` at about line 427: `await response.json()` throws on an HTML 500, and
-     the customer is told to "check your connection". Use `.catch(() => null)`.
-   - Softer cases: `LoginForm` shows a server error as a red message under the email field,
-     and `/api/upload` does not catch storage or database errors.
-5. Verify (spec section 4): `npm run build`, `npx vitest run`, `npm run lint`, the dash grep,
-   then the manual checks. Manual step 1 needs a deploy, and the Approvals button from item 1.
+Every code item in the spec is done on `fix/first-real-order`: `npm run build` passes,
+the full test suite passes (1280 tests, 1 skipped), and lint has no errors. The one lint
+warning, in `welcome.ts`, predates this work. The branch adds no em or en dashes; ten
+older ones remain in files this work did not touch.
 
-When the re-send commit is final, its message must say: **possibility 3. Resend accepted it
-(fulfillment_events artwork-ready ok, order_emails row present) and the owner found it in
-spam. It was a sandbox test order.**
+- Section 0 (approval page): shows `frontKey` and `backKey` as they are, and composes
+  nothing. Commit 34d85c5.
+- Section 1 (re-send UI): the button is on the Approvals queue and the order page, the
+  "was the customer told" line is on both, and a drawn order no longer offers Retry.
+  Commit 9d21445.
+- Section 2 ("Wear it again"): `GarmentPreview` is shared with the customizer, the back
+  plate sits on the chosen garment, and the preview is pinned under the header on phones.
+  The shared box now keeps the photograph's shape on both axes; it was cropping landscape
+  tees on desktop. Commit 20baad9.
+- Section 3 (errors): newsletter, checkout, the checkout form, sign-in and upload.
+  Commit 87bb3d8.
+
+Suggested as separate tasks:
+- The front chest print file is never sent to the print shop.
+- Tee plate placement needs calibrating per colourway.
+
+Still needs the owner:
+1. **Merge and deploy.** The manual checks in spec section 4 run against the live site.
+2. **Re-send twice on KC-2609-48D35** from Approvals. Expect two `artwork-ready` rows
+   reading `re-sent: <id>`, no redraw, and no second receipt. Already seen locally against
+   a mock order.
+3. **Open the approval link.** You should see one arc and one name on the front, and the
+   graphite profile on the back.
+4. **Check transparency.** Right-click the back plate on the approval page and open the
+   image in a new tab; Chrome shows it on a dark background. A pale rectangle behind the
+   animal means the portrait is opaque, and it would print as a patch on every non-white
+   garment.
+5. **"Wear it again" at phone width.** Switch piece and colour and watch the garment
+   change under the plate.
+6. The approval email lands in spam, and Resend delivery webhooks are not set up (both
+   above).
