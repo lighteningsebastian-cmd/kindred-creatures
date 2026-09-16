@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/admin/auth";
 import {
+  approvalMailState,
   getAdminOrder,
   hasPrintFiles,
+  isAwaitingApproval,
   shortRef,
   type AdminOrderLine,
 } from "@/lib/admin/orders";
@@ -11,6 +13,7 @@ import { formatZar } from "@/lib/products";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { EmailStatusChip } from "@/components/admin/EmailStatusChip";
 import { OrderActions } from "@/components/admin/OrderActions";
+import { ApprovalMailStatus } from "@/components/admin/ApprovalMailStatus";
 import type { FulfillmentEvent, Order, OrderEmailKind } from "@/lib/db/schema";
 import type { OrderEmailSummary } from "@/lib/email/monitoring";
 import { cn } from "@/lib/cn";
@@ -280,6 +283,12 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
   if (!detail) notFound();
 
   const { order, lines, events, concern, emailSummary } = detail;
+  const awaitingApproval = isAwaitingApproval(order, lines);
+  // Shown whenever the question "was the customer told?" has an answer worth
+  // reading: while they are the one being waited on, and on any order that
+  // has ever had an approval email go out, or fail to.
+  const showApprovalMail =
+    awaitingApproval || events.some((event) => event.step === "artwork-ready");
 
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-6">
@@ -331,6 +340,12 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
           </Panel>
 
           <Panel title="Fulfilment timeline">
+            {showApprovalMail ? (
+              <ApprovalMailStatus
+                state={approvalMailState(events)}
+                className="mb-5 border-b border-line pb-5"
+              />
+            ) : null}
             <Timeline events={events} />
           </Panel>
         </div>
@@ -342,6 +357,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps) {
               status={order.status}
               concern={concern}
               canResendJobSheet={hasPrintFiles(lines)}
+              awaitingApproval={awaitingApproval}
             />
           </Panel>
 

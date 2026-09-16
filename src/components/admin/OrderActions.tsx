@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import {
   markPrintedAction,
   markShippedAction,
+  resendArtworkReadyAction,
   resendJobSheetAction,
   retryFulfillmentAction,
   type ActionState,
@@ -98,6 +99,28 @@ function ResendJobSheet({ orderId }: { orderId: string }) {
   );
 }
 
+/**
+ * The approval email, again. Exported because it belongs on two screens: the
+ * order page and the approvals queue, which lists exactly the orders in this
+ * state and is where somebody looks when one has gone quiet.
+ */
+export function ResendApprovalMail({ orderId }: { orderId: string }) {
+  const [state, action, pending] = useActionState(
+    resendArtworkReadyAction,
+    INITIAL,
+  );
+
+  return (
+    <form action={action} className="flex flex-col gap-3">
+      <input type="hidden" name="orderId" value={orderId} />
+      <Button block size="sm" variant="secondary" type="submit" disabled={pending}>
+        {pending ? "Sending" : "Re-send approval email"}
+      </Button>
+      <Feedback state={state} />
+    </form>
+  );
+}
+
 function RetryFulfillment({ orderId }: { orderId: string }) {
   const [state, action, pending] = useActionState(retryFulfillmentAction, INITIAL);
 
@@ -117,11 +140,19 @@ export function OrderActions({
   status,
   concern,
   canResendJobSheet,
+  awaitingApproval = false,
 }: {
   orderId: string;
   status: OrderStatus;
   concern: Concern | null;
   canResendJobSheet: boolean;
+  /**
+   * Paid, drawn and waiting on the customer (lib/admin/orders.ts
+   * isAwaitingApproval). The concern reads "awaiting-print" either way, and
+   * the two want different buttons: retrying a drawn order redraws nothing but
+   * mails the receipt again, when what it needs is the approval link.
+   */
+  awaitingApproval?: boolean;
 }) {
   // An order that was never paid gets no fulfilment control whatsoever. The one
   // thing on offer is the instruction to go and look at PayFast.
@@ -146,7 +177,15 @@ export function OrderActions({
 
   return (
     <div className="flex flex-col gap-5">
-      {concern === "print-failed" || concern === "awaiting-print" ? (
+      {concern === "awaiting-print" && awaitingApproval ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm leading-relaxed text-muted">
+            Drawn and waiting on the customer. Nothing prints until they
+            approve it, or until you release it from Approvals.
+          </p>
+          <ResendApprovalMail orderId={orderId} />
+        </div>
+      ) : concern === "print-failed" || concern === "awaiting-print" ? (
         <div className="flex flex-col gap-2">
           <p className="text-sm leading-relaxed text-muted">
             {concern === "print-failed"

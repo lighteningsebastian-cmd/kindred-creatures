@@ -6,6 +6,8 @@ import {
 } from "@/lib/admin/approvals";
 import { REVISION_LABELS } from "@/lib/revision";
 import { ApprovalQueueActions } from "@/components/admin/ApprovalQueueActions";
+import { ApprovalMailStatus } from "@/components/admin/ApprovalMailStatus";
+import { ResendApprovalMail } from "@/components/admin/OrderActions";
 import { markForPersonalContact, releaseToPrint } from "../actions";
 
 export const runtime = "nodejs";
@@ -90,6 +92,24 @@ export default async function ApprovalsPage() {
                       Marked {formatDate(row.personalContactAt)}
                     </span>
                   ) : null}
+                </div>
+
+                <div className="flex flex-col gap-3 border-t border-line pt-3 sm:flex-row sm:items-start sm:justify-between">
+                  {row.drawn ? (
+                    <>
+                      <ApprovalMailStatus state={row.approvalMail} className="max-w-xl" />
+                      <div className="sm:w-60 sm:shrink-0">
+                        <ResendApprovalMail orderId={row.orderId} />
+                      </div>
+                    </>
+                  ) : (
+                    // Nothing to send a link to yet. Drawing takes a couple of
+                    // minutes after payment; longer than that, open the order.
+                    <p className="text-sm text-muted">
+                      Still drawing. The approval email goes out when both
+                      sides are done.
+                    </p>
+                  )}
                 </div>
 
                 {row.standoutDetail ? (

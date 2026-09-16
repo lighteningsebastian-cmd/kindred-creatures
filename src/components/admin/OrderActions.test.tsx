@@ -16,6 +16,7 @@ vi.mock("@/app/admin/(dashboard)/actions", () => ({
   markPrintedAction: vi.fn(),
   markShippedAction: vi.fn(),
   resendJobSheetAction: vi.fn(),
+  resendArtworkReadyAction: vi.fn(),
   retryFulfillmentAction: vi.fn(),
 }));
 
@@ -88,6 +89,38 @@ describe("an order flagged after a print failure", () => {
   it("says the order is paid, so the retry is obviously safe", () => {
     render(<OrderActions {...printFailed} />);
     expect(screen.getByText(/paid and the print file failed/i)).toBeInTheDocument();
+  });
+});
+
+describe("a paid order", () => {
+  const paid = {
+    orderId: ORDER_ID,
+    status: "paid" as const,
+    concern: "awaiting-print" as const,
+    canResendJobSheet: false,
+  };
+
+  it("offers the retry while nothing has been drawn", () => {
+    render(<OrderActions {...paid} />);
+    expect(screen.getByRole("button", { name: /retry fulfilment/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /re-send approval email/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers the approval email, not a retry, once it is drawn and waiting", () => {
+    // The first test order: drawn, mailed, and the page said "fulfilment has
+    // not run" beside a Retry that would only have sent the receipt again.
+    render(<OrderActions {...paid} awaitingApproval />);
+
+    expect(
+      screen.getByRole("button", { name: /re-send approval email/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /retry fulfilment/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/waiting on the customer/i)).toBeInTheDocument();
+    expect(screen.queryByText(/has not run/i)).not.toBeInTheDocument();
   });
 });
 
