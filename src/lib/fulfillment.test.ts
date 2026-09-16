@@ -6,6 +6,7 @@ import {
   fulfillPaidOrder,
   generatePrintFilesForOrder,
   releaseApprovedOrder,
+  resendArtworkReady,
   resendJobSheet,
   retryFulfillment,
 } from "./fulfillment";
@@ -42,11 +43,13 @@ const {
   derivePrintBytesMock,
   sendJobSheetMock,
   sendOrderConfirmationMock,
+  sendArtworkReadyMock,
 } = vi.hoisted(() => ({
   generatePortraitMock: vi.fn(),
   derivePrintBytesMock: vi.fn(),
   sendJobSheetMock: vi.fn(),
   sendOrderConfirmationMock: vi.fn(),
+  sendArtworkReadyMock: vi.fn(),
 }));
 
 // The provider is stubbed so that CALLING it is observable. Fulfilment must
@@ -68,6 +71,7 @@ vi.mock("@/lib/email", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/email")>()),
   sendJobSheet: sendJobSheetMock,
   sendOrderConfirmation: sendOrderConfirmationMock,
+  sendArtworkReady: sendArtworkReadyMock,
 }));
 
 /** A believable print file. PNG magic, so the key gets a .png on it. */
@@ -107,6 +111,12 @@ beforeEach(() => {
   derivePrintBytesMock.mockResolvedValue(PNG_BYTES);
   sendJobSheetMock.mockResolvedValue({ ok: true, id: "job-sheet-1" });
   sendOrderConfirmationMock.mockResolvedValue({ ok: true, id: "confirmation-1" });
+  // A fresh id per send: order_emails keys on it, and two sends sharing one
+  // would quietly record as one.
+  sendArtworkReadyMock.mockImplementation(async () => ({
+    ok: true,
+    id: `ready-${randomUUID()}`,
+  }));
 });
 
 afterEach(() => {
@@ -116,6 +126,7 @@ afterEach(() => {
   derivePrintBytesMock.mockReset();
   sendJobSheetMock.mockReset();
   sendOrderConfirmationMock.mockReset();
+  sendArtworkReadyMock.mockReset();
 });
 
 /**
@@ -303,6 +314,25 @@ async function orderWithSharedArtwork(
   return { orderId, artworkId };
 }
 
+/**
+ * A paid order the way phase A leaves one: both plates drawn, nobody has said
+ * yes yet. This is the order the approval mail is about, and the only kind a
+ * re-send of it may touch.
+ */
+async function awaitingOrder(
+  slugs: string[],
+): Promise<{ orderId: string; artworkIds: string[] }> {
+  const made = await orderWith(slugs);
+  const db = await getDb();
+  for (const artworkId of made.artworkIds) {
+    await db
+      .update(artworks)
+      .set({ approvedAt: null })
+      .where(eq(artworks.id, artworkId));
+  }
+  return made;
+}
+
 async function readOrder(id: string) {
   const db = await getDb();
   const [row] = await db.select().from(orders).where(eq(orders.id, id));
@@ -327,6 +357,15 @@ async function eventsFor(orderId: string) {
     .select()
     .from(fulfillmentEvents)
     .where(eq(fulfillmentEvents.orderId, orderId));
+}
+
+async function approvalMailsFor(orderId: string) {
+  const db = await getDb();
+  const rows = await db
+    .select()
+    .from(orderEmails)
+    .where(eq(orderEmails.orderId, orderId));
+  return rows.filter((row) => row.kind === "artwork-ready");
 }
 
 describe("fulfillPaidOrder: an order that goes through", () => {
@@ -969,6 +1008,162 @@ describe("resendJobSheet", () => {
   });
 });
 
+describe("resendArtworkReady", () => {
+  it("sends the approval link again for a drawn order waiting on the customer", async () => {
+    const { orderId, artworkIds } = await awaitingOrder(["hoodie"]);
+
+    const result = await resendArtworkReady(orderId);
+
+    expect(result.status).toBe("sent");
+    expect(sendArtworkReadyMock).toHaveBeenCalledTimes(1);
+    const [order, artworkId] = sendArtworkReadyMock.mock.calls[0];
+    expect(order.id).toBe(orderId);
+    expect(artworkId).toBe(artworkIds[0]);
+  });
+
+  it("draws nothing, prints nothing and moves nothing", async () => {
+    // It re-sends a mail. The plates are already drawn, and a second trip to
+    // the model would replace a portrait the customer may be looking at.
+    const { orderId, artworkIds } = await awaitingOrder(["hoodie"]);
+    const before = await readArtwork(artworkIds[0]);
+
+    await resendArtworkReady(orderId);
+    await resendArtworkReady(orderId);
+
+    expect(generatePortraitMock).not.toHaveBeenCalled();
+    expect(derivePrintBytesMock).not.toHaveBeenCalled();
+    expect(sendJobSheetMock).not.toHaveBeenCalled();
+    // The receipt belongs to the payment, which has not happened again.
+    expect(sendOrderConfirmationMock).not.toHaveBeenCalled();
+    expect((await readOrder(orderId)).status).toBe("paid");
+    const after = await readArtwork(artworkIds[0]);
+    expect(after.frontKey).toBe(before.frontKey);
+    expect(after.backKey).toBe(before.backKey);
+    expect(after.approvedAt).toBeNull();
+  });
+
+  it("leaves its own breadcrumb every time, the second send included", async () => {
+    // The approval mail somebody later needs to find is exactly the re-sent
+    // one, so it cannot be the one with no trace.
+    const { orderId, artworkIds } = await awaitingOrder(["hoodie"]);
+
+    await resendArtworkReady(orderId);
+    await resendArtworkReady(orderId);
+
+    const resends = (await eventsFor(orderId)).filter(
+      (event) => event.step === "artwork-ready",
+    );
+    expect(resends).toHaveLength(2);
+    for (const event of resends) {
+      expect(event.outcome).toBe("ok");
+      expect(event.artworkId).toBe(artworkIds[0]);
+      // The provider's id, so the mail can be looked up at Resend.
+      expect(event.detail).toMatch(/^re-sent: ready-/);
+    }
+    // And the delivery ledger has both, so a bounce on either finds the order.
+    expect(await approvalMailsFor(orderId)).toHaveLength(2);
+  });
+
+  it("asks about every portrait still waiting, not only the first", async () => {
+    // A hoodie and a tee are two drawings. Mailing only the first leaves an
+    // order that can never release, because release waits for both.
+    const { orderId, artworkIds } = await awaitingOrder(["hoodie", "tee", "tote"]);
+    const db = await getDb();
+    await db
+      .update(artworks)
+      .set({ approvedAt: new Date() })
+      .where(eq(artworks.id, artworkIds[1]));
+
+    const result = await resendArtworkReady(orderId);
+
+    const asked = sendArtworkReadyMock.mock.calls.map((call) => call[1]);
+    expect(asked).toEqual([artworkIds[0], artworkIds[2]]);
+    expect(result.status === "sent" && result.mails).toHaveLength(2);
+  });
+
+  it("refuses an order whose artwork has not been drawn, and sends nothing", async () => {
+    // An approval link for a portrait that does not exist is worse than silence.
+    const { orderId } = await unapprovedOrder(["hoodie"]);
+
+    const result = await resendArtworkReady(orderId);
+
+    expect(result).toMatchObject({ status: "refused", reason: "not-drawn" });
+    expect(sendArtworkReadyMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses when any one portrait on the order is missing a plate", async () => {
+    const { orderId, artworkIds } = await awaitingOrder(["hoodie", "tee"]);
+    const db = await getDb();
+    await db
+      .update(artworks)
+      .set({ backKey: null })
+      .where(eq(artworks.id, artworkIds[1]));
+
+    const result = await resendArtworkReady(orderId);
+
+    expect(result).toMatchObject({ status: "refused", reason: "not-drawn" });
+    expect(sendArtworkReadyMock).not.toHaveBeenCalled();
+  });
+
+  it.each<OrderStatus>(["pending", "flagged", "sent_to_printer", "shipped"])(
+    "refuses an order at %s",
+    async (status) => {
+      const { orderId } = await awaitingOrder(["hoodie"]);
+      const db = await getDb();
+      await db.update(orders).set({ status }).where(eq(orders.id, orderId));
+
+      const result = await resendArtworkReady(orderId);
+
+      expect(result).toMatchObject({
+        status: "refused",
+        reason: `wrong-status:${status}`,
+      });
+      expect(sendArtworkReadyMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refuses when every portrait is already approved", async () => {
+    // Nobody is waiting to be asked. What that order needs is releasing.
+    const { orderId } = await orderWith(["hoodie"]);
+
+    const result = await resendArtworkReady(orderId);
+
+    expect(result).toMatchObject({ status: "refused", reason: "already-approved" });
+    expect(sendArtworkReadyMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses an order that does not exist", async () => {
+    await expect(resendArtworkReady(randomUUID())).resolves.toMatchObject({
+      status: "refused",
+      reason: "order-not-found",
+    });
+  });
+
+  it("reports a failed send loudly, and records it as failed", async () => {
+    const { orderId } = await awaitingOrder(["hoodie"]);
+    sendArtworkReadyMock.mockResolvedValue({
+      ok: false,
+      error: new Error("resend said no"),
+    });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await resendArtworkReady(orderId);
+
+    expect(result.status).toBe("sent");
+    expect(result.status === "sent" && result.mails[0].result.ok).toBe(false);
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.stringContaining("approval mail re-send failed"),
+    );
+    const [event] = (await eventsFor(orderId)).filter(
+      (row) => row.step === "artwork-ready",
+    );
+    expect(event.outcome).toBe("failed");
+    expect(event.detail).toBe("re-send failed: resend said no");
+    // Nothing went, so there is no message for a delivery event to find.
+    expect(await approvalMailsFor(orderId)).toHaveLength(0);
+  });
+});
+
 describe("fulfillPaidOrder: the drawing half", () => {
   beforeEach(() => {
     // The drawing half composites through sharp, so it needs a real picture.
@@ -999,6 +1194,51 @@ describe("fulfillPaidOrder: the drawing half", () => {
       .where(eq(artworks.id, artworkIds[0]));
     expect(artwork.frontKey).toBeTruthy();
     expect(artwork.backKey).toBeTruthy();
+  });
+
+  it("sends an approval link for every portrait it drew, not only the first", async () => {
+    // Every upload is its own artwork, so a hoodie and a tee are two drawings,
+    // and release waits for both. One link would strand the order for good.
+    const { orderId, artworkIds } = await unapprovedOrder(["hoodie", "tee"]);
+
+    const result = await fulfillPaidOrder(orderId);
+
+    expect(result.status).toBe("awaiting-approval");
+    const asked = sendArtworkReadyMock.mock.calls.map((call) => call[1]);
+    expect(asked).toEqual(artworkIds);
+    const ready = (await eventsFor(orderId)).filter(
+      (event) => event.step === "artwork-ready",
+    );
+    expect(ready.map((event) => event.artworkId).sort()).toEqual(
+      [...artworkIds].sort(),
+    );
+    // The provider's id rides in the detail, so the timeline can be matched to
+    // what Resend says happened to that exact message.
+    for (const event of ready) {
+      expect(event.detail).toMatch(/^awaiting approval \(2 drawn\): ready-/);
+    }
+    expect(await approvalMailsFor(orderId)).toHaveLength(2);
+  });
+
+  it("says loudly, and where to fix it, when the approval mail did not send", async () => {
+    const { orderId } = await unapprovedOrder(["hoodie"]);
+    sendArtworkReadyMock.mockResolvedValue({
+      ok: false,
+      error: new Error("resend said no"),
+    });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await fulfillPaidOrder(orderId);
+
+    expect(result.status).toBe("awaiting-approval");
+    expect(result.status === "awaiting-approval" && result.artworkReady.ok).toBe(
+      false,
+    );
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.stringContaining("Re-send it from Approvals"),
+    );
+    // Not flagged: the plates are safe and the mail can go again.
+    expect((await readOrder(orderId)).status).toBe("paid");
   });
 
   it("does not redraw an artwork that already has its plates", async () => {

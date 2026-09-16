@@ -1,9 +1,12 @@
 // @vitest-environment node
 import { randomUUID } from "node:crypto";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { eq } from "drizzle-orm";
 import {
+  approvalMailState,
   concernFor,
   getAdminOrder,
+  isAwaitingApproval,
   listAdminOrders,
   needsAttention,
   parseFilter,
@@ -334,6 +337,25 @@ describe("getAdminOrder", () => {
     expect(detail!.lines[0].previewUrl).toBeTruthy();
   });
 
+  it("shows the drawn front plate, which is what new orders have", async () => {
+    // previewKey is the pre-payment preview nothing writes any more. An order
+    // drawn after payment has plates and no preview, and read "No art".
+    const id = await seedOrder({ status: "paid" });
+    const db = await getDb();
+    const [line] = await db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.orderId, id));
+    await db
+      .update(artworks)
+      .set({ previewKey: null, frontKey: "plates/x/front-1.png" })
+      .where(eq(artworks.id, line.artworkId));
+
+    const detail = await getAdminOrder(id);
+
+    expect(detail!.lines[0].previewUrl).toContain("plates/x/front-1.png");
+  });
+
   it("offers no print link before a print file exists", async () => {
     const id = await seedOrder({ status: "paid", withPrintFile: false });
 
@@ -356,5 +378,86 @@ describe("getAdminOrder", () => {
 
   it("returns null for a malformed id rather than throwing", async () => {
     await expect(getAdminOrder("not-a-uuid")).resolves.toBeNull();
+  });
+});
+
+describe("isAwaitingApproval", () => {
+  const drawn = { frontKey: "f", backKey: "b", approvedAt: null };
+
+  it("is true for a paid order whose plates are drawn and unapproved", () => {
+    expect(isAwaitingApproval({ status: "paid" }, [{ artwork: drawn as never }])).toBe(true);
+  });
+
+  it("is false while any plate is still missing: that order needs a retry", () => {
+    expect(
+      isAwaitingApproval({ status: "paid" }, [
+        { artwork: drawn as never },
+        { artwork: { ...drawn, backKey: null } as never },
+      ]),
+    ).toBe(false);
+  });
+
+  it("is false once everything is approved, and for any other status", () => {
+    const approved = { ...drawn, approvedAt: new Date() };
+    expect(isAwaitingApproval({ status: "paid" }, [{ artwork: approved as never }])).toBe(false);
+    expect(
+      isAwaitingApproval({ status: "sent_to_printer" }, [{ artwork: drawn as never }]),
+    ).toBe(false);
+    expect(isAwaitingApproval({ status: "paid" }, [])).toBe(false);
+  });
+});
+
+describe("approvalMailState", () => {
+  const at = (minute: number) => new Date(Date.UTC(2026, 8, 16, 8, minute));
+  const event = (
+    outcome: "ok" | "failed",
+    minute: number,
+    artworkId: string | null = null,
+    detail: string | null = null,
+  ) => ({
+    step: "artwork-ready" as const,
+    outcome,
+    detail,
+    artworkId,
+    createdAt: at(minute),
+  });
+
+  it("says never, not zero-and-fine, when nothing was ever sent", () => {
+    expect(approvalMailState([])).toEqual({
+      sentCount: 0,
+      lastSentAt: null,
+      lastFailure: null,
+    });
+  });
+
+  it("counts accepted sends and ignores every other step", () => {
+    const state = approvalMailState([
+      { ...event("ok", 37), step: "order-confirmation" as never },
+      event("ok", 37),
+      event("ok", 50),
+    ]);
+    expect(state.sentCount).toBe(2);
+    expect(state.lastSentAt).toEqual(at(50));
+    expect(state.lastFailure).toBeNull();
+  });
+
+  it("reports a failure only while it is the latest word", () => {
+    const failedLast = approvalMailState([
+      event("ok", 37),
+      event("failed", 50, null, "re-send failed: down"),
+    ]);
+    expect(failedLast.lastFailure).toEqual({ at: at(50), detail: "re-send failed: down" });
+    expect(failedLast.sentCount).toBe(1);
+
+    // Out of order on the way in, as rows can be: the later send wins.
+    const recovered = approvalMailState([event("ok", 55), event("failed", 50)]);
+    expect(recovered.lastFailure).toBeNull();
+  });
+
+  it("narrows to one portrait, counting the old unkeyed rows for all of them", () => {
+    const events = [event("ok", 37), event("ok", 40, "art-a"), event("ok", 41, "art-b")];
+    expect(approvalMailState(events, "art-a").sentCount).toBe(2);
+    expect(approvalMailState(events, "art-b").sentCount).toBe(2);
+    expect(approvalMailState(events, "art-c").sentCount).toBe(1);
   });
 });

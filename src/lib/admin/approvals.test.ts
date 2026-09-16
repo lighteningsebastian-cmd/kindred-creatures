@@ -2,7 +2,13 @@
 import { describe, it, expect } from "vitest";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { artworks, breedRequests, orderItems, orders } from "@/lib/db/schema";
+import {
+  artworks,
+  breedRequests,
+  fulfillmentEvents,
+  orderItems,
+  orders,
+} from "@/lib/db/schema";
 import { listAwaitingApproval, listBreedRequests } from "./approvals";
 import { approveArtworkById } from "@/lib/artwork-approval";
 import { AUTOMATED_ROUNDS } from "@/lib/revision";
@@ -88,6 +94,50 @@ describe("the approval queue", () => {
 
     const rows = await listAwaitingApproval();
     expect(rows.find((r) => r.artworkId === artworkId)!.needsPerson).toBe(true);
+  });
+
+  it("says a portrait nobody was ever told about was never sent", async () => {
+    // The first real order: drawn, paid, and the customer had heard nothing.
+    const { artworkId } = await seedOrder();
+    const db = await getDb();
+    await db
+      .update(artworks)
+      .set({ frontKey: "plates/f.png", backKey: "plates/b.png" })
+      .where(eq(artworks.id, artworkId));
+
+    const row = (await listAwaitingApproval()).find((r) => r.artworkId === artworkId)!;
+
+    expect(row.drawn).toBe(true);
+    expect(row.approvalMail).toEqual({ sentCount: 0, lastSentAt: null, lastFailure: null });
+  });
+
+  it("carries the mail history for that portrait, and no other order's", async () => {
+    const { orderId, artworkId } = await seedOrder();
+    const other = await seedOrder();
+    const db = await getDb();
+    await db.insert(fulfillmentEvents).values([
+      { orderId, artworkId, step: "artwork-ready", outcome: "ok", detail: "a" },
+      { orderId, artworkId, step: "artwork-ready", outcome: "ok", detail: "b" },
+      // Not the approval mail, so not counted.
+      { orderId, step: "order-confirmation", outcome: "ok", detail: "c" },
+      {
+        orderId: other.orderId,
+        artworkId: other.artworkId,
+        step: "artwork-ready",
+        outcome: "failed",
+        detail: "down",
+      },
+    ]);
+
+    const rows = await listAwaitingApproval();
+    const mine = rows.find((r) => r.artworkId === artworkId)!;
+    const theirs = rows.find((r) => r.artworkId === other.artworkId)!;
+
+    expect(mine.drawn).toBe(false);
+    expect(mine.approvalMail.sentCount).toBe(2);
+    expect(mine.approvalMail.lastFailure).toBeNull();
+    expect(theirs.approvalMail.sentCount).toBe(0);
+    expect(theirs.approvalMail.lastFailure?.detail).toBe("down");
   });
 
   it("approving twice does not move the timestamp", async () => {

@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   markPrintedAction,
   markShippedAction,
+  resendArtworkReadyAction,
   resendJobSheetAction,
   retryFulfillmentAction,
   type ActionState,
@@ -28,12 +29,14 @@ const {
   markPrintedMock,
   markShippedMock,
   resendJobSheetMock,
+  resendArtworkReadyMock,
   retryFulfillmentMock,
 } = vi.hoisted(() => ({
   requireAdminMock: vi.fn(),
   markPrintedMock: vi.fn(),
   markShippedMock: vi.fn(),
   resendJobSheetMock: vi.fn(),
+  resendArtworkReadyMock: vi.fn(),
   retryFulfillmentMock: vi.fn(),
 }));
 
@@ -44,6 +47,7 @@ vi.mock("@/lib/admin/fulfillment-ops", () => ({
 }));
 vi.mock("@/lib/fulfillment", () => ({
   resendJobSheet: resendJobSheetMock,
+  resendArtworkReady: resendArtworkReadyMock,
   retryFulfillment: retryFulfillmentMock,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -67,6 +71,11 @@ beforeEach(() => {
     orderId: ORDER_ID,
     jobSheet: { ok: true, id: "js1" },
   });
+  resendArtworkReadyMock.mockResolvedValue({
+    status: "sent",
+    orderId: ORDER_ID,
+    mails: [{ artworkId: "art-1", result: { ok: true, id: "ar1" } }],
+  });
   retryFulfillmentMock.mockResolvedValue({
     status: "sent_to_printer",
     orderId: ORDER_ID,
@@ -86,6 +95,7 @@ const ACTIONS: [string, (prev: ActionState, data: FormData) => Promise<ActionSta
     ["markPrintedAction", markPrintedAction],
     ["markShippedAction", markShippedAction],
     ["resendJobSheetAction", resendJobSheetAction],
+    ["resendArtworkReadyAction", resendArtworkReadyAction],
     ["retryFulfillmentAction", retryFulfillmentAction],
   ];
 
@@ -101,6 +111,7 @@ describe("auth is enforced on every action", () => {
     expect(markPrintedMock).not.toHaveBeenCalled();
     expect(markShippedMock).not.toHaveBeenCalled();
     expect(resendJobSheetMock).not.toHaveBeenCalled();
+    expect(resendArtworkReadyMock).not.toHaveBeenCalled();
     expect(retryFulfillmentMock).not.toHaveBeenCalled();
   });
 
@@ -115,7 +126,9 @@ describe("auth is enforced on every action", () => {
           ? markShippedMock
           : resendJobSheetMock.mock.calls.length
             ? resendJobSheetMock
-            : retryFulfillmentMock,
+            : resendArtworkReadyMock.mock.calls.length
+              ? resendArtworkReadyMock
+              : retryFulfillmentMock,
     );
   });
 });
@@ -278,5 +291,72 @@ describe("resendJobSheetAction", () => {
 
     expect(state.status).toBe("error");
     expect(state).toHaveProperty("message", expect.stringContaining("not been told"));
+  });
+});
+
+describe("resendArtworkReadyAction", () => {
+  it("confirms a re-send, and says sent is not the same as arrived", async () => {
+    const state = await resendArtworkReadyAction(IDLE, form());
+
+    expect(resendArtworkReadyMock).toHaveBeenCalledWith(ORDER_ID);
+    expect(state.status).toBe("ok");
+    expect(state).toHaveProperty("message", expect.stringContaining("check spam"));
+  });
+
+  it("counts the mails when there was one per portrait", async () => {
+    resendArtworkReadyMock.mockResolvedValue({
+      status: "sent",
+      orderId: ORDER_ID,
+      mails: [
+        { artworkId: "art-1", result: { ok: true, id: "ar1" } },
+        { artworkId: "art-2", result: { ok: true, id: "ar2" } },
+      ],
+    });
+
+    const state = await resendArtworkReadyAction(IDLE, form());
+
+    expect(state).toHaveProperty("message", expect.stringContaining("2 approval emails"));
+  });
+
+  it("says the customer was not told when any one mail fails", async () => {
+    resendArtworkReadyMock.mockResolvedValue({
+      status: "sent",
+      orderId: ORDER_ID,
+      mails: [
+        { artworkId: "art-1", result: { ok: true, id: "ar1" } },
+        { artworkId: "art-2", result: { ok: false, error: new Error("down") } },
+      ],
+    });
+
+    const state = await resendArtworkReadyAction(IDLE, form());
+
+    expect(state.status).toBe("error");
+    expect(state).toHaveProperty("message", expect.stringContaining("not been told"));
+  });
+
+  it("points an undrawn order at retry instead", async () => {
+    resendArtworkReadyMock.mockResolvedValue({
+      status: "refused",
+      orderId: ORDER_ID,
+      reason: "not-drawn",
+    });
+
+    const state = await resendArtworkReadyAction(IDLE, form());
+
+    expect(state.status).toBe("error");
+    expect(state).toHaveProperty("message", expect.stringContaining("Retry fulfilment"));
+  });
+
+  it("explains a stale tab for an order that has moved on", async () => {
+    resendArtworkReadyMock.mockResolvedValue({
+      status: "refused",
+      orderId: ORDER_ID,
+      reason: "wrong-status:sent_to_printer",
+    });
+
+    const state = await resendArtworkReadyAction(IDLE, form());
+
+    expect(state.status).toBe("error");
+    expect(state).toHaveProperty("message", expect.stringContaining("Refresh"));
   });
 });

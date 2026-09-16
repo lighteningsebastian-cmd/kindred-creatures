@@ -46,7 +46,7 @@
  * never unwinds a payment.
  */
 
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { getDb, type Db } from "@/lib/db/client";
 import {
   artworks,
@@ -473,25 +473,17 @@ export async function fulfillPaidOrder(
   );
 
   // The one that matters: without it nobody can approve, and nothing prints.
-  const ready = await sendArtworkReady(
-    order,
-    artworkIds[0]!,
-    await creatureNameFor(db, artworkIds),
-  );
-  await recordOrderEmailSend(orderId, "artwork-ready", order.email, ready);
-  await record(
-    db,
-    orderId,
-    "artwork-ready",
-    ready.ok ? "ok" : "failed",
-    ready.ok ? `awaiting approval (${drawn} drawn)` : ready.error.message,
-  );
+  const mails = await mailApprovalLinks(db, order, artworkIds, {
+    ok: (id) => `awaiting approval (${drawn} drawn): ${id}`,
+    failed: (message) => message,
+  });
+  const ready = mails.find((mail) => !mail.result.ok)?.result ?? mails[0]!.result;
 
   if (!ready.ok) {
     // Loud, and NOT flagged: the plates are safe and the approval link can be
     // re-sent. But until it is, the order is stuck behind a mail nobody got.
     console.error(
-      `[fulfillment] order ${orderRef(orderId)} has artwork but the approval mail did not send. Nobody can approve it. Re-send from the admin queue.`,
+      `[fulfillment] order ${orderRef(orderId)} has artwork but the approval mail did not send. Nobody can approve it. Re-send it from Approvals in the admin.`,
     );
   }
 
@@ -502,6 +494,48 @@ export async function fulfillPaidOrder(
     artworkReady: ready,
     confirmation,
   };
+}
+
+/** One approval mail and what became of it. */
+export type ApprovalMail = { artworkId: string; result: EmailResult };
+
+/**
+ * Mails the approval link for each artwork given, one mail per portrait, and
+ * leaves a breadcrumb and a delivery-ledger row for every one.
+ *
+ * ONE PER PORTRAIT, NOT ONE PER ORDER. Every upload is its own artwork, so a
+ * hoodie and a tee of the same dog are two drawings, and releaseApprovedOrder
+ * waits for both. This used to mail only the first, which left any
+ * two-portrait order unable to reach the press without an admin.
+ *
+ * Serial, for the same reason the print files are: a burst of sends is how a
+ * provider's per-second limit turns one order into a failure.
+ */
+async function mailApprovalLinks(
+  db: Db,
+  order: Order,
+  artworkIds: string[],
+  detail: { ok: (id: string) => string; failed: (message: string) => string },
+): Promise<ApprovalMail[]> {
+  const mails: ApprovalMail[] = [];
+  for (const artworkId of artworkIds) {
+    const result = await sendArtworkReady(
+      order,
+      artworkId,
+      await creatureNameFor(db, [artworkId]),
+    );
+    await recordOrderEmailSend(order.id, "artwork-ready", order.email, result);
+    await record(
+      db,
+      order.id,
+      "artwork-ready",
+      result.ok ? "ok" : "failed",
+      result.ok ? detail.ok(result.id) : detail.failed(result.error.message),
+      artworkId,
+    );
+    mails.push({ artworkId, result });
+  }
+  return mails;
 }
 
 /**
@@ -706,6 +740,99 @@ export async function resendJobSheet(
   }
 
   return { status: "sent", orderId, jobSheet };
+}
+
+/** What an approval re-send did. Same shape of honesty as the job sheet's. */
+export type ArtworkReadyResendResult =
+  | { status: "sent"; orderId: string; mails: ApprovalMail[] }
+  | { status: "refused"; orderId: string; reason: string };
+
+/**
+ * Sends the approval link again for an order that is drawn and waiting on the
+ * customer.
+ *
+ * WHY THIS IS HERE, for the reason resendJobSheet is: every other mail to a
+ * customer about an order leaves a fulfillment_events row behind, and the
+ * timeline is the only answer to "has this customer ever been told their
+ * portrait is ready?". A re-send that reached past this module would be the
+ * one approval mail in the order's history with no breadcrumb, which is
+ * precisely the one somebody will later need to find.
+ *
+ * WHY IT MATTERS MORE THAN ANY OTHER RE-SEND. This is the mail without which
+ * nothing else happens. Until it arrives the customer cannot approve, the
+ * order cannot print, and the customer has heard nothing since paying.
+ *
+ * IT DRAWS NOTHING. The plates exist or this refuses: an approval link for
+ * artwork that does not exist is worse than silence, and the fix for an
+ * undrawn order is a retry, not a re-send. It sends no receipt either, since
+ * the payment has not happened again.
+ *
+ * It asks only about portraits nobody has approved, and refuses when that is
+ * none of them: that order is waiting on a release, not on the customer.
+ *
+ * It does not change the order's status. A re-send is a message about an
+ * order, not a step in it.
+ *
+ * @param orderId the order whose approval mail should go again.
+ * @returns one result per mail sent, or a refusal. Never throws for an
+ * expected failure.
+ */
+export async function resendArtworkReady(
+  orderId: string,
+): Promise<ArtworkReadyResendResult> {
+  const db = await getDb();
+  const order = await loadOrder(db, orderId);
+
+  if (!order) return { status: "refused", orderId, reason: "order-not-found" };
+
+  // Paid is the only state with a customer to ask. Pending has not paid,
+  // flagged needs a retry first, and anything further along was approved.
+  if (order.status !== "paid") {
+    return { status: "refused", orderId, reason: `wrong-status:${order.status}` };
+  }
+
+  const items = await db
+    .select()
+    .from(orderItems)
+    .where(eq(orderItems.orderId, orderId));
+
+  if (items.length === 0) {
+    return { status: "refused", orderId, reason: "no-lines" };
+  }
+
+  const artworkIds = [...new Set(items.map((item) => item.artworkId))];
+  const rows = await db
+    .select()
+    .from(artworks)
+    .where(inArray(artworks.id, artworkIds));
+  const byId = new Map(rows.map((row) => [row.id, row]));
+
+  // Every portrait, not just the ones being asked about: a link that opens one
+  // drawn plate while its sibling is still missing is an order that cannot
+  // release however the customer answers.
+  const drawn = artworkIds.every((id) => {
+    const artwork = byId.get(id);
+    return Boolean(artwork?.frontKey && artwork.backKey);
+  });
+  if (!drawn) return { status: "refused", orderId, reason: "not-drawn" };
+
+  const waiting = artworkIds.filter((id) => !byId.get(id)?.approvedAt);
+  if (waiting.length === 0) {
+    return { status: "refused", orderId, reason: "already-approved" };
+  }
+
+  const mails = await mailApprovalLinks(db, order, waiting, {
+    ok: (id) => `re-sent: ${id}`,
+    failed: (message) => `re-send failed: ${message}`,
+  });
+
+  if (mails.some((mail) => !mail.result.ok)) {
+    console.error(
+      `[fulfillment] order ${orderRef(orderId)}: approval mail re-send failed. The customer has still NOT been told their portrait is ready.`,
+    );
+  }
+
+  return { status: "sent", orderId, mails };
 }
 
 /**

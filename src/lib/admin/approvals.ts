@@ -1,8 +1,15 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { artworks, breedRequests, orderItems, orders } from "@/lib/db/schema";
+import {
+  artworks,
+  breedRequests,
+  fulfillmentEvents,
+  orderItems,
+  orders,
+} from "@/lib/db/schema";
 import { readRevisions, type RevisionEntry } from "@/lib/artwork-approval";
 import { needsHuman } from "@/lib/revision";
+import { approvalMailState, type ApprovalMailState } from "./orders";
 
 /**
  * The one screen the owner needs: what is waiting on somebody.
@@ -34,6 +41,13 @@ export interface AwaitingRow {
   needsPerson: boolean;
   personalContactAt: Date | null;
   createdAt: Date;
+  /** Both plates exist. Until they do there is no link worth sending. */
+  drawn: boolean;
+  /**
+   * Whether this customer has ever been told the portrait is ready. The
+   * question this screen exists to answer when an order has gone quiet.
+   */
+  approvalMail: ApprovalMailState;
 }
 
 /**
@@ -52,6 +66,20 @@ export async function listAwaitingApproval(): Promise<AwaitingRow[]> {
     // Unpaid orders are not waiting on anybody: they are waiting on a payment.
     .where(and(isNull(artworks.approvedAt), eq(orders.status, "paid")))
     .orderBy(desc(artworks.revisionCount), artworks.createdAt);
+
+  // One read for the whole queue's mail history, not one per row.
+  const orderIds = [...new Set(rows.map(({ order }) => order.id))];
+  const trail = orderIds.length
+    ? await db
+        .select()
+        .from(fulfillmentEvents)
+        .where(
+          and(
+            inArray(fulfillmentEvents.orderId, orderIds),
+            eq(fulfillmentEvents.step, "artwork-ready"),
+          ),
+        )
+    : [];
 
   const seen = new Set<string>();
   const out: AwaitingRow[] = [];
@@ -74,6 +102,11 @@ export async function listAwaitingApproval(): Promise<AwaitingRow[]> {
         needsHuman(artwork.revisionCount) || artwork.personalContactAt !== null,
       personalContactAt: artwork.personalContactAt,
       createdAt: artwork.createdAt,
+      drawn: Boolean(artwork.frontKey && artwork.backKey),
+      approvalMail: approvalMailState(
+        trail.filter((event) => event.orderId === order.id),
+        artwork.id,
+      ),
     });
   }
   return out;

@@ -10,8 +10,10 @@ import {
 } from "@/lib/artwork-approval";
 import {
   releaseApprovedOrder,
+  resendArtworkReady,
   resendJobSheet,
   retryFulfillment,
+  type ArtworkReadyResendResult,
   type FulfillmentResult,
   type JobSheetResendResult,
 } from "@/lib/fulfillment";
@@ -125,6 +127,62 @@ export async function resendJobSheetAction(
   }
 
   return { status: "ok", message: "Job sheet sent to the print shop again." };
+}
+
+/** Why an approval re-send was refused, said the way the owner needs it. */
+const APPROVAL_RESEND_REFUSAL: Record<string, string> = {
+  "not-drawn":
+    "The portrait has not been drawn yet, so there is no link worth sending. Retry fulfilment from the order page instead.",
+  "already-approved":
+    "Every portrait on this order is already approved. It needs releasing to print, not another email.",
+  "no-lines": "This order has no lines, so there is nothing to approve.",
+};
+
+/**
+ * The approval mail, again. The one re-send that unsticks an order: until the
+ * customer has this link nobody can approve, and nothing prints.
+ */
+export async function resendArtworkReadyAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireAdmin();
+
+  const orderId = String(formData.get("orderId") ?? "");
+  const result: ArtworkReadyResendResult = await resendArtworkReady(orderId);
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/approvals");
+
+  if (result.status === "refused") {
+    const reason = result.reason.startsWith("wrong-status:")
+      ? "wrong-status"
+      : result.reason;
+    return {
+      status: "error",
+      message:
+        APPROVAL_RESEND_REFUSAL[reason] ?? REFUSAL[reason] ?? `Refused: ${result.reason}`,
+    };
+  }
+
+  if (result.mails.some((mail) => !mail.result.ok)) {
+    return {
+      status: "error",
+      message:
+        "The approval email did not send. The customer has still not been told. Phone them if it fails again.",
+    };
+  }
+
+  // "Sent" is what the provider told us, not what the inbox did. Saying so here is
+  // what stops the owner treating a second silent send as a fix.
+  const count = result.mails.length;
+  return {
+    status: "ok",
+    message:
+      count === 1
+        ? "Approval email sent again. Our mail provider accepted it; if it still does not arrive, check spam, then phone them."
+        : `${count} approval emails sent again, one per portrait. Our mail provider accepted them; if they still do not arrive, check spam, then phone them.`,
+  };
 }
 
 /**

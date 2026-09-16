@@ -223,12 +223,17 @@ export async function getAdminOrder(
   const lines = await Promise.all(
     items.map(async (item) => {
       const artwork = byId.get(item.artworkId) ?? null;
+      // The front plate, since generation moved after payment: previewKey was
+      // the pre-payment preview and nothing has written it since, which left
+      // every new order reading "No art" beside a portrait that exists. Same
+      // resolution order as the customer's creature cards.
+      const artKey = artwork?.frontKey ?? artwork?.previewKey ?? null;
       return {
         ...item,
         productName: getProduct(item.productSlug)?.name ?? item.productSlug,
         artwork,
-        previewUrl: artwork?.previewKey
-          ? await storage.getSignedUrl(artwork.previewKey, ADMIN_LINK_TTL_SEC)
+        previewUrl: artKey
+          ? await storage.getSignedUrl(artKey, ADMIN_LINK_TTL_SEC)
           : null,
         // The print file is per garment now (retention B3): its key lives on the
         // order_item, not the artwork. A line with none is not yet printed.
@@ -253,4 +258,74 @@ export async function getAdminOrder(
 /** True when every line has a print file, which is what a re-send needs. */
 export function hasPrintFiles(lines: AdminOrderLine[]): boolean {
   return lines.length > 0 && lines.every((line) => !!line.printUrl);
+}
+
+/**
+ * True when the order is paid, every portrait on it is drawn, and at least one
+ * is still waiting on the customer: the state the approval mail is about.
+ *
+ * It is what separates "fulfilment has not run" from "fulfilment ran and the
+ * customer has not answered", which the concern alone cannot tell apart and
+ * which want different buttons. Retrying the second kind redraws nothing but
+ * sends the receipt again; what it actually needs is the approval link.
+ */
+export function isAwaitingApproval(
+  order: Pick<Order, "status">,
+  lines: Pick<AdminOrderLine, "artwork">[],
+): boolean {
+  if (order.status !== "paid" || lines.length === 0) return false;
+  const drawn = lines.every(
+    (line) => !!line.artwork?.frontKey && !!line.artwork.backKey,
+  );
+  return drawn && lines.some((line) => !line.artwork?.approvedAt);
+}
+
+/**
+ * Whether the customer has ever been told their portrait is ready, read from
+ * the fulfilment trail rather than guessed from the order's status.
+ *
+ * "Sent" here means the mail provider took the message and gave it an id. It
+ * does NOT mean it arrived: that is what the delivery panel's Resend events
+ * are for, and the first real order was exactly the case where the two
+ * differed.
+ */
+export type ApprovalMailState = {
+  /** Sends the provider accepted. Zero means the customer was never asked. */
+  sentCount: number;
+  lastSentAt: Date | null;
+  /** Set when the most recent attempt failed, with the provider's reason. */
+  lastFailure: { at: Date; detail: string | null } | null;
+};
+
+/**
+ * @param events the order's fulfilment trail, in any order.
+ * @param artworkId narrow to one portrait. Rows written before approval mails
+ * were keyed per portrait carry no artwork id, and count for every portrait on
+ * the order, since that is who they were about.
+ */
+export function approvalMailState(
+  events: Pick<FulfillmentEvent, "step" | "outcome" | "detail" | "artworkId" | "createdAt">[],
+  artworkId?: string,
+): ApprovalMailState {
+  const mails = events
+    .filter(
+      (event) =>
+        event.step === "artwork-ready" &&
+        (artworkId === undefined ||
+          event.artworkId === null ||
+          event.artworkId === artworkId),
+    )
+    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+  const sent = mails.filter((event) => event.outcome === "ok");
+  const latest = mails.at(-1);
+
+  return {
+    sentCount: sent.length,
+    lastSentAt: sent.at(-1)?.createdAt ?? null,
+    lastFailure:
+      latest?.outcome === "failed"
+        ? { at: latest.createdAt, detail: latest.detail }
+        : null,
+  };
 }
