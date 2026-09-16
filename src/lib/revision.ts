@@ -6,8 +6,8 @@ import { REVISION_ADJUSTMENT } from "@/lib/images/prompts";
  * THE BOUNDARY THIS FILE EXISTS TO HOLD: three things influence what the model
  * draws, and this file owns two of them. The photograph. A chip id from the
  * closed set below, bound to a sentence we wrote in prompts.ts. And, since 14
- * August, the answer to one named question — "what is one thing about them that
- * really stands out?" — which is sanitised by lib/standout.ts and reaches the
+ * August, the answer to one named question ("what is one thing about them that
+ * really stands out?"), which is sanitised by lib/standout.ts and reaches the
  * model as a pointer at the photograph rather than a description of the animal.
  * See docs/spec-standout-detail.md.
  *

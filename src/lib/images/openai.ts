@@ -233,7 +233,7 @@ export class OpenAIImageProvider implements ImageProvider {
       // says "that detail is in the photograph: find it there", which is the
       // whole reason it is safe to send customer-written words at all. On a
       // reference-only generation there is no photograph to find it in, and the
-      // sentence would become a description of an animal we are inventing —
+      // sentence would become a description of an animal we are inventing,
       // exactly the failure the pointer framing exists to prevent. Same
       // conditional logic as REFERENCE, for the same kind of reason.
       prompt: buildPortraitPrompt(

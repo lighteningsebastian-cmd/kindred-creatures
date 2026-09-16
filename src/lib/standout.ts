@@ -3,7 +3,7 @@ import { STANDOUT_LEAD, STANDOUT_TAIL } from "@/lib/images/prompts";
 /**
  * The one question whose answer reaches the model.
  *
- * "What is one thing about them that really stands out?" — and what they type
+ * "What is one thing about them that really stands out?", and what they type
  * is quoted into the prompt. Every other free-text field in this system goes to
  * a person and always will (docs/spec-pipeline.md section 6). This file is the
  * fence around that single exception.
@@ -15,7 +15,7 @@ import { STANDOUT_LEAD, STANDOUT_TAIL } from "@/lib/images/prompts";
  * SANITISING HAPPENS ON THE WAY OUT, not on the way in. What gets stored is
  * what the customer actually wrote, because the person reading the job sheet
  * needs to see that, not a laundered version of it. The filter runs when the
- * prompt is built — exactly as adjustmentsFor filters chip ids at the same
+ * prompt is built, exactly as adjustmentsFor filters chip ids at the same
  * moment and for the same reason.
  *
  * WHAT ACTUALLY STANDS BETWEEN A BAD SENTENCE AND A PRINTED GARMENT is not this
@@ -39,7 +39,7 @@ export const STANDOUT_MAX = 140;
  *
  * An allowlist rather than a blocklist, deliberately: the set of characters a
  * sentence about a dog needs is small and knowable, and the set somebody might
- * use to reshape a prompt is not. Colons and semicolons are absent on purpose —
+ * use to reshape a prompt is not. Colons and semicolons are absent on purpose:
  * they are how a list of instructions is introduced, and no answer to this
  * question needs one.
  */

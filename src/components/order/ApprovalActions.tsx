@@ -180,7 +180,7 @@ export function ApprovalActions({
             the note rather than below it so the difference between the two is
             visible: this one changes the drawing, the note below reaches a
             person. Somebody whose detail was misread can reword it here, which
-            is the entire reason for letting them say it in the first place —
+            is the entire reason for letting them say it in the first place:
             without this, their only recourse would be writing it in the note
             and hoping somebody acted on it.
           */}

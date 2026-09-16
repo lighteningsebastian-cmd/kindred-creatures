@@ -13,7 +13,7 @@ import { PRODUCTS, fromPriceZar, formatZar } from "@/lib/products";
  *
  * Two problems with one cause killed it. The tiles asked for landscape boxes
  * and every garment photograph is portrait, so the inner box shrank to fit the
- * height and left 47% of a lead tile as bare parchment — 64% of the grid used,
+ * height and left 47% of a lead tile as bare parchment, 64% of the grid used,
  * on average. And once the dots started cycling COLOURWAYS rather than views,
  * the shoot's inconsistency became visible: the tee's White is portrait at
  * 0.832 and its Heritage Blue and Olive are landscape at 1.26, so the garment
@@ -23,7 +23,7 @@ import { PRODUCTS, fromPriceZar, formatZar } from "@/lib/products";
  * about equally: the tee's jump falls from 29 points to 4, and the grid's
  * average usage rises to 83%. A two-column square would be twice the height of
  * a one-column square, so the old spans could not survive alongside it. Calmer
- * and more catalogue-like, less editorial — and it reads correctly against this
+ * and more catalogue-like, less editorial, and it reads correctly against this
  * section's own headline. Owner decision, 18 August.
  */
 export function ProductRange() {

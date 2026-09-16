@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 /**
  * "Are we past hydration yet." The server snapshot is false and the client
  * snapshot is true, which is exactly the question, and the answer never
- * changes afterwards — so subscribe is a no-op rather than a real
+ * changes afterwards, so subscribe is a no-op rather than a real
  * subscription.
  */
 const subscribe = () => () => {};
@@ -42,8 +42,8 @@ export function Reveal({
    *
    * useReducedMotion() answers null on the server and true in a browser with
    * Reduce Motion switched on. Branching on it during the FIRST render
-   * therefore made the server send the animated markup — opacity:0, waiting to
-   * be scrolled into view — while the client rendered the static one. React
+   * therefore made the server send the animated markup (opacity:0, waiting to
+   * be scrolled into view) while the client rendered the static one. React
    * does not patch up style mismatches during hydration; it says so in the
    * warning. So the server's `opacity: 0` stayed on the element while the
    * client sat on the branch that never animates anything, and every Reveal on

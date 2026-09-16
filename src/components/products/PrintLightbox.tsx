@@ -13,7 +13,7 @@ import type { ProductSlug } from "@/lib/products";
  *
  * FRAMES THE PLATE, NOT THE PHOTOGRAPH, and that is the whole design. A modal
  * showing the whole hoodie at 92% of screen height puts the chest badge at
- * about 105px, against the 67px it already is on the card — all this machinery
+ * about 105px, against the 67px it already is on the card, all this machinery
  * bought for 1.6x, still unreadable. The scale and the origin both come from
  * lib/print-zoom.ts; see the note there for why one constant serves both sides
  * and every screen size.
@@ -55,7 +55,7 @@ export function PrintLightbox({
    * point of the landscape frame. The photo keeps its own shape and is height
    * constrained inside the box, so at 88vh on a 1280x800 screen an 845-wide
    * box holds a 563-wide photograph. Handing zoomScale the box's width instead
-   * renders the print at 41% of the lightbox when 62% was asked for — which is
+   * renders the print at 41% of the lightbox when 62% was asked for, which is
    * what shipped for about ten minutes before the browser said otherwise.
    */
   const photoWidth = Math.min(box.width, box.height * shot.aspect);
@@ -157,8 +157,8 @@ export function PrintLightbox({
 
           THE ORIGIN IS A PERCENTAGE OF THE PHOTOGRAPH, so it has to be set on
           the photograph. Setting it on a wrapper that fills the box instead
-          measures those percentages against the wrong width — the photo is 563
-          wide in an 845 box — and the error is then multiplied by the scale.
+          measures those percentages against the wrong width (the photo is 563
+          wide in an 845 box), and the error is then multiplied by the scale.
           At 5.97x it framed the drawstring instead of the badge.
 
           Left and top place the print's centre on the box's centre; the origin

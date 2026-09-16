@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/Button";
  * its frame is 5/4 and nothing is cropped; the folded hoodie is square, so its
  * frame is 1/1. The earlier 9/11 brief was written before the shoot came back
  * landscape, and forcing this frame back to it would cut a third of the width
- * off — either the dog's face on the left or the printed portrait on the right,
+ * off, either the dog's face on the left or the printed portrait on the right,
  * which is the one thing the picture is there to prove.
  */
 export function Hero() {
@@ -49,7 +49,7 @@ export function Hero() {
 
         <div className="relative mx-auto w-full max-w-md md:mx-0 md:ml-auto">
           {/* The LCP element on the home page: preloaded, and the only image
-              here that is. `preload`, not `priority` — Next 16 deprecated the
+              here that is. `preload`, not `priority`: Next 16 deprecated the
               latter (see the image guide in node_modules/next/dist/docs/). */}
           <HeroFrame
             src="/hero/dog-hoodie-lifestyle.webp"

@@ -135,7 +135,7 @@ const PHOTO_SIZE: Record<string, { w: number; h: number }> = {
 /**
  * Fallback shape for a colourway or view with no photograph behind it.
  *
- * Nothing in the catalogue reaches this today — the tote, which used to be the
+ * Nothing in the catalogue reaches this today; the tote, which used to be the
  * example here, is photographed. It stays because `unphotographedColours` only
  * catches a missing COLOURWAY, and a colourway whose photograph exists in one
  * view but not another would otherwise letterbox silently.
@@ -214,7 +214,7 @@ export const PLACEMENT: Record<
    * is the honest reading rather than a mistake. products.ts declares the
    * tote's back print 260 by 300mm, copied from the garment plates while the
    * tote was deferred. Drawn to that scale on a bag this shape it would cover
-   * the handle stitching and run into the bottom seam — 300mm of print down a
+   * the handle stitching and run into the bottom seam: 300mm of print down a
    * panel around 340mm tall is not a layout anyone would print. So the width
    * here is what sits correctly on the bag, and the gap between the two is the
    * evidence that the tote's print area still needs an owner decision. Once it
@@ -268,7 +268,7 @@ const PHOTOS: Record<ProductSlug, Record<string, PhotoChoice>> = {
   /*
    * THE CATALOGUE CALLS IT NATURAL AND THE SHOOT CALLS IT BEIGE. Same undyed
    * canvas, two names, and this map is the one place designed to reconcile
-   * them — which is why the directory keeps the shoot's word rather than the
+   * them, which is why the directory keeps the shoot's word rather than the
    * script quietly renaming the file on import. Someone grepping for "beige"
    * after looking at Stock Images finds it.
    *
@@ -293,8 +293,8 @@ export function garmentPhoto(
 /**
  * The public path to a garment photograph, or null where there is none.
  *
- * Null is still a real answer — every colourway in the catalogue is
- * photographed today, but one added ahead of its shoot would land here — and
+ * Null is still a real answer: every colourway in the catalogue is
+ * photographed today, but one added ahead of its shoot would land here, and
  * callers must render something sensible rather than an empty image element.
  */
 export function garmentImageUrl(

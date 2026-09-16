@@ -265,7 +265,7 @@ export async function saveArtworkDetails(
  * SEPARATE FROM saveArtworkDetails on purpose. That action writes the companion
  * profile, which is everything the plate PRINTS, and it refuses an incomplete
  * one. This is an instruction, not a record, it is asked at a different moment
- * in the flow, and it is optional — folding it into a call that can be rejected
+ * in the flow, and it is optional; folding it into a call that can be rejected
  * for an unrelated missing field would lose it silently.
  *
  * Stored exactly as typed. The filtering that matters happens in lib/standout.ts

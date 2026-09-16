@@ -34,8 +34,8 @@ export interface Shot {
   /**
    * The PLATE's own shape, which is neither the photograph's nor a constant.
    * Null wherever `plateUrl` is null. The zoom origin cannot be found without
-   * it: a plate is placed by width alone, so its height — and therefore its
-   * centre — has to be recovered from both shapes. See lib/print-zoom.ts.
+   * it: a plate is placed by width alone, so its height (and therefore its
+   * centre) has to be recovered from both shapes. See lib/print-zoom.ts.
    */
   plateAspect: number | null;
   /** The photograph's real width in pixels, for the zoom ceiling. */
@@ -62,7 +62,7 @@ export interface Shot {
  * and Olive shots are landscape, so leading with one would drop a wide garment
  * into a grid of tall ones. And the parchment lift: the white studio background
  * is dropped out with `mix-blend-mode: multiply`, which tints a white garment
- * toward cream — least flattering on exactly the colourway the flow starts on.
+ * toward cream, least flattering on exactly the colourway the flow starts on.
  *
  * The hoodie's Blue is also the shot in the owner's own mockup.
  */
@@ -73,7 +73,7 @@ const HERO: Partial<Record<ProductSlug, string>> = {
   // Not a choice: the tote comes in one colourway. It is SQUARE rather than
   // portrait, which the shape argument above would otherwise argue against,
   // but a 1:1 tile among 0.80s is far less jarring than the tee's landscape
-  // shots would be — and there is no alternative to lead with.
+  // shots would be, and there is no alternative to lead with.
   tote: "Natural",
 };
 
@@ -88,7 +88,7 @@ export function heroColour(slug: ProductSlug): string | null {
  * a broken frame. `worn` is in GARMENT_VIEWS and in nobody's list here: there
  * is no on-model photography in the repo yet. When it arrives, drop the files
  * at public/garments/<product>/<colourway>/worn.webp and add "worn" to the
- * lines below — that is the entire change.
+ * lines below; that is the entire change.
  *
  * A manifest rather than a filesystem probe because a server component cannot
  * stat a file on the edge, and a missing image should fail in review rather
@@ -109,7 +109,7 @@ const VIEWS: Record<ProductSlug, GarmentView[]> = {
    * GarmentShots.tsx cannot use: it drops the background with
    * `mix-blend-mode: multiply`, and multiply over parchment only disappears a
    * background that is already near-white. Measured, the difference is not
-   * subtle — a garment's 254 background lands within 1 of the parchment it sits
+   * subtle: a garment's 254 background lands within 1 of the parchment it sits
    * on, while the tote's grey came out around 40% darker than it, a muddy brown
    * card. It was held out of the cards for exactly one commit, and the owner
    * supplied a white-background reshoot on 11 September.
@@ -187,7 +187,7 @@ const PLATE_SHAPE: Record<string, number> = {
   "/demo/plate-back-hoodie.png": 900 / 1125,
   "/demo/plate-back-crewneck.png": 900 / 1125,
   "/demo/plate-back-tee.png": 900 / 1080,
-  // 260 by 300mm, which is a fourth shape again — neither the hoodie and
+  // 260 by 300mm, which is a fourth shape again, neither the hoodie and
   // crewneck's 280 by 350 nor the tee's 250 by 300.
   "/demo/plate-back-tote.png": 900 / 1038,
 };
@@ -239,7 +239,7 @@ export function catalogueShots(slug: ProductSlug): Shot[] {
  * functions rather than one with a surface flag, because they answer two
  * different questions and only happen to share a shot shape.
  *
- * BACK ONLY. The chest badge renders at 19 to 37px in a home tile — a control
+ * BACK ONLY. The chest badge renders at 19 to 37px in a home tile, a control
  * promising something it cannot show. Owner decision, 18 August.
  *
  * Both lists start on the hero colourway; the note over HERO explains why that
@@ -249,7 +249,7 @@ export function catalogueShots(slug: ProductSlug): Shot[] {
  * IT ASKS VIEWS THE SAME QUESTION catalogueShots DOES, and that is load-bearing
  * rather than symmetry for its own sake. This function reaches straight for the
  * back shot of every colourway, so for most of its life it never consulted the
- * manifest at all — which meant the day the tote's photograph landed on disk,
+ * manifest at all, which meant the day the tote's photograph landed on disk,
  * the home page started rendering it while the shop card correctly did not.
  * VIEWS is documented above as the whole of the availability question; a second
  * function answering that question its own way is how the two surfaces drift.

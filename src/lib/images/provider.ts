@@ -92,7 +92,7 @@ export interface ImageProvider {
      * Passed raw on purpose: implementations sanitise it themselves through
      * lib/standout.ts, so no caller can hand these words to a model without the
      * filter running. It is a pointer at the photograph, never a description of
-     * the animal — read section 2 of that spec before touching the wording.
+     * the animal. Read section 2 of that spec before touching the wording.
      */
     standoutDetail?: string | null;
     /**

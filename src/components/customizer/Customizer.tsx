@@ -258,7 +258,7 @@ export function Customizer({
       {/*
         ASKED ONLY ONCE THE PHOTOGRAPH IS IN, and that is the whole reason it
         lives on this screen rather than up in the profile questions. The answer
-        is a pointer at that photograph — "look at the ears" — so asking before
+        is a pointer at that photograph ("look at the ears"), so asking before
         there is a photograph to point at makes somebody describe a picture they
         have not chosen yet, and the answer we would get back would be a
         description instead. See docs/spec-standout-detail.md sections 2 and 6.

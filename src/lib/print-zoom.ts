@@ -5,7 +5,7 @@ import type { PlatePlacement } from "@/lib/garments";
  *
  * THE OBVIOUS LIGHTBOX DOES NOT WORK, and this module exists because of it. A
  * modal showing the whole hoodie at 92% of screen height puts the chest badge
- * at about 105px — against the 67px it already is on a shop card. That is a
+ * at about 105px, against the 67px it already is on a shop card. That is a
  * focus trap, an escape handler and a scroll lock bought for 1.6x, still
  * unreadable. The badge is 13% of the garment's width; no amount of showing
  * more garment fixes that. So the zoom frames the PLATE, and everything here
@@ -71,7 +71,7 @@ export function plateCentre(
  * A FRACTION OF THE BOX, NOT A FIXED MULTIPLIER. That single choice is what
  * lets one constant serve both sides and every screen. The chest badge is 13%
  * of the garment's width and the back plate is 46%, so the same target asks
- * for 4.8x of one and 1.35x of the other with no special case — clicking the
+ * for 4.8x of one and 1.35x of the other with no special case: clicking the
  * back opens something close to the whole garment and clicking the front opens
  * tight on the chest, and that falls out of the arithmetic rather than an `if`.
  *

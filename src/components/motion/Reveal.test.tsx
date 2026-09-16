@@ -13,7 +13,7 @@ import { Reveal } from "./Reveal";
  * view while the client rendered the static, unanimated element. React does
  * not patch up style mismatches during hydration, so the zero opacity stayed
  * on the element with nothing left that would ever raise it: the entire home
- * page below the hero, and the entire shop, rendered blank — for exactly the
+ * page below the hero, and the entire shop, rendered blank, for exactly the
  * people who had asked for less motion.
  *
  * A client-only render cannot catch this. It takes a real server render

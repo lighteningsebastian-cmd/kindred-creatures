@@ -83,7 +83,7 @@ describe("garment photography", () => {
     // `if (!url) continue`, because not every garment has a fleece or profile
     // shot. That guard is also a trapdoor: a `garmentViewUrl` that stopped
     // resolving anything would make every iteration `continue`, and this test
-    // would pass having executed zero assertions. It did — a reviewer stubbed
+    // would pass having executed zero assertions. It did: a reviewer stubbed
     // `garmentViewUrl` to always return null and all tests here stayed green.
     // Asserting the count catches that, and also catches a photograph
     // silently disappearing from disk while PHOTO_SHAPE still lists it. 33 is

@@ -235,7 +235,7 @@ export function GarmentShots({
               }}
               className={cn(
                 // THE DOT IS 6px TALL; THE BUTTON MUST NOT BE. These dots are
-                // the touch affordance — hover is not something a phone has —
+                // the touch affordance (hover is not something a phone has),
                 // and a 6px target is a control only a mouse can use. The
                 // padding is the hit area, the span is the thing you see.
                 "group/dot flex items-center justify-center rounded-full px-1 py-3",
@@ -252,7 +252,7 @@ export function GarmentShots({
                   //
                   // Selection is a RING rather than a fill change, because
                   // changing the fill would mean the control no longer shows
-                  // the colour it selects — and on White or Grey there is no
+                  // the colour it selects, and on White or Grey there is no
                   // darker fill available that still reads as that colour.
                   style={{ backgroundColor: option.swatchHex }}
                   className={cn(
