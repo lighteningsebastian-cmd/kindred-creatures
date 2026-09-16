@@ -2,11 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
 import { ApprovalActions } from "@/components/order/ApprovalActions";
-import {
-  artworkForApproval,
-  profileFromArtwork,
-} from "@/lib/artwork-approval";
-import { backPlate, frontPlate } from "@/lib/print/plate";
+import { artworkForApproval } from "@/lib/artwork-approval";
 import { getProduct } from "@/lib/products";
 import { getStorage } from "@/lib/storage";
 import { approveAction, reviseAction } from "./actions";
@@ -23,12 +19,8 @@ export const metadata: Metadata = {
 
 type ApprovePageProps = { params: Promise<{ token: string }> };
 
-const BACK_W = 900;
-const FRONT_PX = 600;
-
-function dataUrl(svg: string): string {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
+/** Same lease the account and admin screens give an artwork link. */
+const PLATE_LINK_TTL_SEC = 60 * 60;
 
 /**
  * "Here they are."
@@ -36,6 +28,19 @@ function dataUrl(svg: string): string {
  * The page the whole promise rests on: nothing is printed until the person who
  * ordered it has looked at it and said yes. Holding this link authorises one
  * approval and nothing else, and it never signs anyone in.
+ *
+ * NOTHING IS COMPOSITED HERE. `frontKey` and `backKey` are the finished plates:
+ * `drawArtworkPlates` set the type and the portrait together, once, and stored
+ * those bytes, and the print file is a resize of the back one. This page used
+ * to typeset a fresh plate and drop the stored FRONT plate into its portrait
+ * window on both sides, so the customer approved two names, two arcs and a
+ * colour face where the graphite profile belongs, and never saw the back that
+ * prints (docs/spec-first-real-order-16-sep.md section 0). Showing the stored
+ * bytes is the only way what they approve can be what we print.
+ *
+ * A missing plate is "not ready yet". It is never a reason to draw or compose
+ * something else in its place, and there is nothing to approve until both are
+ * here.
  */
 export default async function ApprovePage({ params }: ApprovePageProps) {
   const { token } = await params;
@@ -44,25 +49,19 @@ export default async function ApprovePage({ params }: ApprovePageProps) {
   // is the point: the page must not tell anyone which of those they hit.
   if (!artwork) notFound();
 
-  const profile = profileFromArtwork(artwork);
+  // The boxes are the print areas' own shapes, which are the shapes the plates
+  // were composed at, so the plate fills its box with nothing cropped.
   const product = getProduct(artwork.productSlug);
   const backArea = product?.printArea.back ?? { widthMm: 280, heightMm: 350 };
-  const backH = Math.round((BACK_W * backArea.heightMm) / backArea.widthMm);
-
-  // The front is its own shape now, 110 by 150mm, not the square it was drawn
-  // as before the owner's measurements arrived.
   const frontArea = product?.printArea.front ?? { widthMm: 110, heightMm: 150 };
-  const frontH = Math.round((FRONT_PX * frontArea.heightMm) / frontArea.widthMm);
 
-  const back = backPlate(profile, null, BACK_W, backH);
-  const front = frontPlate(profile, FRONT_PX, frontH);
-
-  // The portrait itself. frontKey and backKey are written once generation moves
-  // after payment; until then the canonical portrait stands in for both sides.
-  const portraitKey = artwork.frontKey ?? artwork.canonicalKey;
-  const portraitUrl = portraitKey
-    ? await getStorage().getSignedUrl(portraitKey, 3600)
-    : null;
+  const storage = getStorage();
+  const [backUrl, frontUrl] = await Promise.all(
+    [artwork.backKey, artwork.frontKey].map((key) =>
+      key ? storage.getSignedUrl(key, PLATE_LINK_TTL_SEC) : null,
+    ),
+  );
+  const ready = Boolean(backUrl && frontUrl);
 
   const name = artwork.creatureName?.trim();
 
@@ -85,38 +84,29 @@ export default async function ApprovePage({ params }: ApprovePageProps) {
 
         <div className="grid gap-8 sm:grid-cols-[2fr_1fr] sm:items-start">
           {[
-            { plate: back, label: "Back", aspect: `${backArea.widthMm} / ${backArea.heightMm}` },
-            {
-              plate: front,
-              label: "Left chest",
-              aspect: `${frontArea.widthMm} / ${frontArea.heightMm}`,
-            },
-          ].map(({ plate, label, aspect }) => (
+            { url: backUrl, label: "Back", area: backArea },
+            { url: frontUrl, label: "Left chest", area: frontArea },
+          ].map(({ url, label, area }) => (
             <figure key={label} className="flex flex-col gap-2">
               <div
                 className="relative w-full overflow-hidden rounded-md border border-line bg-surface"
-                style={{ aspectRatio: aspect }}
+                style={{ aspectRatio: `${area.widthMm} / ${area.heightMm}` }}
               >
-                {portraitUrl ? (
+                {url ? (
+                  // Plain img: a short-lived signed URL, same call the account
+                  // cards make. contain, because the box is the plate's shape
+                  // and nothing of it may be cropped away.
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
-                    src={portraitUrl}
-                    alt=""
-                    className="absolute object-contain"
-                    style={{
-                      left: `${(plate.portrait.x / (label === "Back" ? BACK_W : FRONT_PX)) * 100}%`,
-                      top: `${(plate.portrait.y / (label === "Back" ? backH : FRONT_PX)) * 100}%`,
-                      width: `${(plate.portrait.width / (label === "Back" ? BACK_W : FRONT_PX)) * 100}%`,
-                      height: `${(plate.portrait.height / (label === "Back" ? backH : FRONT_PX)) * 100}%`,
-                    }}
+                    src={url}
+                    alt={`${label} of your piece`}
+                    className="absolute inset-0 h-full w-full object-contain"
                   />
-                ) : null}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={dataUrl(plate.svg)}
-                  alt={`${label} of your piece`}
-                  className="absolute inset-0 h-full w-full"
-                />
+                ) : (
+                  <p className="absolute inset-0 flex items-center justify-center p-4 text-center text-sm text-muted">
+                    Still being drawn
+                  </p>
+                )}
               </div>
               <figcaption className="text-center text-sm text-muted">
                 {label}
@@ -125,13 +115,22 @@ export default async function ApprovePage({ params }: ApprovePageProps) {
           ))}
         </div>
 
-        <ApprovalActions
-          token={token}
-          approvedAt={artwork.approvedAt ? artwork.approvedAt.toISOString() : null}
-          standoutDetail={artwork.standoutDetail}
-          onApprove={approveAction}
-          onRevise={reviseAction}
-        />
+        {ready || artwork.approvedAt ? (
+          <ApprovalActions
+            token={token}
+            approvedAt={artwork.approvedAt ? artwork.approvedAt.toISOString() : null}
+            standoutDetail={artwork.standoutDetail}
+            onApprove={approveAction}
+            onRevise={reviseAction}
+          />
+        ) : (
+          // Nothing to say yes to until both sides exist. An approval here would
+          // be an approval of a picture nobody has seen.
+          <p role="status" className="leading-relaxed text-muted">
+            We are still finishing this one. We will email you the moment both
+            sides are ready to look at.
+          </p>
+        )}
       </div>
     </Container>
   );

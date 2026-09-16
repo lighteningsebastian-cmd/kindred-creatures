@@ -12,6 +12,80 @@ shows the drawing but never shows the garment.
 
 ---
 
+## 0. The approval page composites an already-composited plate · do this first
+
+**The customer is approving something that is not what will be printed.** That is the exact
+failure `docs/spec-portrait-prompting.md` section 1 exists to prevent, arriving from a
+direction nobody was watching.
+
+### What the owner sees
+
+On `/approve/[token]`, the front plate shows `KINDRED CREATURES` twice, one arc above
+another, and the pet's name twice. The back plate's portrait slot holds a colour, face-on
+picture that itself carries an arc and a name — where a graphite side profile belongs.
+
+### It is not the prompt, and prompts.ts must not be touched for it
+
+`CONSTRAINTS` forbids text and lettering and it is working. No model drew those words. Every
+duplicated element is one we typeset ourselves, rendered twice.
+
+### The cause, exactly
+
+`src/app/approve/[token]/page.tsx` line 62:
+
+```ts
+const portraitKey = artwork.frontKey ?? artwork.canonicalKey;
+```
+
+**`frontKey` is not a portrait. It is the finished front plate.** `src/lib/artwork-drawing.ts`
+line 139 writes it as `plates/{artworkId}/front-{stamp}.png` — the output of `composePlate`,
+with the arc, the portrait and the name already burned in.
+
+The page then builds a fresh `frontPlate()` and `backPlate()` type layer and drops that
+finished plate into the portrait rectangle of **both**. So the front is our arc wrapped
+around their arc, and our name under their name; and the back gets the colour front plate
+where its graphite profile should be.
+
+The comment above that line carries the stale assumption that caused it: *"frontKey and
+backKey are written once generation moves after payment; until then the canonical portrait
+stands in for both sides."* Whoever wrote it read `frontKey` as a bare portrait. Once
+generation moved after payment, it stopped being one, and the fallback was never revisited.
+
+### The fix
+
+**Stop compositing on this page.** `frontKey` and `backKey` are the finished artwork. Show
+them as images and nothing else.
+
+- Render `artwork.frontKey` for the front and `artwork.backKey` for the back, each as a
+  signed URL, at the right aspect ratio.
+- Delete the `frontPlate()` and `backPlate()` calls from this page. There is no type layer to
+  build: it is already in the bytes.
+- Keep a graceful empty state for an artwork where either key is missing, but do **not**
+  fall back to re-compositing. A missing plate is "not ready yet", not "draw a different one".
+- Check `canonicalKey` for the same misreading anywhere else:
+  `grep -rn "frontKey\|backKey\|canonicalKey" src/app src/lib --include=*.ts --include=*.tsx | grep -v test`
+
+**The print files are probably fine.** `drawArtworkPlates` composites once, correctly, and
+stores those bytes; `generatePrintFilesForOrder` resizes them. Confirm that before
+celebrating — download a print file for the affected order and look at it. If the print file
+is clean and only the approval page is wrong, then nothing has been printed wrongly and this
+is a display bug caught in time. Say which in the commit.
+
+### Two things in the same screenshot, worth checking while you are in there
+
+**The portrait has a visible rectangular edge**, so its background may not be truly
+transparent. `background: "transparent"` is requested in the provider, but this is the first
+real chance to check it against a real file rather than a mock. Open a stored portrait over
+a dark background and confirm real alpha. If it is opaque, that prints as a pale rectangle on
+every garment that is not white — which is most of the range.
+
+**The plate said `DOMESTIC LONGHAIR` / `Felis catus` over a photograph of a Labrador.** That
+is the owner's own test data, not a fault. But it shows the plate will contradict the picture
+without a murmur. Not a bug to fix now; worth knowing before somebody's plate says the wrong
+species in print.
+
+---
+
 ## 1. The approval email did not arrive · this is blocking a paid order
 
 ### What we know
