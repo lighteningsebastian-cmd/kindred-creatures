@@ -106,7 +106,10 @@ older ones remain in files this work did not touch.
 
 Suggested as separate tasks:
 - The front chest print file is never sent to the print shop.
-- Tee plate placement needs calibrating per colourway.
+- Tee plate placement needs calibrating per colourway. Done on branch
+  claude/trusting-mccarthy-6fcb68: `placementFor` and `PLACEMENT_OVERRIDES` in
+  src/lib/garments.ts, covering the tee's Olive and Heritage Blue and the crewneck's
+  Grey and Olive.
 
 Still needs the owner:
 1. **Merge and deploy.** The manual checks in spec section 4 run against the live site.

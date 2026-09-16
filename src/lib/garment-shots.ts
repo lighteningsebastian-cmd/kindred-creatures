@@ -21,6 +21,14 @@ import { getProduct, type ProductSlug } from "@/lib/products";
 
 export interface Shot {
   view: GarmentView;
+  /**
+   * The catalogue colourway the photograph shows.
+   *
+   * Carried because placement depends on it: the shoot did not frame every
+   * colourway alike, so a printed shot asks `placementFor` with this rather
+   * than taking one placement for the whole product.
+   */
+  colour: string;
   /** Public path to the photograph. */
   url: string;
   /** Real alt text, describing the garment and the aspect. */
@@ -204,6 +212,7 @@ function shotFor(
   const plateUrl = plateFor(slug, view);
   return {
     view,
+    colour,
     url,
     alt: altFor(slug, colour, view),
     printed,

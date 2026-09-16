@@ -48,16 +48,6 @@ export interface PlatePlacement {
 }
 
 /**
- * Placement per garment and side.
- *
- * PERCENTAGES, NOT PIXELS, so it survives responsive resizing. These are the
- * spec's starting estimates and are meant to be calibrated by eye: the front
- * plate has to sit above the pocket seam and clear of the hood drawstrings, and
- * the back plate has to be centred between the shoulder seams and stop short of
- * the hem. `/dev/mockups` renders every product, colour and side at once so that
- * can be judged in one screen.
- */
-/**
  * The size of each photograph in real pixels, keyed by product, colourway
  * AND VIEW.
  *
@@ -181,6 +171,21 @@ export function photoSourceWidth(
   return PHOTO_SIZE[`${slug}/${photo.dir}/${view}`]?.w ?? null;
 }
 
+/**
+ * Placement per garment and side: the DEFAULT for every colourway of it.
+ *
+ * PERCENTAGES, NOT PIXELS, so it survives responsive resizing. These are the
+ * spec's starting estimates and are meant to be calibrated by eye: the front
+ * plate has to sit above the pocket seam and clear of the hood drawstrings, and
+ * the back plate has to be centred between the shoulder seams and stop short of
+ * the hem. `/dev/mockups` renders every product, colour and side at once so that
+ * can be judged in one screen.
+ *
+ * READ IT THROUGH `placementFor`, never directly. A percentage of the
+ * photograph is only right for photographs framed like the one it was judged
+ * on, and the shoot did not frame every colourway alike; PLACEMENT_OVERRIDES
+ * below holds the ones it did not.
+ */
 export const PLACEMENT: Record<
   ProductSlug,
   Record<GarmentSide, PlatePlacement>
@@ -227,6 +232,71 @@ export const PLACEMENT: Record<
     back: { top: 48, left: 30, width: 33 },
   },
 };
+
+/**
+ * Placement for the photographs framed unlike the rest of their product,
+ * keyed like PHOTO_SIZE: product, photo directory and side.
+ *
+ * WHY THIS EXISTS. PLACEMENT is a percentage of the photograph, so it is only
+ * right where the garment fills the same share of the frame. The tee's White
+ * shots are portrait and the tee fills them, with its torso 48% of the width;
+ * its Olive and Heritage Blue shots are landscape, and the same tee is 36%.
+ * One number per product put a 46% back plate across nearly the whole back on
+ * those two and reached for the shoulders, while it was right on White.
+ *
+ * PER SIDE AS WELL AS PER COLOURWAY, because a colourway's front and back were
+ * not framed alike either: tee/olive's front is 1400x1050 and its back
+ * 1400x1120.
+ *
+ * CALIBRATED TO MATCH WHITE, which is the shoot PLACEMENT.tee was judged on.
+ * Each plate is the same share of the torso's width, the same distance off its
+ * centre line and the same share of the way down the garment as it is on
+ * White, measured off the files and then checked by eye on /dev/mockups. The
+ * test that pins this measures the files again, so a reshoot that reframes a
+ * colourway fails there rather than quietly moving a plate.
+ *
+ * THE CREWNECK'S GREY AND OLIVE MOVE UP, AND ONLY UP. Those two were shot
+ * nearer square (1211x1299) than its White and Peach (1120x1400). Across, the
+ * sweater fills the same share of the frame in all four, so left and width
+ * stand; down, it starts higher and runs further, so the product's top put
+ * both plates about four points lower on the garment and the back plate's
+ * bottom line crowded the ribbed hem. Each top here starts the plate the same
+ * share of the way down the sweater as on White and Peach.
+ *
+ * Nothing else is here because nothing else needs to be: the hoodie's three
+ * shoots are framed alike. When a product is reshot to one framing, delete its
+ * entries.
+ */
+export const PLACEMENT_OVERRIDES: Partial<Record<string, PlatePlacement>> = {
+  "tee/olive/front": { top: 26, left: 54.4, width: 9.3 },
+  "tee/olive/back": { top: 27, left: 32.5, width: 35 },
+  "tee/heritage-blue/front": { top: 25.3, left: 54.7, width: 9.7 },
+  "tee/heritage-blue/back": { top: 27, left: 32.5, width: 35 },
+  "crewneck/grey/front": { top: 25, left: 56, width: 13 },
+  "crewneck/grey/back": { top: 25, left: 27, width: 46 },
+  "crewneck/olive/front": { top: 25, left: 56, width: 13 },
+  "crewneck/olive/back": { top: 25, left: 27, width: 46 },
+};
+
+/**
+ * Where the plate sits on the photograph a colourway shows, for one side.
+ *
+ * The override for that exact photograph where there is one, and the
+ * product's placement otherwise. A colour with no photograph gets the product's
+ * placement too: it is drawn on a flat swatch, and there is no framing to
+ * correct for.
+ */
+export function placementFor(
+  slug: ProductSlug,
+  color: string,
+  side: GarmentSide,
+): PlatePlacement {
+  const photo = garmentPhoto(slug, color);
+  const override = photo
+    ? PLACEMENT_OVERRIDES[`${slug}/${photo.dir}/${side}`]
+    : undefined;
+  return override ?? PLACEMENT[slug][side];
+}
 
 /**
  * Catalogue colourway to photographed colourway.

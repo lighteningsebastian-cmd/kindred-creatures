@@ -4,9 +4,9 @@ import Image from "next/image";
 import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import {
-  PLACEMENT,
   garmentImageUrl,
   photoAspect,
+  placementFor,
   type GarmentSide,
 } from "@/lib/garments";
 import type { Product, Variant } from "@/lib/products";
@@ -42,7 +42,9 @@ function frontZoom(
   product: Product,
   color: Variant,
 ): { scale: number; ox: number; oy: number } {
-  const placement = PLACEMENT[product.slug].front;
+  // The colourway's own placement: the tee's landscape shots put the print at
+  // a different share of the frame, so the camera has to follow that one.
+  const placement = placementFor(product.slug, color.color, "front");
   const print = product.printArea.front;
 
   // The plate is placed by WIDTH, so its height has to be derived. The two axes
@@ -98,7 +100,7 @@ export function GarmentPreview({
   children?: ReactNode;
 }) {
   const garment = garmentImageUrl(product.slug, color.color, side);
-  const placement = PLACEMENT[product.slug][side];
+  const placement = placementFor(product.slug, color.color, side);
 
   // THE FRONT OPENS ZOOMED IN. The front print is 110mm wide on a garment
   // roughly 600mm across, so at full-garment zoom it is a smudge, and the

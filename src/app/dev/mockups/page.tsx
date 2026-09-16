@@ -6,6 +6,7 @@ import {
   photoAspect,
   PLACEMENT,
   garmentImageUrl,
+  placementFor,
   unphotographedColours,
   type GarmentSide,
 } from "@/lib/garments";
@@ -24,7 +25,10 @@ const SIDES: GarmentSide[] = ["front", "back"];
  * placement is a percentage judged by eye and doing that one order at a time is
  * how it stays wrong. The front plate has to sit above the pocket seam and clear
  * of the hood drawstrings; the back has to be centred between the shoulder seams
- * and stop short of the hem. Adjust PLACEMENT in src/lib/garments.ts and reload.
+ * and stop short of the hem. Adjust PLACEMENT in src/lib/garments.ts and reload,
+ * or PLACEMENT_OVERRIDES for a photograph framed unlike the rest of its product
+ * (the tee's landscape shots). Each card is drawn through placementFor, exactly
+ * as the customer's screens are, and says when an override is what it shows.
  *
  * The plate carries a worst case on purpose: a long name and every table row, so
  * a plate that fits here fits anything a customer can enter.
@@ -48,10 +52,11 @@ export default function MockupsPage() {
         <h1 className="font-display text-3xl text-ink">Plate placement</h1>
         <p className="max-w-2xl text-sm text-muted">
           Every product, colour and side, with a worst-case plate on it. Adjust{" "}
-          <code>PLACEMENT</code> in <code>src/lib/garments.ts</code> and reload.
-          The front plate should clear the drawstrings and sit above the pocket
-          seam; the back should be centred between the shoulder seams and stop
-          short of the hem.
+          <code>PLACEMENT</code> in <code>src/lib/garments.ts</code> and reload,
+          or <code>PLACEMENT_OVERRIDES</code> where one photograph is framed
+          unlike the rest of its product. The front plate should clear the
+          drawstrings and sit above the pocket seam; the back should be centred
+          between the shoulder seams and stop short of the hem.
         </p>
       </div>
 
@@ -65,8 +70,8 @@ export default function MockupsPage() {
             <div className="flex flex-col gap-1">
               <h2 className="font-display text-2xl text-ink">{product.name}</h2>
               <p className="text-xs text-muted">
-                front {JSON.stringify(PLACEMENT[product.slug].front)} · back{" "}
-                {JSON.stringify(PLACEMENT[product.slug].back)}
+                default front {JSON.stringify(PLACEMENT[product.slug].front)} ·
+                back {JSON.stringify(PLACEMENT[product.slug].back)}
               </p>
               {missing.length > 0 ? (
                 <p className="text-xs text-btn">
@@ -84,7 +89,15 @@ export default function MockupsPage() {
                     variant.color,
                     side,
                   );
-                  const placement = PLACEMENT[product.slug][side];
+                  const placement = placementFor(
+                    product.slug,
+                    variant.color,
+                    side,
+                  );
+                  // placementFor hands back the default object itself when
+                  // there is no override, so identity is the whole test.
+                  const overridden =
+                    placement !== PLACEMENT[product.slug][side];
                   const plate =
                     side === "back"
                       ? backPlate(worstCase, "KC-01248", 900, 1125)
@@ -140,6 +153,9 @@ export default function MockupsPage() {
                       <figcaption className="text-xs text-muted">
                         {variant.color} · {side}
                         {garment ? "" : " · no photo"}
+                        {overridden
+                          ? ` · override ${JSON.stringify(placement)}`
+                          : ""}
                       </figcaption>
                     </figure>
                   );

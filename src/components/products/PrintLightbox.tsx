@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
-import { PLACEMENT, type GarmentSide } from "@/lib/garments";
+import { placementFor, type GarmentSide } from "@/lib/garments";
 import { plateCentre, zoomScale } from "@/lib/print-zoom";
 import type { Shot } from "@/lib/garment-shots";
 import type { ProductSlug } from "@/lib/products";
@@ -44,8 +44,10 @@ export function PrintLightbox({
   const [box, setBox] = useState({ width: 0, height: 0 });
   const reducedMotion = useReducedMotion() ?? false;
 
+  // The enlarged shot's own colourway, so the zoom frames the plate where it
+  // is drawn on this photograph rather than where it sits on another shoot.
   const placement = shot.printed
-    ? PLACEMENT[slug][shot.view as GarmentSide]
+    ? placementFor(slug, shot.colour, shot.view as GarmentSide)
     : null;
 
   /**

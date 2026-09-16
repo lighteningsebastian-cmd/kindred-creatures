@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { GarmentPreview, photoBoxWidth } from "./GarmentPreview";
-import { photoAspect } from "@/lib/garments";
+import { PLACEMENT, photoAspect, placementFor } from "@/lib/garments";
 import { getProduct } from "@/lib/products";
 
 /**
@@ -48,5 +48,38 @@ describe("GarmentPreview", () => {
     const placed = screen.getByText("the plate").parentElement!;
     expect(placed.style.width).toMatch(/%$/);
     expect(box().contains(placed)).toBe(true);
+  });
+
+  it("places the plate by the colourway's own placement, not the product's", () => {
+    // Olive is landscape and the tee fills less of it than it fills White, so
+    // the product's placement drew the back plate out toward the shoulders.
+    render(
+      <GarmentPreview product={tee} color={olive} side="back">
+        <span>the plate</span>
+      </GarmentPreview>,
+    );
+    const olivePlacement = placementFor("tee", "Olive", "back");
+    expect(olivePlacement).not.toEqual(PLACEMENT.tee.back);
+
+    const placed = screen.getByText("the plate").parentElement!;
+    expect(placed.style.top).toBe(`${olivePlacement.top}%`);
+    expect(placed.style.left).toBe(`${olivePlacement.left}%`);
+    expect(placed.style.width).toBe(`${olivePlacement.width}%`);
+  });
+
+  it("zooms the front onto the colourway's own placement", () => {
+    // The camera follows the print. Framed on the product's placement, the
+    // zoom on Olive would centre on the fabric beside the badge.
+    render(
+      <GarmentPreview product={tee} color={olive} side="front">
+        <span>the plate</span>
+      </GarmentPreview>,
+    );
+    const front = placementFor("tee", "Olive", "front");
+    const stage = screen.getByText("the plate").parentElement!.parentElement!;
+    const ox = front.left + front.width / 2;
+    expect(stage.style.transform).toContain(`scale(${50 / front.width})`);
+    expect(stage.style.transform).toContain(`translate(${50 - ox}%`);
+    expect(stage.style.transformOrigin).toContain(`${ox}%`);
   });
 });

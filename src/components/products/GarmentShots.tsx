@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useRef, useState } from "react";
 import { cn } from "@/lib/cn";
-import { PLACEMENT, type GarmentSide } from "@/lib/garments";
+import { placementFor, type GarmentSide } from "@/lib/garments";
 import type { Shot } from "@/lib/garment-shots";
 import { PrintLightbox } from "./PrintLightbox";
 import { getProduct, type ProductSlug } from "@/lib/products";
@@ -92,10 +92,12 @@ export function GarmentShots({
   const showing = hoverAdvances ? (index + 1) % shots.length : index;
   const shot = shots[showing]!;
   // `printed` is true only for "front" and "back", which are exactly the two
-  // keys PLACEMENT has, so the cast is the type system catching up with the
-  // manifest rather than a hole in it.
+  // sides placementFor answers for, so the cast is the type system catching up
+  // with the manifest rather than a hole in it. The colourway is asked for
+  // because a home tile walks through colourways, and the tee's are not
+  // framed alike.
   const placement = shot.printed
-    ? PLACEMENT[slug][shot.view as GarmentSide]
+    ? placementFor(slug, shot.colour, shot.view as GarmentSide)
     : null;
 
   const productName = getProduct(slug)?.name ?? slug;

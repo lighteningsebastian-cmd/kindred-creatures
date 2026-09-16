@@ -41,17 +41,21 @@ export interface PlateCentre {
 /**
  * Where the middle of the plate sits on the photograph.
  *
- * COMPUTED, NOT HARDCODED, because it differs per product and per side, and
- * getting it wrong frames the fabric above or below the print rather than the
- * print.
+ * COMPUTED, NOT HARDCODED, because it differs per product, per colourway and
+ * per side, and getting it wrong frames the fabric above or below the print
+ * rather than the print.
  *
  * The subtle half is the vertical. A plate is placed by its WIDTH alone
- * (`PLACEMENT` gives top, left and width, and the height follows from the
+ * (`placementFor` gives top, left and width, and the height follows from the
  * artwork), so its height has to be recovered from the two shapes before its
  * centre can be found. A plate that is 46% of the width is only 46% of the
  * height if the plate and the photograph happen to be the same shape, and they
  * never are: the back plates are 0.800 and 0.833 against photographs running
  * 0.800 to 1.260.
+ *
+ * Pass the placement for the colourway being shown, from `placementFor`, and
+ * that colourway's photo shape. The two are a pair: the tee's landscape shots
+ * have their own placement because the tee fills less of the frame.
  */
 export function plateCentre(
   placement: PlatePlacement,

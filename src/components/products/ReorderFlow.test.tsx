@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { ReorderFlow } from "./ReorderFlow";
 import { useCartStore } from "@/lib/cart-store";
 import { getProduct } from "@/lib/products";
-import { PLACEMENT, photoAspect } from "@/lib/garments";
+import { photoAspect, placementFor } from "@/lib/garments";
 
 /**
  * The re-order island. The whole point of B4 is that a saved portrait goes back
@@ -217,9 +217,20 @@ describe("ReorderFlow: the portrait on the garment", () => {
       `${tee.printArea.back.widthMm} / ${tee.printArea.back.heightMm}`,
     );
     const placed = shape.parentElement!;
-    expect(placed.style.top).toBe(`${PLACEMENT.tee.back.top}%`);
-    expect(placed.style.left).toBe(`${PLACEMENT.tee.back.left}%`);
-    expect(placed.style.width).toBe(`${PLACEMENT.tee.back.width}%`);
+    const white = placementFor("tee", "White", "back");
+    expect(placed.style.top).toBe(`${white.top}%`);
+    expect(placed.style.left).toBe(`${white.left}%`);
+    expect(placed.style.width).toBe(`${white.width}%`);
+
+    // And it follows the colourway: the tee's Olive shot is framed wider, so
+    // the plate has a placement of its own there.
+    await user.click(screen.getByRole("button", { name: "Olive" }));
+    const olive = placementFor("tee", "Olive", "back");
+    const moved = screen.getByRole("img", {
+      name: "Your portrait on the back of The Kindred Tee",
+    }).parentElement!.parentElement!;
+    expect(moved.style.left).toBe(`${olive.left}%`);
+    expect(moved.style.width).toBe(`${olive.width}%`);
   });
 
   it("offers the front, with the front plate on the front photograph", async () => {
