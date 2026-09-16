@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { ReorderFlow } from "./ReorderFlow";
 import { useCartStore } from "@/lib/cart-store";
 import { getProduct } from "@/lib/products";
+import { PLACEMENT, photoAspect } from "@/lib/garments";
 
 /**
  * The re-order island. The whole point of B4 is that a saved portrait goes back
@@ -44,14 +45,30 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function renderFlow() {
+const FRONT_URL = "https://signed.example/front.png";
+const BACK_URL = "https://signed.example/back.png";
+
+function renderFlow(
+  urls: { frontUrl?: string | null; backUrl?: string | null } = {},
+) {
   return render(
     <ReorderFlow
       artworkId={ARTWORK_ID}
       styleLabel="Watercolor"
-      previewUrl="https://signed.example/preview.svg"
+      frontUrl={urls.frontUrl === undefined ? FRONT_URL : urls.frontUrl}
+      backUrl={urls.backUrl === undefined ? BACK_URL : urls.backUrl}
     />,
   );
+}
+
+/** The garment photograph, found by the alt the shared preview gives it. */
+function garment(name: string) {
+  return screen.getByRole("img", { name });
+}
+
+/** The photograph-shaped box the plate is measured against. */
+function photoBox(name: string) {
+  return garment(name).closest<HTMLElement>("[style*='aspect-ratio']")!;
 }
 
 describe("ReorderFlow", () => {
@@ -120,5 +137,118 @@ describe("ReorderFlow", () => {
 
     // Not a single fetch happened across the whole flow.
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("ReorderFlow: the portrait on the garment", () => {
+  it("opens on the back of the default garment, with the back plate on it", () => {
+    renderFlow();
+
+    const photo = garment("The Kindred Hoodie in White, back");
+    expect(decodeURIComponent(photo.getAttribute("src")!)).toContain(
+      "/garments/hoodie/white/back.webp",
+    );
+    const plate = screen.getByRole("img", {
+      name: "Your portrait on the back of The Kindred Hoodie",
+    });
+    expect(plate).toHaveAttribute("src", BACK_URL);
+    expect(screen.getByRole("button", { name: "back" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("changes the photograph underneath when the piece changes, and keeps the plate", async () => {
+    const user = userEvent.setup();
+    renderFlow();
+
+    await user.click(screen.getByRole("button", { name: "Kindred Tee" }));
+
+    const photo = garment("The Kindred Tee in White, back");
+    expect(decodeURIComponent(photo.getAttribute("src")!)).toContain(
+      "/garments/tee/white/back.webp",
+    );
+    expect(
+      screen.getByRole("img", { name: "Your portrait on the back of The Kindred Tee" }),
+    ).toHaveAttribute("src", BACK_URL);
+    expect(screen.queryByRole("img", { name: /Kindred Hoodie/ })).toBeNull();
+  });
+
+  it("changes the photograph underneath when the colour changes", async () => {
+    const user = userEvent.setup();
+    renderFlow();
+
+    await user.click(screen.getByRole("button", { name: "Blue" }));
+
+    const photo = garment("The Kindred Hoodie in Blue, back");
+    expect(decodeURIComponent(photo.getAttribute("src")!)).toContain(
+      "/garments/hoodie/blue/back.webp",
+    );
+  });
+
+  it("draws the box at the photograph's own shape, per colourway", async () => {
+    // The tee's White is portrait and its Olive landscape. A box of any other
+    // shape letterboxes the photo and the plate lands beside the garment.
+    const user = userEvent.setup();
+    renderFlow();
+    await user.click(screen.getByRole("button", { name: "Kindred Tee" }));
+
+    expect(parseFloat(photoBox("The Kindred Tee in White, back").style.aspectRatio)).toBeCloseTo(
+      photoAspect("tee", "White", "back"),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Olive" }));
+    expect(parseFloat(photoBox("The Kindred Tee in Olive, back").style.aspectRatio)).toBeCloseTo(
+      photoAspect("tee", "Olive", "back"),
+    );
+  });
+
+  it("places the plate where the customizer does, at the chosen piece's print shape", async () => {
+    const user = userEvent.setup();
+    renderFlow();
+    await user.click(screen.getByRole("button", { name: "Kindred Tee" }));
+
+    const plate = screen.getByRole("img", {
+      name: "Your portrait on the back of The Kindred Tee",
+    });
+    const shape = plate.parentElement!;
+    const tee = getProduct("tee")!;
+    expect(shape.style.aspectRatio).toBe(
+      `${tee.printArea.back.widthMm} / ${tee.printArea.back.heightMm}`,
+    );
+    const placed = shape.parentElement!;
+    expect(placed.style.top).toBe(`${PLACEMENT.tee.back.top}%`);
+    expect(placed.style.left).toBe(`${PLACEMENT.tee.back.left}%`);
+    expect(placed.style.width).toBe(`${PLACEMENT.tee.back.width}%`);
+  });
+
+  it("offers the front, with the front plate on the front photograph", async () => {
+    const user = userEvent.setup();
+    renderFlow();
+
+    await user.click(screen.getByRole("button", { name: "front" }));
+
+    expect(garment("The Kindred Hoodie in White, front")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "Your portrait on the front of The Kindred Hoodie" }),
+    ).toHaveAttribute("src", FRONT_URL);
+  });
+
+  it("shows the garment with the plate's place marked when there is no plate to show", () => {
+    renderFlow({ backUrl: null });
+
+    // Still a garment, not a square with a caption.
+    expect(garment("The Kindred Hoodie in White, back")).toBeInTheDocument();
+    const empty = screen.getByRole("img", { name: "Where your portrait goes" });
+    const hoodie = getProduct("hoodie")!;
+    expect(empty.style.aspectRatio).toBe(
+      `${hoodie.printArea.back.widthMm} / ${hoodie.printArea.back.heightMm}`,
+    );
+    expect(screen.queryByText("Your portrait")).toBeNull();
+  });
+
+  it("has no square box left over from the floating portrait", () => {
+    const { container } = renderFlow();
+    expect(container.querySelector(".aspect-square")).toBeNull();
   });
 });

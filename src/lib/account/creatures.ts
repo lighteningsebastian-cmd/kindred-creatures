@@ -209,8 +209,14 @@ export type ReorderableCreature = {
   style: ArtStyle | null;
   /** Human style label, or a gentle fallback when the style is somehow unset. */
   styleLabel: string;
-  /** Short-lived signed URL for the watermarked preview, or null if we have none. */
-  previewUrl: string | null;
+  /**
+   * Short-lived signed URLs for the two finished plates, which "Wear it again"
+   * lays on the garment photograph. Each falls back to the old pre-payment
+   * preview for artwork drawn before plates existed, and is null when there is
+   * nothing at all to show.
+   */
+  frontUrl: string | null;
+  backUrl: string | null;
 };
 
 /**
@@ -238,13 +244,19 @@ export async function getReorderableCreature(
   const db = await getDb();
 
   let row:
-    | { style: ArtStyle | null; frontKey: string | null; previewKey: string | null }
+    | {
+        style: ArtStyle | null;
+        frontKey: string | null;
+        backKey: string | null;
+        previewKey: string | null;
+      }
     | undefined;
   try {
     [row] = await db
       .select({
         style: artworks.style,
         frontKey: artworks.frontKey,
+        backKey: artworks.backKey,
         previewKey: artworks.previewKey,
       })
       .from(orders)
@@ -265,16 +277,23 @@ export async function getReorderableCreature(
   }
   if (!row) return null;
 
-  const key = creatureKey(row);
-  const previewUrl = key
-    ? await getStorage().getSignedUrl(key, CREATURE_LINK_TTL_SEC)
-    : null;
+  // The plates are what goes on the garment. The back is the customer's own
+  // purchased artwork at print size: the same file the account card already
+  // serves for the front, and the plate the approval page showed them.
+  const storage = getStorage();
+  const sign = (key: string | null) =>
+    key ? storage.getSignedUrl(key, CREATURE_LINK_TTL_SEC) : null;
+  const [frontUrl, backUrl] = await Promise.all([
+    sign(creatureKey(row)),
+    sign(row.backKey ?? row.previewKey),
+  ]);
 
   return {
     artworkId,
     style: row.style,
     styleLabel: row.style ? ART_STYLE_LABELS[row.style] : "Your portrait",
-    previewUrl,
+    frontUrl,
+    backUrl,
   };
 }
 

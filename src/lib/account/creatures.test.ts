@@ -143,8 +143,22 @@ describe("listCreaturesForCustomer", () => {
       expect(creature.previewUrl, `${shape} artwork has no picture`).toBeTruthy();
 
       const reorderable = await getReorderableCreature(customerId, artworkId);
-      expect(reorderable?.previewUrl, `${shape} reorder has no picture`).toBeTruthy();
+      expect(reorderable?.frontUrl, `${shape} reorder has no front`).toBeTruthy();
+      expect(reorderable?.backUrl, `${shape} reorder has no back`).toBeTruthy();
     }
+  });
+
+  it("gives a reorder each plate for its own side, never one for both", async () => {
+    // "Wear it again" lays these on the garment. The back is where the plate
+    // they are buying again lives, so it must be the back plate.
+    const customerId = await seedCustomer();
+    const artworkId = await seedArtwork();
+    await seedOrder({ customerId, artworkId, status: "paid" });
+
+    const reorderable = await getReorderableCreature(customerId, artworkId);
+
+    expect(reorderable!.frontUrl).toContain(`plates/${artworkId}/front-1.png`);
+    expect(reorderable!.backUrl).toContain(`plates/${artworkId}/back-1.png`);
   });
 
   it("counts sent_to_printer, printed and shipped as owned too", async () => {
@@ -288,7 +302,7 @@ describe("getReorderableCreature", () => {
     expect(creature!.artworkId).toBe(artworkId);
     expect(creature!.style).toBe("watercolor");
     expect(creature!.styleLabel).toBe("Watercolor");
-    expect(creature!.previewUrl).toBeTruthy();
+    expect(creature!.backUrl).toBeTruthy();
   });
 
   it("counts sent_to_printer, printed and shipped as reorderable too", async () => {

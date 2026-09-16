@@ -42,7 +42,8 @@ export default async function ReorderPage({ params }: ReorderPageProps) {
         <ReorderFlow
           artworkId={creature.artworkId}
           styleLabel={creature.styleLabel}
-          previewUrl={creature.previewUrl}
+          frontUrl={creature.frontUrl}
+          backUrl={creature.backUrl}
         />
       </Container>
     </div>

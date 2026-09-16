@@ -53,7 +53,8 @@ const CREATURE: ReorderableCreature = {
   artworkId: ARTWORK_ID,
   style: "watercolor",
   styleLabel: "Watercolor",
-  previewUrl: "https://signed.example/preview.svg",
+  frontUrl: "https://signed.example/front.png",
+  backUrl: "https://signed.example/back.png",
 };
 
 function params(artworkId: string) {
@@ -99,8 +100,11 @@ describe("reorder page gating", () => {
     expect(
       screen.getByRole("heading", { name: "Put them on something new." }),
     ).toBeInTheDocument();
+    // The back plate, on the garment, by default.
     expect(
-      screen.getByRole("img", { name: "Watercolor portrait" }),
-    ).toHaveAttribute("src", CREATURE.previewUrl);
+      screen.getByRole("img", {
+        name: "Your portrait on the back of The Kindred Hoodie",
+      }),
+    ).toHaveAttribute("src", CREATURE.backUrl);
   });
 });
