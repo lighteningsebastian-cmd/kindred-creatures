@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
-import { PRODUCTS } from "@/lib/products";
+import { PRODUCTS, fitsFor, variantsForFit } from "@/lib/products";
 import {
   catalogueShots,
   colourwayShots,
@@ -118,17 +118,61 @@ describe("catalogue shots", () => {
   it("leads each card on a portrait colourway so the grid does not fight itself", () => {
     // The tee's Heritage Blue and Olive shots are LANDSCAPE. Leading with one
     // drops a wide garment into a grid of tall ones.
-    expect(heroColour("hoodie")).toBe("Blue");
-    expect(heroColour("crewneck")).toBe("Peach");
-    expect(heroColour("tee")).toBe("White");
+    expect(heroColour("hoodie", "unisex")).toBe("Blue");
+    expect(heroColour("crewneck", "womens")).toBe("Peach");
+    expect(heroColour("tee", "unisex")).toBe("White");
     for (const product of PRODUCTS) {
-      const hero = heroColour(product.slug);
-      expect(
-        product.variants.some((variant) => variant.color === hero),
-        `${product.slug} hero ${hero} is not a real colourway`,
-      ).toBe(true);
+      for (const fit of fitsFor(product)) {
+        const hero = heroColour(product.slug, fit);
+        expect(
+          variantsForFit(product, fit).some(
+            (variant) => variant.color === hero,
+          ),
+          `${product.slug}/${fit} hero ${hero} is not a real colourway`,
+        ).toBe(true);
+      }
       for (const shot of catalogueShots(product.slug)) {
         expect(shot.aspect, `${product.slug}/${shot.view}`).toBeGreaterThan(0);
+      }
+    }
+  });
+});
+
+describe("a lead colourway per fit", () => {
+  /*
+   * The guard that stops a fit arriving in the catalogue without a shot to
+   * lead with. A missing hero makes catalogueShots return nothing, which is a
+   * card with no photograph on it: silent, and on the shop page.
+   */
+  it("gives every product and fit a lead colourway", () => {
+    for (const product of PRODUCTS) {
+      for (const fit of fitsFor(product)) {
+        expect(
+          heroColour(product.slug, fit),
+          `${product.slug}/${fit}`,
+        ).toBeTruthy();
+      }
+    }
+  });
+
+  it("shows nothing for a fit the product is not cut in", () => {
+    // The crewneck is a women's sweater today. Asking for the men's one has to
+    // come back empty rather than handing over the women's photographs, which
+    // is the whole failure this branch exists to stop.
+    expect(heroColour("crewneck", "mens")).toBeNull();
+    expect(colourwayShots("crewneck", "mens")).toEqual([]);
+    expect(catalogueShots("crewneck", "mens")).toEqual([]);
+  });
+
+  it("cycles only the requested fit's own photographs", () => {
+    for (const product of PRODUCTS) {
+      for (const fit of fitsFor(product)) {
+        const allowed = variantsForFit(product, fit).map(
+          (variant) => variant.photoDir,
+        );
+        for (const shot of colourwayShots(product.slug, fit)) {
+          expect(allowed, `${product.slug}/${fit}`).toContain(shot.photoDir);
+        }
       }
     }
   });

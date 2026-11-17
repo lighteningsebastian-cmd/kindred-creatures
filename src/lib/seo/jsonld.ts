@@ -12,8 +12,8 @@
  * builder that reads them from wherever they actually live.
  */
 import type { FaqEntry } from "@/lib/content";
-import type { Product, Variant } from "@/lib/products";
-import { fromPriceZar } from "@/lib/products";
+import type { Fit, Product, Variant } from "@/lib/products";
+import { fromPriceZar, hasFitChoice } from "@/lib/products";
 
 const SCHEMA_CONTEXT = "https://schema.org";
 
@@ -235,10 +235,16 @@ export function buildProduct(input: ProductJsonLdInput): JsonLd {
   return node;
 }
 
+/** One card on the shop grid: a product in one of its fits. */
+export interface ItemListEntry {
+  product: Product;
+  fit: Fit;
+}
+
 export interface ItemListInput {
   baseUrl: string;
-  /** The catalogue, in the order the page renders it. */
-  products: Product[];
+  /** The cards, in the order the page renders them. */
+  entries: ItemListEntry[];
   /** Optional collection name, e.g. "The Kindred Creatures range". */
   name?: string;
 }
@@ -253,19 +259,23 @@ export interface ItemListInput {
  */
 export function buildItemList(input: ItemListInput): JsonLd {
   const baseUrl = requiredHttpUrl(input.baseUrl, "baseUrl").replace(/\/+$/, "");
-  const products = required(input.products, "products");
+  const entries = required(input.entries, "entries");
 
   const node: JsonLd = {
     "@context": SCHEMA_CONTEXT,
     "@type": "ItemList",
-    numberOfItems: products.length,
-    itemListElement: products.map((product, index) => {
-      const slug = required(product.slug, `products[${index}].slug`);
-      const url = `${baseUrl}/products/${slug}`;
-      const price = fromPriceZar(product);
+    numberOfItems: entries.length,
+    itemListElement: entries.map(({ product, fit }, index) => {
+      const slug = required(product.slug, `entries[${index}].product.slug`);
+      const page = `${baseUrl}/products/${slug}`;
+      // The fit only enters the URL where the product is cut more than one
+      // way. A parameter that can hold one value is a second address for one
+      // page, and every URL here is one we are asking to have indexed.
+      const url = hasFitChoice(product) ? `${page}?fit=${fit}` : page;
+      const price = fromPriceZar(product, fit);
       if (!Number.isFinite(price) || price <= 0) {
         throw new Error(
-          `JSON-LD: product "${slug}" has a non-positive price: ${price}`,
+          `JSON-LD: "${slug}" in ${fit} has a non-positive price: ${price}`,
         );
       }
       return {
@@ -273,8 +283,8 @@ export function buildItemList(input: ItemListInput): JsonLd {
         position: index + 1,
         item: {
           "@type": "Product",
-          "@id": `${url}#product`,
-          name: required(product.name, `products[${index}].name`),
+          "@id": `${page}#product-${fit}`,
+          name: required(product.name, `entries[${index}].product.name`),
           url,
           brand: { "@id": organizationId(baseUrl) },
           offers: {

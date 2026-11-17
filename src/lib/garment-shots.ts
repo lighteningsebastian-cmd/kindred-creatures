@@ -4,7 +4,14 @@ import {
   photoSourceWidth,
   type GarmentView,
 } from "@/lib/garments";
-import { getProduct, type ProductSlug, type Variant } from "@/lib/products";
+import {
+  fitsFor,
+  getProduct,
+  variantsForFit,
+  type Fit,
+  type ProductSlug,
+  type Variant,
+} from "@/lib/products";
 
 /**
  * Which photographs a catalogue card shows, and in what order.
@@ -77,19 +84,29 @@ export interface Shot {
  *
  * The hoodie's Blue is also the shot in the owner's own mockup.
  */
-const HERO: Partial<Record<ProductSlug, string>> = {
-  hoodie: "Blue",
-  crewneck: "Peach",
-  tee: "White",
+const HERO: Record<string, string> = {
+  "hoodie/unisex": "Blue",
+  "crewneck/womens": "Peach",
+  "tee/unisex": "White",
   // Not a choice: the tote comes in one colourway. It is SQUARE rather than
   // portrait, which the shape argument above would otherwise argue against,
   // but a 1:1 tile among 0.80s is far less jarring than the tee's landscape
   // shots would be, and there is no alternative to lead with.
-  tote: "Natural",
+  "tote/unisex": "Natural",
 };
 
-export function heroColour(slug: ProductSlug): string | null {
-  return HERO[slug] ?? null;
+/**
+ * The colourway a product leads with in one fit, or null where that fit is not
+ * cut at all.
+ *
+ * PER FIT, because a fit is a different set of photographs: the men's and the
+ * women's crewneck share a White and it is two different pictures. A test
+ * asserts that every product and fit in the catalogue has an entry here, so a
+ * fit cannot arrive without a shot to lead with and quietly render a card with
+ * no photograph on it.
+ */
+export function heroColour(slug: ProductSlug, fit: Fit): string | null {
+  return HERO[`${slug}/${fit}`] ?? null;
 }
 
 /**
@@ -230,11 +247,24 @@ function shotFor(
   };
 }
 
-/** Ordered shots for a product's hero colourway. Empty for the tote. */
-export function catalogueShots(slug: ProductSlug): Shot[] {
-  const colour = heroColour(slug);
-  const variant = getProduct(slug)?.variants.find(
-    (candidate) => candidate.color === colour,
+/**
+ * Ordered shots for a product's hero colourway in one fit.
+ *
+ * The fit defaults to the product's first, which is the same lever
+ * `products.ts` documents for the default colourway: the first variant leads.
+ * A card that stands for a particular fit passes it rather than relying on
+ * that.
+ */
+export function catalogueShots(slug: ProductSlug, fit?: Fit): Shot[] {
+  const product = getProduct(slug);
+  if (!product) return [];
+
+  const chosen = fit ?? fitsFor(product)[0];
+  if (!chosen) return [];
+
+  const colour = heroColour(slug, chosen);
+  const variant = product.variants.find(
+    (candidate) => candidate.fit === chosen && candidate.color === colour,
   );
   if (!variant) return [];
 
@@ -271,15 +301,24 @@ export function catalogueShots(slug: ProductSlug): Shot[] {
  * VIEWS is documented above as the whole of the availability question; a second
  * function answering that question its own way is how the two surfaces drift.
  */
-export function colourwayShots(slug: ProductSlug): Shot[] {
+export function colourwayShots(slug: ProductSlug, fit?: Fit): Shot[] {
   const product = getProduct(slug);
-  const hero = heroColour(slug);
-  if (!product || !hero) return [];
+  if (!product) return [];
+
+  const chosen = fit ?? fitsFor(product)[0];
+  if (!chosen) return [];
+
+  const hero = heroColour(slug, chosen);
+  if (!hero) return [];
   if (!VIEWS[slug].includes("back")) return [];
 
+  // ONE FIT'S COLOURWAYS, never a product's. A tile that cycled every variant
+  // of a slug would walk from the men's White to the women's White, showing
+  // two swatches under one name and one price under two garments.
+  const inFit = variantsForFit(product, chosen);
   const ordered = [
-    ...product.variants.filter((variant) => variant.color === hero),
-    ...product.variants.filter((variant) => variant.color !== hero),
+    ...inFit.filter((variant) => variant.color === hero),
+    ...inFit.filter((variant) => variant.color !== hero),
   ];
 
   const shots: Shot[] = [];

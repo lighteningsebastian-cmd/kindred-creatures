@@ -2,7 +2,44 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ShopPage, { metadata } from "./page";
-import { PRODUCTS, fromPriceZar, formatZar } from "@/lib/products";
+import {
+  PRODUCTS,
+  fromPriceZar,
+  formatZar,
+  fitsFor,
+  getProduct,
+  hasFitChoice,
+} from "@/lib/products";
+
+describe("shop page, one card per garment and fit", () => {
+  /*
+   * A CARD IS A GARMENT IN A FIT, not a product. The men's and the women's
+   * crewneck are different garments at different prices behind different
+   * photographs, so one card for both would have to choose whose picture to
+   * show and whose price to quote. Today every product has one fit and this
+   * renders exactly what it rendered before.
+   */
+  it("renders one card per product and fit", () => {
+    render(<ShopPage />);
+    const cards = screen.getAllByRole("link", { name: "Personalise" });
+    expect(cards).toHaveLength(
+      PRODUCTS.flatMap((product) => fitsFor(product)).length,
+    );
+  });
+
+  it("carries the fit in the link only where a product has a choice", () => {
+    // No point in a query parameter that can only have one value, and every
+    // one of them is a URL that has to be worth indexing.
+    render(<ShopPage />);
+    for (const link of screen.getAllByRole("link", { name: "Personalise" })) {
+      const href = link.getAttribute("href")!;
+      const slug = href.split("?")[0]!.replace("/products/", "");
+      expect(href.includes("?fit="), href).toBe(
+        hasFitChoice(getProduct(slug)!),
+      );
+    }
+  });
+});
 
 describe("shop page metadata", () => {
   it("has a title, description and its own canonical", () => {

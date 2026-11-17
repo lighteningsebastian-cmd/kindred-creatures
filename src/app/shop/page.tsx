@@ -6,7 +6,7 @@ import { CatalogueCard } from "@/components/shop/CatalogueCard";
 import { StartFromPhotoBand } from "@/components/shop/StartFromPhotoBand";
 import { ClosingCta } from "@/components/sections/ClosingCta";
 import { stockDisclosure } from "@/lib/companion";
-import { PRODUCTS } from "@/lib/products";
+import { PRODUCTS, fitsFor } from "@/lib/products";
 import { buildItemList } from "@/lib/seo/jsonld";
 import { BRAND_NAME, siteUrl } from "@/lib/seo/site";
 
@@ -33,11 +33,22 @@ export const metadata: Metadata = {
 };
 
 export default function ShopPage() {
-  // ItemList of the same four products the grid renders below, priced from the
-  // same fromPriceZar, so the structured data and the page cannot disagree.
+  /*
+   * ONE CARD PER GARMENT AND FIT, not per product. The men's and the women's
+   * crewneck are different garments at different prices behind different
+   * photographs, so a single card would have to choose whose picture to show
+   * and whose price to quote.
+   *
+   * The ItemList is built from this same list, priced the same way, so the
+   * structured data and the page cannot disagree about what is for sale.
+   */
+  const cards = PRODUCTS.flatMap((product) =>
+    fitsFor(product).map((fit) => ({ product, fit })),
+  );
+
   const structuredData = buildItemList({
     baseUrl: siteUrl(),
-    products: PRODUCTS,
+    entries: cards,
     name: `The ${BRAND_NAME} range`,
   });
 
@@ -76,13 +87,13 @@ export default function ShopPage() {
               reads as a browsable catalogue rather than the home page's compact
               photo-overlay bento. */}
           <div className="grid gap-6 md:grid-cols-2 md:items-start md:gap-8">
-            {PRODUCTS.map((product, index) => (
+            {cards.map(({ product, fit }, index) => (
               <Reveal
-                key={product.slug}
+                key={`${product.slug}-${fit}`}
                 delay={index * 0.08}
                 className={index % 2 === 1 ? "md:mt-16" : ""}
               >
-                <CatalogueCard product={product} />
+                <CatalogueCard product={product} fit={fit} />
               </Reveal>
             ))}
           </div>
