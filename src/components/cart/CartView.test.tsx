@@ -110,7 +110,7 @@ describe("CartView", () => {
 
     expect(screen.getByAltText("The Kindred Hoodie in Lilac")).toHaveAttribute(
       "src",
-      "/garments/hoodie/lilac/front.webp",
+      "/garments/hoodie/unisex/lilac/front.webp",
     );
   });
 

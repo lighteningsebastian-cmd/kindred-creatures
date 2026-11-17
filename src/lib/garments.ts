@@ -76,40 +76,70 @@ export interface PlatePlacement {
  * ratio per product eventually; until then the code has to tell the truth about
  * what is on disk.
  */
+/*
+ * KEYED BY PRODUCT, FIT, COLOURWAY AND VIEW. The fit is in the path because
+ * the men's and the women's crewneck both come in White and are different
+ * photographs at different shapes, 0.67 against 0.80. One key per garment is
+ * the whole reason the fit is a directory.
+ *
+ * ALL 48 PHOTOGRAPHS ON DISK ARE LISTED, including the women's tee, the men's
+ * crewneck in White and the women's crewneck in Pea Green, which no catalogue
+ * entry points at yet. This table is a manifest of the shoot rather than of the
+ * range: a manifest that listed half of what is on disk is the kind of drift
+ * the measuring test exists to catch.
+ */
 const PHOTO_SIZE: Record<string, { w: number; h: number }> = {
-  "hoodie/blue/back": { w: 1120, h: 1400 },
-  "hoodie/blue/front": { w: 1120, h: 1400 },
-  "hoodie/blue/profile": { w: 1120, h: 1400 },
-  "hoodie/blue/fleece": { w: 1400, h: 1120 },
-  "hoodie/lilac/back": { w: 1120, h: 1400 },
-  "hoodie/lilac/front": { w: 1120, h: 1400 },
-  "hoodie/lilac/profile": { w: 1120, h: 1400 },
-  "hoodie/lilac/fleece": { w: 1400, h: 1120 },
-  "hoodie/white/back": { w: 1120, h: 1400 },
-  "hoodie/white/front": { w: 1120, h: 1400 },
-  "hoodie/white/profile": { w: 1120, h: 1400 },
-  "hoodie/white/fleece": { w: 1400, h: 1120 },
-  "crewneck/white/back": { w: 1120, h: 1400 },
-  "crewneck/white/front": { w: 1120, h: 1400 },
-  "crewneck/white/profile": { w: 1120, h: 1400 },
-  "crewneck/peach/back": { w: 1120, h: 1400 },
-  "crewneck/peach/front": { w: 1120, h: 1400 },
-  "crewneck/peach/profile": { w: 1120, h: 1400 },
-  "crewneck/grey/back": { w: 1211, h: 1299 },
-  "crewneck/grey/front": { w: 1211, h: 1299 },
-  "crewneck/grey/profile": { w: 1212, h: 1297 },
-  "crewneck/olive/back": { w: 1212, h: 1298 },
-  "crewneck/olive/front": { w: 1212, h: 1298 },
-  "crewneck/olive/profile": { w: 1212, h: 1297 },
-  "tee/white/back": { w: 1144, h: 1375 },
-  "tee/white/front": { w: 1144, h: 1375 },
-  "tee/white/profile": { w: 1313, h: 1198 },
-  "tee/heritage-blue/back": { w: 1400, h: 1111 },
-  "tee/heritage-blue/front": { w: 1400, h: 1114 },
-  "tee/heritage-blue/profile": { w: 1400, h: 1117 },
-  "tee/olive/back": { w: 1400, h: 1120 },
-  "tee/olive/front": { w: 1400, h: 1050 },
-  "tee/olive/profile": { w: 1400, h: 933 },
+  "crewneck/mens/grey/back": { w: 1211, h: 1299 },
+  "crewneck/mens/grey/front": { w: 1211, h: 1299 },
+  "crewneck/mens/grey/profile": { w: 1212, h: 1297 },
+  "crewneck/mens/olive/back": { w: 1212, h: 1298 },
+  "crewneck/mens/olive/front": { w: 1212, h: 1298 },
+  "crewneck/mens/olive/profile": { w: 1212, h: 1297 },
+  "crewneck/mens/white/back": { w: 943, h: 1400 },
+  "crewneck/mens/white/front": { w: 943, h: 1400 },
+  "crewneck/mens/white/profile": { w: 943, h: 1400 },
+  // Front only. The back is where the plate goes, so this cannot be sold until
+  // the rest of it is shot, and no variant points at it.
+  "crewneck/womens/pea-green/front": { w: 1120, h: 1400 },
+  "crewneck/womens/peach/back": { w: 1120, h: 1400 },
+  "crewneck/womens/peach/front": { w: 1120, h: 1400 },
+  "crewneck/womens/peach/profile": { w: 1120, h: 1400 },
+  "crewneck/womens/white/back": { w: 1120, h: 1400 },
+  "crewneck/womens/white/front": { w: 1120, h: 1400 },
+  "crewneck/womens/white/profile": { w: 1120, h: 1400 },
+  "hoodie/unisex/blue/back": { w: 1120, h: 1400 },
+  "hoodie/unisex/blue/fleece": { w: 1400, h: 1120 },
+  "hoodie/unisex/blue/front": { w: 1120, h: 1400 },
+  "hoodie/unisex/blue/profile": { w: 1120, h: 1400 },
+  "hoodie/unisex/lilac/back": { w: 1120, h: 1400 },
+  "hoodie/unisex/lilac/fleece": { w: 1400, h: 1120 },
+  "hoodie/unisex/lilac/front": { w: 1120, h: 1400 },
+  "hoodie/unisex/lilac/profile": { w: 1120, h: 1400 },
+  "hoodie/unisex/white/back": { w: 1120, h: 1400 },
+  "hoodie/unisex/white/fleece": { w: 1400, h: 1120 },
+  "hoodie/unisex/white/front": { w: 1120, h: 1400 },
+  "hoodie/unisex/white/profile": { w: 1120, h: 1400 },
+  "tee/mens/heritage-blue/back": { w: 1400, h: 1111 },
+  "tee/mens/heritage-blue/front": { w: 1400, h: 1114 },
+  "tee/mens/heritage-blue/profile": { w: 1400, h: 1117 },
+  "tee/mens/olive/back": { w: 1400, h: 1120 },
+  "tee/mens/olive/front": { w: 1400, h: 1050 },
+  "tee/mens/olive/profile": { w: 1400, h: 933 },
+  "tee/mens/white/back": { w: 1144, h: 1375 },
+  "tee/mens/white/front": { w: 1144, h: 1375 },
+  "tee/mens/white/profile": { w: 1313, h: 1198 },
+  // The women's tee is the most consistent set in the shoot: one shape across
+  // all three colourways and all three views, and much narrower than the men's
+  // 0.83. No variant points at these until the catalogue splits.
+  "tee/womens/blue/back": { w: 932, h: 1400 },
+  "tee/womens/blue/front": { w: 932, h: 1400 },
+  "tee/womens/blue/profile": { w: 932, h: 1400 },
+  "tee/womens/peach/back": { w: 932, h: 1400 },
+  "tee/womens/peach/front": { w: 932, h: 1400 },
+  "tee/womens/peach/profile": { w: 932, h: 1400 },
+  "tee/womens/white/back": { w: 932, h: 1400 },
+  "tee/womens/white/front": { w: 932, h: 1400 },
+  "tee/womens/white/profile": { w: 932, h: 1400 },
   // ONE PHOTOGRAPH, TWO ENTRIES. A tote's two faces are the same blank canvas
   // panel, so the shoot produced a single square frame and the importer writes
   // it to both front.webp and back.webp (see scripts/import-garments.mjs). The
@@ -118,8 +148,8 @@ const PHOTO_SIZE: Record<string, { w: number; h: number }> = {
   //
   // SQUARE, where every garment is portrait or landscape. photoAspect is per
   // view for exactly this reason, so nothing here needs to special-case it.
-  "tote/beige/front": { w: 1254, h: 1254 },
-  "tote/beige/back": { w: 1254, h: 1254 },
+  "tote/unisex/beige/back": { w: 1254, h: 1254 },
+  "tote/unisex/beige/front": { w: 1254, h: 1254 },
 };
 
 /**
@@ -264,14 +294,14 @@ export const PLACEMENT: Record<
  * entries.
  */
 export const PLACEMENT_OVERRIDES: Partial<Record<string, PlatePlacement>> = {
-  "tee/olive/front": { top: 26, left: 54.4, width: 9.3 },
-  "tee/olive/back": { top: 27, left: 32.5, width: 35 },
-  "tee/heritage-blue/front": { top: 25.3, left: 54.7, width: 9.7 },
-  "tee/heritage-blue/back": { top: 27, left: 32.5, width: 35 },
-  "crewneck/grey/front": { top: 25, left: 56, width: 13 },
-  "crewneck/grey/back": { top: 25, left: 27, width: 46 },
-  "crewneck/olive/front": { top: 25, left: 56, width: 13 },
-  "crewneck/olive/back": { top: 25, left: 27, width: 46 },
+  "tee/mens/olive/front": { top: 26, left: 54.4, width: 9.3 },
+  "tee/mens/olive/back": { top: 27, left: 32.5, width: 35 },
+  "tee/mens/heritage-blue/front": { top: 25.3, left: 54.7, width: 9.7 },
+  "tee/mens/heritage-blue/back": { top: 27, left: 32.5, width: 35 },
+  "crewneck/mens/grey/front": { top: 25, left: 56, width: 13 },
+  "crewneck/mens/grey/back": { top: 25, left: 27, width: 46 },
+  "crewneck/mens/olive/front": { top: 25, left: 56, width: 13 },
+  "crewneck/mens/olive/back": { top: 25, left: 27, width: 46 },
 };
 
 /**

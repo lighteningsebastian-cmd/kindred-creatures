@@ -28,8 +28,8 @@ describe("photo directories", () => {
    * garment and asking for a photograph.
    */
   it("resolves a photograph by directory, not by colour name", () => {
-    expect(garmentImageUrl("tote", "beige", "front")).toBe(
-      "/garments/tote/beige/front.webp",
+    expect(garmentImageUrl("tote", "unisex/beige", "front")).toBe(
+      "/garments/tote/unisex/beige/front.webp",
     );
     expect(garmentImageUrl("tote", "Natural", "front")).toBeNull();
   });
@@ -86,8 +86,8 @@ describe("garment photography", () => {
     // stays in the vocabulary so a later task can shoot it and light it up
     // just by adding files, with no change here.
     expect(garmentViewUrl("hoodie", "not-a-directory", "front")).toBeNull(); // no such colourway
-    expect(garmentViewUrl("tote", "beige", "profile")).toBeNull(); // shot front-on only
-    expect(garmentViewUrl("hoodie", "white", "worn")).toBeNull(); // not shot yet
+    expect(garmentViewUrl("tote", "unisex/beige", "profile")).toBeNull(); // shot front-on only
+    expect(garmentViewUrl("hoodie", "unisex/white", "worn")).toBeNull(); // not shot yet
   });
 
   it("knows every photograph's real shape, per view, measured from the file", async () => {
@@ -109,11 +109,15 @@ describe("garment photography", () => {
     // would pass having executed zero assertions. It did: a reviewer stubbed
     // `garmentViewUrl` to always return null and all tests here stayed green.
     // Asserting the count catches that, and also catches a photograph
-    // silently disappearing from disk while PHOTO_SHAPE still lists it. 33 is
-    // the number of .webp files actually under public/garments, verified with
-    // `find public/garments -type f -name '*.webp' | wc -l`. Two of the 35 are the
-    // tote's, which is one photograph written to both front and back because a
-    // tote's faces are identical.
+    // silently disappearing from disk while PHOTO_SIZE still lists it.
+    //
+    // 35 IS WHAT THE CATALOGUE COVERS, not what is on disk. There are 48 .webp
+    // files under public/garments now, and the extra 13 are the women's tee,
+    // the men's crewneck in White and the women's crewneck in Pea Green:
+    // photographed, in PHOTO_SIZE, and not yet sold, so this loop never reaches
+    // them. When the catalogue splits into six, this number goes up with it.
+    // Two of the 35 are the tote's, which is one photograph written to both
+    // front and back because a tote's faces are identical.
     let checked = 0;
     for (const product of PRODUCTS) {
       for (const variant of product.variants) {
@@ -129,14 +133,14 @@ describe("garment photography", () => {
         }
       }
     }
-    expect(checked, "photographs actually checked, of 35 on disk").toBe(35);
+    expect(checked, "photographs the catalogue actually shows").toBe(35);
   });
 
   it("reports the front and back shapes of tee/olive as the different numbers they are", () => {
     // The regression guard for the bug above, named explicitly so that a future
     // simplification back to one-shape-per-colourway fails loudly.
-    expect(photoAspect("tee", "olive", "front")).toBeCloseTo(1.333, 2);
-    expect(photoAspect("tee", "olive", "back")).toBeCloseTo(1.25, 2);
+    expect(photoAspect("tee", "mens/olive", "front")).toBeCloseTo(1.333, 2);
+    expect(photoAspect("tee", "mens/olive", "back")).toBeCloseTo(1.25, 2);
   });
 
   it("shows the tote the same photograph on both of its faces", () => {
@@ -147,14 +151,14 @@ describe("garment photography", () => {
     // The path says "beige" while the swatch says Natural: the shoot's word
     // for the colour and the catalogue's, reconciled on the variant's photoDir
     // rather than by the importer renaming files behind everyone's back.
-    expect(garmentImageUrl("tote", "beige", "front")).toBe(
-      "/garments/tote/beige/front.webp",
+    expect(garmentImageUrl("tote", "unisex/beige", "front")).toBe(
+      "/garments/tote/unisex/beige/front.webp",
     );
-    expect(garmentImageUrl("tote", "beige", "back")).toBe(
-      "/garments/tote/beige/back.webp",
+    expect(garmentImageUrl("tote", "unisex/beige", "back")).toBe(
+      "/garments/tote/unisex/beige/back.webp",
     );
-    expect(photoAspect("tote", "beige", "front")).toBe(
-      photoAspect("tote", "beige", "back"),
+    expect(photoAspect("tote", "unisex/beige", "front")).toBe(
+      photoAspect("tote", "unisex/beige", "back"),
     );
   });
 
@@ -179,12 +183,12 @@ describe("garment photography", () => {
         }
       }
     }
-    expect(checked, "photographs actually checked, of 35 on disk").toBe(35);
+    expect(checked, "photographs the catalogue actually shows").toBe(35);
   });
 
   it("has no source width for a view nobody has photographed", () => {
-    expect(photoSourceWidth("hoodie", "white", "worn")).toBeNull();
-    expect(photoSourceWidth("tote", "beige", "profile")).toBeNull();
+    expect(photoSourceWidth("hoodie", "unisex/white", "worn")).toBeNull();
+    expect(photoSourceWidth("tote", "unisex/beige", "profile")).toBeNull();
   });
 
   it("places every plate inside the garment image, in every colourway", () => {
@@ -213,7 +217,9 @@ describe("placementFor", () => {
     // White is the tee the product placement was judged on, so it is the
     // default rather than an override of itself.
     for (const side of SIDES) {
-      expect(placementFor("tee", "white", side)).toEqual(PLACEMENT.tee[side]);
+      expect(placementFor("tee", "mens/white", side)).toEqual(
+        PLACEMENT.tee[side],
+      );
     }
     // The hoodie's three shoots are framed alike, so nothing overrides them.
     for (const variant of getProduct("hoodie")!.variants) {
@@ -238,7 +244,7 @@ describe("placementFor", () => {
     // The bug this exists for: one placement per product put a 46% back plate
     // on Olive and Heritage Blue, where the tee's torso is only 36% of the
     // photograph's width, and the plate reached for the shoulders.
-    for (const dir of ["olive", "heritage-blue"]) {
+    for (const dir of ["mens/olive", "mens/heritage-blue"]) {
       for (const side of SIDES) {
         expect(photoAspect("tee", dir, side), dir).toBeGreaterThan(1);
         expect(placementFor("tee", dir, side).width, dir).toBeLessThan(
@@ -251,11 +257,11 @@ describe("placementFor", () => {
   it("looks up tee/olive's front and back separately, because they are framed differently", () => {
     // tee/olive's front is 1400x1050 and its back 1400x1120, so one override
     // for the colourway would be right on at most one of them.
-    expect(placementFor("tee", "olive", "front")).toBe(
-      PLACEMENT_OVERRIDES["tee/olive/front"],
+    expect(placementFor("tee", "mens/olive", "front")).toBe(
+      PLACEMENT_OVERRIDES["tee/mens/olive/front"],
     );
-    expect(placementFor("tee", "olive", "back")).toBe(
-      PLACEMENT_OVERRIDES["tee/olive/back"],
+    expect(placementFor("tee", "mens/olive", "back")).toBe(
+      PLACEMENT_OVERRIDES["tee/mens/olive/back"],
     );
   });
 
@@ -265,11 +271,13 @@ describe("placementFor", () => {
     const keys = Object.keys(PLACEMENT_OVERRIDES);
     expect(keys.length).toBeGreaterThan(0);
     for (const key of keys) {
-      const [slug, dir, side] = key.split("/") as [
-        ProductSlug,
-        string,
-        GarmentSide,
-      ];
+      // slug / fit / colour / side, and the photoDir is the middle two joined:
+      // the fit became a path segment when the men's and women's ranges were
+      // separated, so a three-way split would read the fit as the colourway.
+      const segments = key.split("/");
+      const slug = segments[0] as ProductSlug;
+      const side = segments[segments.length - 1] as GarmentSide;
+      const dir = segments.slice(1, -1).join("/");
       expect(SIDES, key).toContain(side);
       expect(existsSync(join(PUBLIC, "garments", key + ".webp")), key).toBe(
         true,
@@ -295,7 +303,13 @@ describe("placementFor", () => {
     // Not the tote: it comes in one colourway, so there is nothing to agree.
     for (const slug of ["tee", "crewneck", "hoodie"] as const) {
       for (const side of SIDES) {
-        const reference = await onGarment(slug, "white", side);
+        // White is the shoot each product's placement was judged on, and its
+        // directory now differs per product: the hoodie's is unisex, the tee's
+        // is the men's block and the crewneck's is the women's.
+        const white = getProduct(slug)!.variants.find(
+          (variant) => variant.color === "White",
+        )!;
+        const reference = await onGarment(slug, white.photoDir, side);
         for (const variant of getProduct(slug)!.variants) {
           const measured = await onGarment(slug, variant.photoDir, side);
           for (const key of ["share", "offset", "down"] as const) {

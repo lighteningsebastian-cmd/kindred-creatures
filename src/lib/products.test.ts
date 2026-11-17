@@ -143,8 +143,8 @@ describe("catalog seed", () => {
   // whatever it became. They are the same ratio, so it did not, and this
   // asserts that rather than trusting it.
   it("did not resize the preview box when the hoodie default moved to White", () => {
-    expect(photoAspect("hoodie", "white", "back")).toBeCloseTo(
-      photoAspect("hoodie", "blue", "back"),
+    expect(photoAspect("hoodie", "unisex/white", "back")).toBeCloseTo(
+      photoAspect("hoodie", "unisex/blue", "back"),
       4,
     );
   });
