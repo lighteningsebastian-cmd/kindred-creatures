@@ -11,6 +11,21 @@ export const FIT_LABELS: Record<Fit, string> = {
 export interface Variant {
   color: string;
   colorHex: string;
+  /**
+   * This variant's photo directory, under public/garments/<slug>/.
+   *
+   * THE CATALOGUE'S WORD AND THE SHOOT'S WORD ARE NOT ALWAYS THE SAME, and this
+   * field is the one place they are reconciled. The tote's canvas is Natural
+   * here and beige on disk, and the directory keeps the shoot's word rather
+   * than the import script quietly renaming the file, so someone grepping for
+   * "beige" after looking at Stock Images finds it.
+   *
+   * It lives on the VARIANT rather than in a map beside the photographs because
+   * the variant is the thing that has a photograph. A map keyed on colour name
+   * cannot hold two garments that share a colour, which is exactly what a
+   * men's and a women's White are.
+   */
+  photoDir: string;
   sizes: string[];
   priceZar: number;
 }
@@ -92,9 +107,27 @@ export const PRODUCTS: Product[] = [
     // White first: it is the default colourway. See THE FIRST VARIANT IS THE
     // DEFAULT above.
     variants: [
-      { color: "White", colorHex: "#F3EFE9", sizes: SIZES_TO_XXL, priceZar: 999 },
-      { color: "Blue", colorHex: "#657188", sizes: SIZES_TO_XXL, priceZar: 999 },
-      { color: "Lilac", colorHex: "#A898A6", sizes: SIZES_TO_XXL, priceZar: 999 },
+      {
+        color: "White",
+        colorHex: "#F3EFE9",
+        photoDir: "white",
+        sizes: SIZES_TO_XXL,
+        priceZar: 999,
+      },
+      {
+        color: "Blue",
+        colorHex: "#657188",
+        photoDir: "blue",
+        sizes: SIZES_TO_XXL,
+        priceZar: 999,
+      },
+      {
+        color: "Lilac",
+        colorHex: "#A898A6",
+        photoDir: "lilac",
+        sizes: SIZES_TO_XXL,
+        priceZar: 999,
+      },
     ],
     printArea: { front: FRONT_PRINT, back: { widthMm: 280, heightMm: 350 } },
   },
@@ -105,11 +138,24 @@ export const PRODUCTS: Product[] = [
     blurb:
       "A midweight organic-cotton tee with a portrait that holds its detail wash after wash, cut for everyday wear that feels like a favourite already.",
     variants: [
-      { color: "White", colorHex: "#F5F5F9", sizes: SIZES_TO_XXL, priceZar: 599 },
-      { color: "Olive", colorHex: "#605D2D", sizes: SIZES_TO_XXL, priceZar: 599 },
+      {
+        color: "White",
+        colorHex: "#F5F5F9",
+        photoDir: "white",
+        sizes: SIZES_TO_XXL,
+        priceZar: 599,
+      },
+      {
+        color: "Olive",
+        colorHex: "#605D2D",
+        photoDir: "olive",
+        sizes: SIZES_TO_XXL,
+        priceZar: 599,
+      },
       {
         color: "Heritage Blue",
         colorHex: "#94BDD5",
+        photoDir: "heritage-blue",
         sizes: SIZES_TO_XXL,
         priceZar: 599,
       },
@@ -123,10 +169,34 @@ export const PRODUCTS: Product[] = [
     blurb:
       "A structured loop-back crewneck that frames your pet's portrait with room to breathe, the kind of sweater you reach for without thinking.",
     variants: [
-      { color: "White", colorHex: "#F3F0EC", sizes: SIZES_TO_XL, priceZar: 799 },
-      { color: "Peach", colorHex: "#FBC1A3", sizes: SIZES_TO_XL, priceZar: 799 },
-      { color: "Grey", colorHex: "#B9B9B9", sizes: SIZES_TO_XL, priceZar: 799 },
-      { color: "Olive", colorHex: "#656B52", sizes: SIZES_TO_XL, priceZar: 799 },
+      {
+        color: "White",
+        colorHex: "#F3F0EC",
+        photoDir: "white",
+        sizes: SIZES_TO_XL,
+        priceZar: 799,
+      },
+      {
+        color: "Peach",
+        colorHex: "#FBC1A3",
+        photoDir: "peach",
+        sizes: SIZES_TO_XL,
+        priceZar: 799,
+      },
+      {
+        color: "Grey",
+        colorHex: "#B9B9B9",
+        photoDir: "grey",
+        sizes: SIZES_TO_XL,
+        priceZar: 799,
+      },
+      {
+        color: "Olive",
+        colorHex: "#656B52",
+        photoDir: "olive",
+        sizes: SIZES_TO_XL,
+        priceZar: 799,
+      },
     ],
     printArea: { front: FRONT_PRINT, back: { widthMm: 280, heightMm: 350 } },
   },
@@ -144,6 +214,7 @@ export const PRODUCTS: Product[] = [
       {
         color: "Natural",
         colorHex: "#E5DFD2",
+        photoDir: "beige",
         sizes: ["One size"],
         priceZar: 349,
       },

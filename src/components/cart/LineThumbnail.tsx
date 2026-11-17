@@ -3,12 +3,19 @@
 import { useState } from "react";
 import Image from "next/image";
 import { garmentImageUrl } from "@/lib/garments";
-import { getProduct, type ProductSlug } from "@/lib/products";
+import { getProduct, type ProductSlug, type Variant } from "@/lib/products";
 import type { CartItem } from "@/lib/cart-store";
 
-/** The chosen colourway's own colour, for a garment with no photograph. */
-function swatchHex(slug: ProductSlug, color: string): string | undefined {
-  return getProduct(slug)?.variants.find((v) => v.color === color)?.colorHex;
+/**
+ * The catalogue variant a cart line names, or undefined once it has gone.
+ *
+ * A line carries a colour, and the photograph belongs to the variant, so the
+ * thumbnail comes back through the catalogue to find it. Task 3 of the men's
+ * and women's work gives a line its fit, and this lookup takes that too; until
+ * then a colour names exactly one variant of a product.
+ */
+function variantFor(slug: ProductSlug, color: string): Variant | undefined {
+  return getProduct(slug)?.variants.find((v) => v.color === color);
 }
 
 /**
@@ -42,8 +49,11 @@ export function LineThumbnail({
   sizes?: string;
 }) {
   const [plateFailed, setPlateFailed] = useState(false);
-  const garment = garmentImageUrl(item.productSlug, item.color, "front");
-  const swatch = swatchHex(item.productSlug, item.color);
+  const variant = variantFor(item.productSlug, item.color);
+  const garment = variant
+    ? garmentImageUrl(item.productSlug, variant.photoDir, "front")
+    : null;
+  const swatch = variant?.colorHex;
 
   if (!plateFailed) {
     return (

@@ -27,7 +27,7 @@ describe("GarmentPreview", () => {
     // width and the box came out 0.86 for a 1.25 photograph.
     render(<GarmentPreview product={tee} color={olive} side="back" />);
 
-    const aspect = photoAspect("tee", "Olive", "back");
+    const aspect = photoAspect("tee", "olive", "back");
     expect(photoBoxWidth(aspect)).toBe("min(100cqw, calc(100cqh * 1.25))");
     expect(parseFloat(box().style.aspectRatio)).toBeCloseTo(aspect);
     // The units only mean something inside a size container.
@@ -58,7 +58,7 @@ describe("GarmentPreview", () => {
         <span>the plate</span>
       </GarmentPreview>,
     );
-    const olivePlacement = placementFor("tee", "Olive", "back");
+    const olivePlacement = placementFor("tee", "olive", "back");
     expect(olivePlacement).not.toEqual(PLACEMENT.tee.back);
 
     const placed = screen.getByText("the plate").parentElement!;
@@ -75,7 +75,7 @@ describe("GarmentPreview", () => {
         <span>the plate</span>
       </GarmentPreview>,
     );
-    const front = placementFor("tee", "Olive", "front");
+    const front = placementFor("tee", "olive", "front");
     const stage = screen.getByText("the plate").parentElement!.parentElement!;
     const ox = front.left + front.width / 2;
     expect(stage.style.transform).toContain(`scale(${50 / front.width})`);

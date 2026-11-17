@@ -44,10 +44,10 @@ export function PrintLightbox({
   const [box, setBox] = useState({ width: 0, height: 0 });
   const reducedMotion = useReducedMotion() ?? false;
 
-  // The enlarged shot's own colourway, so the zoom frames the plate where it
-  // is drawn on this photograph rather than where it sits on another shoot.
+  // The enlarged shot's own photograph, so the zoom frames the plate where it
+  // is drawn on this one rather than where it sits on another shoot.
   const placement = shot.printed
-    ? placementFor(slug, shot.colour, shot.view as GarmentSide)
+    ? placementFor(slug, shot.photoDir, shot.view as GarmentSide)
     : null;
 
   /**
