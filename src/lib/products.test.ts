@@ -8,9 +8,50 @@ import {
   printPixels,
   getProduct,
   fromPriceZar,
+  fitsFor,
+  hasFitChoice,
+  variantsForFit,
 } from "./products";
 
 const PUBLIC = join(process.cwd(), "public");
+
+describe("fits", () => {
+  /*
+   * A fit is on the VARIANT, not the product, because it carries its own blank
+   * cost, its own size run and potentially its own price: the women's crewneck
+   * blank costs R290 and the men's R350. A fit modelled as a label on the
+   * product cannot hold that, and cannot hold one garment sold in two cuts.
+   */
+  it("gives every variant a fit", () => {
+    for (const product of PRODUCTS) {
+      for (const variant of product.variants) {
+        expect(
+          ["unisex", "womens", "mens"],
+          `${product.slug} ${variant.color}`,
+        ).toContain(variant.fit);
+      }
+    }
+  });
+
+  it("reports the fits a product offers, in variant order and without repeats", () => {
+    expect(fitsFor(getProduct("hoodie")!)).toEqual(["unisex"]);
+    expect(fitsFor(getProduct("crewneck")!)).toEqual(["womens"]);
+  });
+
+  it("says a product with one fit has no choice to offer", () => {
+    // Silence is the correct interface for a choice that does not exist, so
+    // this is what the product page asks before rendering a fit selector.
+    for (const product of PRODUCTS) {
+      expect(hasFitChoice(product), product.slug).toBe(false);
+    }
+  });
+
+  it("narrows variants to one fit", () => {
+    const crewneck = getProduct("crewneck")!;
+    expect(variantsForFit(crewneck, "womens")).toEqual(crewneck.variants);
+    expect(variantsForFit(crewneck, "mens")).toEqual([]);
+  });
+});
 
 describe("formatZar", () => {
   it("prefixes with 'R ' and no separator under a thousand", () => {
@@ -109,12 +150,14 @@ describe("catalog seed", () => {
     }
   });
 
-  it("names the fit of everything that is worn", () => {
-    expect(getProduct("hoodie")!.fit).toBe("unisex");
-    expect(getProduct("tee")!.fit).toBe("unisex");
-    expect(getProduct("crewneck")!.fit).toBe("womens");
-    // The tote is carried, not worn, so it has no fit to state.
-    expect(getProduct("tote")!.fit).toBeUndefined();
+  it("names the fit of everything in the range", () => {
+    // On the variants now, not the product. The tote is carried rather than
+    // worn and has no cut to speak of, so it is unisex like the hoodie: one
+    // garment for everyone, and no selector.
+    expect(fitsFor(getProduct("hoodie")!)).toEqual(["unisex"]);
+    expect(fitsFor(getProduct("tee")!)).toEqual(["unisex"]);
+    expect(fitsFor(getProduct("crewneck")!)).toEqual(["womens"]);
+    expect(fitsFor(getProduct("tote")!)).toEqual(["unisex"]);
   });
 
   it("gives the tote a single 'One size' variant", () => {

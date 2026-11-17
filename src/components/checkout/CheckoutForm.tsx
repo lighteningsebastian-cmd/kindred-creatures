@@ -397,6 +397,7 @@ export function CheckoutForm() {
           items: items.map((item) => ({
             productSlug: item.productSlug,
             color: item.color,
+            fit: item.fit,
             size: item.size,
             qty: item.qty,
             artworkId: item.artworkId,

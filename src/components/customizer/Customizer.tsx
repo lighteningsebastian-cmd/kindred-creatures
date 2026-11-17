@@ -203,6 +203,8 @@ export function Customizer({
       productSlug: product.slug,
       // Built from the CURRENT selection, not the one in force at upload time.
       color: color.color,
+      // From the variant, which is the only thing that knows its cut.
+      fit: color.fit,
       size,
       qty: 1,
       artworkId,

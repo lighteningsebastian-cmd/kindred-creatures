@@ -4,7 +4,52 @@ import {
   FREE_SHIPPING_THRESHOLD_ZAR,
   SHIPPING_FLAT_ZAR,
   orderTotals,
+  priceLine,
 } from "./checkout";
+import { getProduct, variantsForFit } from "./products";
+
+describe("priceLine", () => {
+  /*
+   * THE SERVER'S PRICE, NEVER THE CLIENT'S, and now keyed on the fit as well
+   * as the colour. A colour no longer names one garment: the men's and the
+   * women's crewneck both come in White, at different blank costs and
+   * potentially different retail prices, so a lookup on colour alone would
+   * price one sweater and ship the other.
+   */
+  const peach = () =>
+    variantsForFit(getProduct("crewneck")!, "womens").find(
+      (variant) => variant.color === "Peach",
+    )!;
+
+  it("prices a line from the catalogue", () => {
+    const result = priceLine({
+      productSlug: "crewneck",
+      color: "Peach",
+      fit: "womens",
+      size: "M",
+      qty: 1,
+      artworkId: "11111111-1111-1111-1111-111111111111",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.line.unitPriceZar).toBe(peach().priceZar);
+    expect(result.line.fit).toBe("womens");
+  });
+
+  it("refuses a colour the requested fit does not offer", () => {
+    const result = priceLine({
+      productSlug: "crewneck",
+      color: "Peach",
+      fit: "mens",
+      size: "M",
+      qty: 1,
+      artworkId: "11111111-1111-1111-1111-111111111111",
+    });
+
+    expect(result.ok).toBe(false);
+  });
+});
 
 describe("orderTotals", () => {
   it("charges flat shipping below the advertised free threshold", () => {

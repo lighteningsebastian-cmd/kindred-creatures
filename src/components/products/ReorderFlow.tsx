@@ -135,6 +135,7 @@ export function ReorderFlow({
     addItem({
       productSlug: product.slug,
       color: color.color,
+      fit: color.fit,
       size,
       qty: 1,
       // The saved portrait, reused as-is: no upload, no generation, no credit.

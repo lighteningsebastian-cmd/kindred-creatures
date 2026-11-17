@@ -27,6 +27,7 @@ function line(overrides: Partial<CartItem> = {}): CartItem {
   return {
     productSlug: "hoodie",
     color: "Stone",
+    fit: "unisex",
     size: "M",
     qty: 1,
     artworkId: "art-1",
@@ -219,6 +220,7 @@ describe("CheckoutForm", () => {
       {
         productSlug: "hoodie",
         color: "Stone",
+        fit: "unisex",
         size: "M",
         qty: 1,
         artworkId: "art-1",

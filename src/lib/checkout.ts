@@ -5,6 +5,8 @@
  * and both a client island and a route handler can pull it in.
  */
 
+import { getProduct, type Fit } from "@/lib/products";
+
 /** Quantities live in 1..10. The cart clamps to these; checkout re-checks them. */
 export const MIN_QTY = 1;
 export const MAX_QTY = 10;
@@ -178,6 +180,104 @@ export function validateCustomerDetails(
 }
 
 /** Whole-rand quantity check, matching the cart's own 1..10 clamp. */
+/** A line as the client sends it: identity and choices only, never a price. */
+export type IncomingItem = {
+  productSlug?: unknown;
+  color?: unknown;
+  fit?: unknown;
+  size?: unknown;
+  qty?: unknown;
+  artworkId?: unknown;
+};
+
+/** A line once we have proven it against the catalogue and priced it ourselves. */
+export type PricedLine = {
+  productSlug: string;
+  color: string;
+  fit: Fit;
+  size: string;
+  qty: number;
+  artworkId: string;
+  unitPriceZar: number;
+};
+
+/**
+ * Prices one line from the catalogue. The colour must be offered on the
+ * product, the fit must be offered in that colour, and the size must be offered
+ * on that variant: a Natural tote has no size L, and asking for one is a bad
+ * order, not a cheap one.
+ *
+ * KEYED ON THE FIT AS WELL AS THE COLOUR, and that is not tidiness. The men's
+ * and the women's crewneck both come in White, at different blank costs and
+ * potentially different retail prices. A lookup on colour alone would take
+ * whichever variant happened to be first in the array, which means quoting one
+ * sweater's price and putting the other on the job sheet.
+ *
+ * IT LIVES HERE RATHER THAN IN THE ROUTE because the route file cannot export
+ * it: Next type-checks what a route module exports. Private, it was the one
+ * piece of the server-side price check that no test could reach.
+ */
+export function priceLine(
+  item: IncomingItem,
+): { ok: true; line: PricedLine } | { ok: false; error: string } {
+  const { productSlug, color, fit, size, qty, artworkId } = item;
+
+  if (typeof productSlug !== "string" || !getProduct(productSlug)) {
+    return { ok: false, error: "One of these garments is no longer available." };
+  }
+  const product = getProduct(productSlug)!;
+
+  if (typeof artworkId !== "string" || artworkId.length === 0) {
+    return { ok: false, error: "One of these lines is missing its portrait." };
+  }
+
+  const inThatColour = product.variants.filter(
+    (option) => option.color === color,
+  );
+  if (inThatColour.length === 0) {
+    return {
+      ok: false,
+      error: `We do not make the ${product.name} in that colour.`,
+    };
+  }
+
+  const variant = inThatColour.find((option) => option.fit === fit);
+  if (!variant) {
+    return {
+      ok: false,
+      error: `We do not make the ${product.name} in that colour in that fit.`,
+    };
+  }
+
+  if (typeof size !== "string" || !variant.sizes.includes(size)) {
+    return {
+      ok: false,
+      error: `The ${product.name} does not come in that size in ${variant.color}.`,
+    };
+  }
+
+  if (!isValidQty(qty)) {
+    return {
+      ok: false,
+      error: `Quantities run from ${MIN_QTY} to ${MAX_QTY} per portrait.`,
+    };
+  }
+
+  return {
+    ok: true,
+    line: {
+      productSlug,
+      color: variant.color,
+      fit: variant.fit,
+      size,
+      qty,
+      artworkId,
+      // The price the catalogue says today, never the one the client sent.
+      unitPriceZar: variant.priceZar,
+    },
+  };
+}
+
 export function isValidQty(qty: unknown): qty is number {
   return (
     typeof qty === "number" &&

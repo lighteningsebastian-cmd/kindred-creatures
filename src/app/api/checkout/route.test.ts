@@ -89,6 +89,7 @@ function hoodieLine(artworkId: string, overrides: Line = {}): Line {
   return {
     productSlug: "hoodie",
     color: "Blue",
+    fit: "unisex",
     size: "M",
     qty: 1,
     artworkId,
@@ -207,6 +208,7 @@ describe("POST /api/checkout", () => {
         {
           productSlug: "tote",
           color: "Natural",
+          fit: "unisex",
           size: "One size",
           qty: 3,
           artworkId: tote,
@@ -242,6 +244,7 @@ describe("POST /api/checkout", () => {
         {
           productSlug: "tote",
           color: "Natural",
+          fit: "unisex",
           size: "XL",
           qty: 1,
           artworkId,

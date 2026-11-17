@@ -4,13 +4,12 @@ import { getDb, type Db } from "@/lib/db/client";
 import { isProfileComplete } from "@/lib/companion";
 import { profileFromArtwork } from "@/lib/artwork-approval";
 import { artworks, orderItems, orders } from "@/lib/db/schema";
-import { getProduct } from "@/lib/products";
 import {
-  isValidQty,
   orderTotals,
+  priceLine,
   validateCustomerDetails,
-  MAX_QTY,
-  MIN_QTY,
+  type IncomingItem,
+  type PricedLine,
 } from "@/lib/checkout";
 import {
   buildPaymentFields,
@@ -46,80 +45,6 @@ function ourSide(where: string, error: unknown) {
     "Something went wrong on our side and your order was not opened. Nothing has been charged. Please try again in a few minutes.",
     503,
   );
-}
-
-/** A line as the client sends it: identity and choices only, never a price. */
-type IncomingItem = {
-  productSlug?: unknown;
-  color?: unknown;
-  size?: unknown;
-  qty?: unknown;
-  artworkId?: unknown;
-};
-
-/** A line once we have proven it against the catalogue and priced it ourselves. */
-type PricedLine = {
-  productSlug: string;
-  color: string;
-  size: string;
-  qty: number;
-  artworkId: string;
-  unitPriceZar: number;
-};
-
-/**
- * Prices one line from the catalogue. The colour must be offered on the
- * product, and the size must be offered on that colour: a Natural tote has no
- * size L, and asking for one is a bad order, not a cheap one.
- */
-function priceLine(
-  item: IncomingItem,
-): { ok: true; line: PricedLine } | { ok: false; error: string } {
-  const { productSlug, color, size, qty, artworkId } = item;
-
-  if (typeof productSlug !== "string" || !getProduct(productSlug)) {
-    return { ok: false, error: "One of these garments is no longer available." };
-  }
-  const product = getProduct(productSlug)!;
-
-  if (typeof artworkId !== "string" || artworkId.length === 0) {
-    return { ok: false, error: "One of these lines is missing its portrait." };
-  }
-
-  const variant = product.variants.find((option) => option.color === color);
-  if (!variant) {
-    return {
-      ok: false,
-      error: `We do not make the ${product.name} in that colour.`,
-    };
-  }
-
-  if (typeof size !== "string" || !variant.sizes.includes(size)) {
-    return {
-      ok: false,
-      error: `The ${product.name} does not come in that size in ${variant.color}.`,
-    };
-  }
-
-  if (!isValidQty(qty)) {
-    return {
-      ok: false,
-      error: `Quantities run from ${MIN_QTY} to ${MAX_QTY} per portrait.`,
-    };
-  }
-
-  return {
-    ok: true,
-    line: {
-      productSlug,
-      color: variant.color,
-      size,
-      qty,
-      artworkId,
-      // The price the catalogue says today, never the one the client sent.
-      unitPriceZar: variant.priceZar,
-    },
-  };
 }
 
 /**
@@ -324,6 +249,7 @@ export async function POST(request: Request) {
           orderId,
           productSlug: line.productSlug,
           color: line.color,
+          fit: line.fit,
           size: line.size,
           qty: line.qty,
           unitPriceZar: line.unitPriceZar,
