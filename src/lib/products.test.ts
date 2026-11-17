@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { garmentImageUrl, photoAspect } from "./garments";
 import {
   PRODUCTS,
@@ -7,6 +9,8 @@ import {
   getProduct,
   fromPriceZar,
 } from "./products";
+
+const PUBLIC = join(process.cwd(), "public");
 
 describe("formatZar", () => {
   it("prefixes with 'R ' and no separator under a thousand", () => {
@@ -139,8 +143,8 @@ describe("catalog seed", () => {
   // whatever it became. They are the same ratio, so it did not, and this
   // asserts that rather than trusting it.
   it("did not resize the preview box when the hoodie default moved to White", () => {
-    expect(photoAspect("hoodie", "White", "back")).toBeCloseTo(
-      photoAspect("hoodie", "Blue", "back"),
+    expect(photoAspect("hoodie", "white", "back")).toBeCloseTo(
+      photoAspect("hoodie", "blue", "back"),
       4,
     );
   });
@@ -152,9 +156,32 @@ describe("catalog seed", () => {
     for (const slug of ["hoodie", "tee", "crewneck"] as const) {
       const product = getProduct(slug)!;
       expect(
-        garmentImageUrl(slug, product.variants[0].color, "front"),
+        garmentImageUrl(slug, product.variants[0].photoDir, "front"),
         slug,
       ).toBeTruthy();
+    }
+  });
+
+  /*
+   * THE SHOT LIST, READ OFF THE DISK RATHER THAN OFF A MAP.
+   *
+   * A variant names its own photo directory, so "is this garment
+   * photographed" is answerable without a lookup table that can itself be
+   * wrong. This reads the real files: a colourway added to the catalogue ahead
+   * of its shoot fails here rather than rendering an empty frame on a R999
+   * product.
+   */
+  it("gives every variant a photo directory with photographs in it", () => {
+    for (const product of PRODUCTS) {
+      for (const variant of product.variants) {
+        const where = `${product.slug} ${variant.color}`;
+        expect(typeof variant.photoDir, where).toBe("string");
+
+        const dir = join(PUBLIC, "garments", product.slug, variant.photoDir);
+        expect(existsSync(dir), where).toBe(true);
+        expect(existsSync(join(dir, "front.webp")), where).toBe(true);
+        expect(existsSync(join(dir, "back.webp")), where).toBe(true);
+      }
     }
   });
 });

@@ -1,4 +1,4 @@
-import type { ProductSlug } from "@/lib/products";
+import type { ProductSlug, Variant } from "@/lib/products";
 
 /**
  * Showing a plate on the real garment.
@@ -140,12 +140,10 @@ const DEFAULT_SHAPE = 4 / 5;
  */
 export function photoAspect(
   slug: ProductSlug,
-  color: string,
+  photoDir: string,
   view: GarmentView = "front",
 ): number {
-  const photo = garmentPhoto(slug, color);
-  if (!photo) return DEFAULT_SHAPE;
-  const size = PHOTO_SIZE[`${slug}/${photo.dir}/${view}`];
+  const size = PHOTO_SIZE[`${slug}/${photoDir}/${view}`];
   return size ? size.w / size.h : DEFAULT_SHAPE;
 }
 
@@ -163,12 +161,10 @@ export function photoAspect(
  */
 export function photoSourceWidth(
   slug: ProductSlug,
-  color: string,
+  photoDir: string,
   view: GarmentView,
 ): number | null {
-  const photo = garmentPhoto(slug, color);
-  if (!photo) return null;
-  return PHOTO_SIZE[`${slug}/${photo.dir}/${view}`]?.w ?? null;
+  return PHOTO_SIZE[`${slug}/${photoDir}/${view}`]?.w ?? null;
 }
 
 /**
@@ -288,77 +284,29 @@ export const PLACEMENT_OVERRIDES: Partial<Record<string, PlatePlacement>> = {
  */
 export function placementFor(
   slug: ProductSlug,
-  color: string,
+  photoDir: string,
   side: GarmentSide,
 ): PlatePlacement {
-  const photo = garmentPhoto(slug, color);
-  const override = photo
-    ? PLACEMENT_OVERRIDES[`${slug}/${photo.dir}/${side}`]
-    : undefined;
-  return override ?? PLACEMENT[slug][side];
+  return (
+    PLACEMENT_OVERRIDES[`${slug}/${photoDir}/${side}`] ?? PLACEMENT[slug][side]
+  );
 }
 
 /**
- * Catalogue colourway to photographed colourway.
+ * EVERY COLOURWAY IS ITS OWN PHOTOGRAPH, and the variant is what says which.
  *
- * EVERY COLOURWAY IS ITS OWN PHOTOGRAPH NOW. This map used to carry a whole
- * stand-in layer, where six of eleven colourways showed the nearest shot we had
- * of a different colour, because the catalogue still listed Stone, Charcoal,
- * Olive and Ecru while the shoot had produced Blue, Lilac, White, Peach, Grey,
- * Olive and Heritage Blue. The catalogue was the thing that was wrong; once it
- * named the colours we actually photographed, the stand-ins had nothing left to
- * stand in for.
+ * A map from catalogue colour to photographed colour used to live here. It had
+ * to go, not because it was wrong but because it could not be made right: it
+ * was keyed on colour NAME, and a men's White crewneck and a women's White
+ * crewneck are two garments that share one. `Variant.photoDir` in products.ts
+ * holds that answer now, next to the garment it belongs to.
  *
- * Keep it that way. If a colourway is added to products.ts without a shot
- * behind it, add the shot rather than pointing it at a neighbour: a swatch that
- * shows the wrong garment is a returned parcel.
+ * What the map warned about still stands. If a colourway reaches the catalogue
+ * without a shot behind it, add the shot rather than pointing it at a
+ * neighbour: a swatch that shows the wrong garment is a returned parcel.
+ * `unphotographedColours` and the filesystem test in products.test.ts are what
+ * catch it.
  */
-interface PhotoChoice {
-  /** Directory under public/garments/<product>/. */
-  dir: string;
-}
-
-const PHOTOS: Record<ProductSlug, Record<string, PhotoChoice>> = {
-  hoodie: {
-    Blue: { dir: "blue" },
-    Lilac: { dir: "lilac" },
-    White: { dir: "white" },
-  },
-  crewneck: {
-    White: { dir: "white" },
-    Peach: { dir: "peach" },
-    Grey: { dir: "grey" },
-    Olive: { dir: "olive" },
-  },
-  tee: {
-    White: { dir: "white" },
-    Olive: { dir: "olive" },
-    "Heritage Blue": { dir: "heritage-blue" },
-  },
-  /*
-   * THE CATALOGUE CALLS IT NATURAL AND THE SHOOT CALLS IT BEIGE. Same undyed
-   * canvas, two names, and this map is the one place designed to reconcile
-   * them, which is why the directory keeps the shoot's word rather than the
-   * script quietly renaming the file on import. Someone grepping for "beige"
-   * after looking at Stock Images finds it.
-   *
-   * This is NOT the stand-in layer the note above warns about: that was
-   * colourways pointed at a photograph of a DIFFERENT colour. This is the
-   * bag's own photograph under the name the photographer gave it. The swatch
-   * a customer taps is the garment they will be sent.
-   */
-  tote: {
-    Natural: { dir: "beige" },
-  },
-};
-
-/** The photo directory a colourway shows, or null where there is none. */
-export function garmentPhoto(
-  slug: ProductSlug,
-  color: string,
-): PhotoChoice | null {
-  return PHOTOS[slug][color] ?? null;
-}
 
 /**
  * The public path to a garment photograph, or null where there is none.
@@ -369,12 +317,11 @@ export function garmentPhoto(
  */
 export function garmentImageUrl(
   slug: ProductSlug,
-  color: string,
+  photoDir: string,
   side: GarmentSide,
 ): string | null {
-  const photo = garmentPhoto(slug, color);
-  if (!photo) return null;
-  return `/garments/${slug}/${photo.dir}/${side}.webp`;
+  if (!(`${slug}/${photoDir}/${side}` in PHOTO_SIZE)) return null;
+  return `/garments/${slug}/${photoDir}/${side}.webp`;
 }
 
 /**
@@ -387,26 +334,34 @@ export function garmentImageUrl(
  */
 export function garmentViewUrl(
   slug: ProductSlug,
-  color: string,
+  photoDir: string,
   view: GarmentView,
 ): string | null {
-  const photo = garmentPhoto(slug, color);
-  if (!photo) return null;
-  if (!(`${slug}/${photo.dir}/${view}` in PHOTO_SIZE)) return null;
-  return `/garments/${slug}/${photo.dir}/${view}.webp`;
+  if (!(`${slug}/${photoDir}/${view}` in PHOTO_SIZE)) return null;
+  return `/garments/${slug}/${photoDir}/${view}.webp`;
 }
 
 /**
- * Colourways in the catalogue with no photograph of their own: the shot list.
+ * Variants in the catalogue with no photograph of their own: the shot list.
  *
  * Empty for all four garments today, the tote included since its shoot landed.
- * It is kept because the failure it catches is silent: a
- * colour added to products.ts before its shoot renders an empty frame, and the
- * page looks broken rather than incomplete.
+ * It is kept because the failure it catches is silent: a colourway added to
+ * products.ts before its shoot renders an empty frame, and the page looks
+ * broken rather than incomplete.
+ *
+ * It takes VARIANTS rather than colour names because a colour name no longer
+ * identifies a photograph. Both printable sides must be there: a garment with
+ * a front and no back cannot carry the plate that pays for it.
  */
 export function unphotographedColours(
   slug: ProductSlug,
-  colors: string[],
+  variants: Variant[],
 ): string[] {
-  return colors.filter((color) => !garmentPhoto(slug, color));
+  return variants
+    .filter(
+      (variant) =>
+        !garmentImageUrl(slug, variant.photoDir, "front") ||
+        !garmentImageUrl(slug, variant.photoDir, "back"),
+    )
+    .map((variant) => variant.color);
 }

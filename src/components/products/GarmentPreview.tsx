@@ -44,7 +44,7 @@ function frontZoom(
 ): { scale: number; ox: number; oy: number } {
   // The colourway's own placement: the tee's landscape shots put the print at
   // a different share of the frame, so the camera has to follow that one.
-  const placement = placementFor(product.slug, color.color, "front");
+  const placement = placementFor(product.slug, color.photoDir, "front");
   const print = product.printArea.front;
 
   // The plate is placed by WIDTH, so its height has to be derived. The two axes
@@ -52,7 +52,7 @@ function frontZoom(
   // different shapes: 110 by 150mm of print on a portrait photograph.
   const heightPct =
     ((placement.width * print.heightMm) / print.widthMm) *
-    photoAspect(product.slug, color.color, "front");
+    photoAspect(product.slug, color.photoDir, "front");
 
   return {
     scale: (FRONT_ZOOM_FILL * 100) / placement.width,
@@ -99,8 +99,8 @@ export function GarmentPreview({
   /** The plate layer. Nothing is drawn over the garment when it is absent. */
   children?: ReactNode;
 }) {
-  const garment = garmentImageUrl(product.slug, color.color, side);
-  const placement = placementFor(product.slug, color.color, side);
+  const garment = garmentImageUrl(product.slug, color.photoDir, side);
+  const placement = placementFor(product.slug, color.photoDir, side);
 
   // THE FRONT OPENS ZOOMED IN. The front print is 110mm wide on a garment
   // roughly 600mm across, so at full-garment zoom it is a smudge, and the
@@ -111,7 +111,7 @@ export function GarmentPreview({
   // the whole plate.
   const [zoomedIn, setZoomedIn] = useState(true);
   const zoom = side === "front" && zoomedIn ? frontZoom(product, color) : null;
-  const aspect = photoAspect(product.slug, color.color, side);
+  const aspect = photoAspect(product.slug, color.photoDir, side);
 
   return (
     // The OUTER box takes whatever space the flow gave it; the INNER box is the

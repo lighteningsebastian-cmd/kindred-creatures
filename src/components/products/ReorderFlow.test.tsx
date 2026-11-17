@@ -194,12 +194,12 @@ describe("ReorderFlow: the portrait on the garment", () => {
     await user.click(screen.getByRole("button", { name: "Kindred Tee" }));
 
     expect(parseFloat(photoBox("The Kindred Tee in White, back").style.aspectRatio)).toBeCloseTo(
-      photoAspect("tee", "White", "back"),
+      photoAspect("tee", "white", "back"),
     );
 
     await user.click(screen.getByRole("button", { name: "Olive" }));
     expect(parseFloat(photoBox("The Kindred Tee in Olive, back").style.aspectRatio)).toBeCloseTo(
-      photoAspect("tee", "Olive", "back"),
+      photoAspect("tee", "olive", "back"),
     );
   });
 
@@ -217,7 +217,7 @@ describe("ReorderFlow: the portrait on the garment", () => {
       `${tee.printArea.back.widthMm} / ${tee.printArea.back.heightMm}`,
     );
     const placed = shape.parentElement!;
-    const white = placementFor("tee", "White", "back");
+    const white = placementFor("tee", "white", "back");
     expect(placed.style.top).toBe(`${white.top}%`);
     expect(placed.style.left).toBe(`${white.left}%`);
     expect(placed.style.width).toBe(`${white.width}%`);
@@ -225,7 +225,7 @@ describe("ReorderFlow: the portrait on the garment", () => {
     // And it follows the colourway: the tee's Olive shot is framed wider, so
     // the plate has a placement of its own there.
     await user.click(screen.getByRole("button", { name: "Olive" }));
-    const olive = placementFor("tee", "Olive", "back");
+    const olive = placementFor("tee", "olive", "back");
     const moved = screen.getByRole("img", {
       name: "Your portrait on the back of The Kindred Tee",
     }).parentElement!.parentElement!;

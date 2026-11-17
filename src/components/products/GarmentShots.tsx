@@ -93,11 +93,11 @@ export function GarmentShots({
   const shot = shots[showing]!;
   // `printed` is true only for "front" and "back", which are exactly the two
   // sides placementFor answers for, so the cast is the type system catching up
-  // with the manifest rather than a hole in it. The colourway is asked for
-  // because a home tile walks through colourways, and the tee's are not
-  // framed alike.
+  // with the manifest rather than a hole in it. The shot's own directory is
+  // asked for because a home tile walks through colourways, and the tee's are
+  // not framed alike.
   const placement = shot.printed
-    ? placementFor(slug, shot.colour, shot.view as GarmentSide)
+    ? placementFor(slug, shot.photoDir, shot.view as GarmentSide)
     : null;
 
   const productName = getProduct(slug)?.name ?? slug;

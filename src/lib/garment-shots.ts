@@ -4,7 +4,7 @@ import {
   photoSourceWidth,
   type GarmentView,
 } from "@/lib/garments";
-import { getProduct, type ProductSlug } from "@/lib/products";
+import { getProduct, type ProductSlug, type Variant } from "@/lib/products";
 
 /**
  * Which photographs a catalogue card shows, and in what order.
@@ -21,14 +21,17 @@ import { getProduct, type ProductSlug } from "@/lib/products";
 
 export interface Shot {
   view: GarmentView;
+  /** The catalogue colourway the photograph shows, as a customer reads it. */
+  colour: string;
   /**
-   * The catalogue colourway the photograph shows.
+   * The directory this photograph came out of.
    *
    * Carried because placement depends on it: the shoot did not frame every
    * colourway alike, so a printed shot asks `placementFor` with this rather
-   * than taking one placement for the whole product.
+   * than taking one placement for the whole product. It is the directory and
+   * not the colour because a colour name does not identify a photograph.
    */
-  colour: string;
+  photoDir: string;
   /** Public path to the photograph. */
   url: string;
   /** Real alt text, describing the garment and the aspect. */
@@ -203,23 +206,25 @@ const PLATE_SHAPE: Record<string, number> = {
 /** One shot, or null when that photograph does not exist. */
 function shotFor(
   slug: ProductSlug,
-  colour: string,
+  variant: Variant,
   view: GarmentView,
 ): Shot | null {
-  const url = garmentViewUrl(slug, colour, view);
+  const { color: colour, photoDir } = variant;
+  const url = garmentViewUrl(slug, photoDir, view);
   if (!url) return null;
   const printed = view === "front" || view === "back";
   const plateUrl = plateFor(slug, view);
   return {
     view,
     colour,
+    photoDir,
     url,
     alt: altFor(slug, colour, view),
     printed,
     plateUrl,
-    aspect: photoAspect(slug, colour, view),
+    aspect: photoAspect(slug, photoDir, view),
     plateAspect: plateUrl ? (PLATE_SHAPE[plateUrl] ?? null) : null,
-    sourceWidth: photoSourceWidth(slug, colour, view) ?? 0,
+    sourceWidth: photoSourceWidth(slug, photoDir, view) ?? 0,
     label: viewLabel(view),
     swatchHex: null,
   };
@@ -228,11 +233,14 @@ function shotFor(
 /** Ordered shots for a product's hero colourway. Empty for the tote. */
 export function catalogueShots(slug: ProductSlug): Shot[] {
   const colour = heroColour(slug);
-  if (!colour) return [];
+  const variant = getProduct(slug)?.variants.find(
+    (candidate) => candidate.color === colour,
+  );
+  if (!variant) return [];
 
   const shots: Shot[] = [];
   for (const view of VIEWS[slug]) {
-    const shot = shotFor(slug, colour, view);
+    const shot = shotFor(slug, variant, view);
     if (shot) shots.push(shot);
   }
   return shots;
@@ -276,7 +284,7 @@ export function colourwayShots(slug: ProductSlug): Shot[] {
 
   const shots: Shot[] = [];
   for (const variant of ordered) {
-    const shot = shotFor(slug, variant.color, "back");
+    const shot = shotFor(slug, variant, "back");
     if (!shot) continue;
     shots.push({
       ...shot,

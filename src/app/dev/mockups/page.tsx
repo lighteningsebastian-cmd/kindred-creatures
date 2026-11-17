@@ -61,10 +61,7 @@ export default function MockupsPage() {
       </div>
 
       {PRODUCTS.map((product) => {
-        const missing = unphotographedColours(
-          product.slug,
-          product.variants.map((variant) => variant.color),
-        );
+        const missing = unphotographedColours(product.slug, product.variants);
         return (
           <section key={product.slug} className="mt-12 flex flex-col gap-4">
             <div className="flex flex-col gap-1">
@@ -86,12 +83,12 @@ export default function MockupsPage() {
                 SIDES.map((side) => {
                   const garment = garmentImageUrl(
                     product.slug,
-                    variant.color,
+                    variant.photoDir,
                     side,
                   );
                   const placement = placementFor(
                     product.slug,
-                    variant.color,
+                    variant.photoDir,
                     side,
                   );
                   // placementFor hands back the default object itself when
@@ -119,7 +116,7 @@ export default function MockupsPage() {
                         style={{
                           aspectRatio: photoAspect(
                             product.slug,
-                            variant.color,
+                            variant.photoDir,
                             side,
                           ),
                         }}
