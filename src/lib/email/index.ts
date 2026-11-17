@@ -329,6 +329,9 @@ async function toJobSheetLines(items: OrderItem[]): Promise<JobSheetLine[]> {
       return {
         productName: product?.name ?? item.productSlug,
         color: item.color,
+        // Null on every order placed before the ranges were separated, and the
+        // sheet omits the segment rather than inventing one.
+        fit: item.fit,
         size: item.size,
         qty: item.qty,
         printAreaMm: product?.printArea ?? {

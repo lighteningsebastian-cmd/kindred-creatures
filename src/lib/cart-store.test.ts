@@ -12,6 +12,7 @@ function line(overrides: Partial<CartItem> = {}): CartItem {
   return {
     productSlug: "hoodie",
     color: "Stone",
+    fit: "unisex",
     size: "M",
     qty: 1,
     artworkId: "art-1",
@@ -25,6 +26,41 @@ const items = () => useCartStore.getState().items;
 beforeEach(() => {
   window.localStorage.clear();
   useCartStore.setState({ items: [] });
+});
+
+describe("a cart held from before fits existed", () => {
+  it("is dropped rather than rehydrated without a fit", async () => {
+    /*
+     * The version bump empties every cart a visitor is holding, and that is
+     * the point rather than a cost of it. A held line names a colour, and a
+     * crewneck colour has since changed fit, price and size run: White is two
+     * garments now. Migrating it would mean guessing which one was meant, on a
+     * personalised item that cannot be returned. An emptied cart is something
+     * a customer can rebuild; a silently wrong one is not.
+     */
+    window.localStorage.setItem(
+      CART_STORAGE_KEY,
+      JSON.stringify({
+        state: {
+          items: [
+            {
+              productSlug: "tee",
+              color: "White",
+              size: "M",
+              qty: 1,
+              artworkId: "a1",
+              unitPriceZar: 599,
+            },
+          ],
+        },
+        version: 1,
+      }),
+    );
+
+    await useCartStore.persist.rehydrate();
+
+    expect(items()).toEqual([]);
+  });
 });
 
 describe("cart store", () => {
@@ -173,7 +209,7 @@ describe("cart store", () => {
     const raw = window.localStorage.getItem(CART_STORAGE_KEY);
     expect(raw).toBeTruthy();
     const saved = JSON.parse(raw!);
-    expect(saved.version).toBe(1);
+    expect(saved.version).toBe(2);
     expect(saved.state.items).toHaveLength(1);
     expect(saved.state.items[0].artworkId).toBe("art-1");
   });

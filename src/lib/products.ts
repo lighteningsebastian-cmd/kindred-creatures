@@ -17,6 +17,15 @@ export const FIT_LABELS: Record<Fit, string> = {
 
 export interface Variant {
   color: string;
+  /**
+   * How this one is cut.
+   *
+   * ON THE VARIANT AND NOT THE PRODUCT, because a fit carries its own blank
+   * cost, its own size run and potentially its own price: the women's crewneck
+   * blank costs R290 and the men's R350. Modelled as a label on the product,
+   * those facts are unrepresentable, and so is one garment sold in two cuts.
+   */
+  fit: Fit;
   colorHex: string;
   /**
    * This variant's photo directory, under public/garments/<slug>/.
@@ -46,8 +55,6 @@ export interface Product {
   slug: ProductSlug;
   name: string;
   blurb: string;
-  /** Absent on the tote, which is not worn. */
-  fit?: Fit;
   variants: Variant[];
   /**
    * The two print areas, which are genuinely different shapes.
@@ -108,7 +115,6 @@ export const PRODUCTS: Product[] = [
   {
     slug: "hoodie",
     name: "The Kindred Hoodie",
-    fit: "unisex",
     blurb:
       "A heavyweight brushed-cotton hoodie carrying your pet's portrait, soft enough to live in and warm enough to earn a spot by the fire.",
     // White first: it is the default colourway. See THE FIRST VARIANT IS THE
@@ -116,6 +122,7 @@ export const PRODUCTS: Product[] = [
     variants: [
       {
         color: "White",
+        fit: "unisex",
         colorHex: "#F3EFE9",
         photoDir: "unisex/white",
         sizes: SIZES_TO_XXL,
@@ -123,6 +130,7 @@ export const PRODUCTS: Product[] = [
       },
       {
         color: "Blue",
+        fit: "unisex",
         colorHex: "#657188",
         photoDir: "unisex/blue",
         sizes: SIZES_TO_XXL,
@@ -130,6 +138,7 @@ export const PRODUCTS: Product[] = [
       },
       {
         color: "Lilac",
+        fit: "unisex",
         colorHex: "#A898A6",
         photoDir: "unisex/lilac",
         sizes: SIZES_TO_XXL,
@@ -139,14 +148,19 @@ export const PRODUCTS: Product[] = [
     printArea: { front: FRONT_PRINT, back: { widthMm: 280, heightMm: 350 } },
   },
   {
+    // KNOWINGLY HALF TRUE, and only until the catalogue splits. Every variant
+    // here says `unisex` while its photoDir says `mens`, because these three
+    // colourways are the men's tee block and always were. The labels are
+    // today's labels on purpose: correcting them is a change a customer can
+    // see, and it belongs in the commit that brings the women's tee with it.
     slug: "tee",
     name: "The Kindred Tee",
-    fit: "unisex",
     blurb:
       "A midweight organic-cotton tee with a portrait that holds its detail wash after wash, cut for everyday wear that feels like a favourite already.",
     variants: [
       {
         color: "White",
+        fit: "unisex",
         colorHex: "#F5F5F9",
         photoDir: "mens/white",
         sizes: SIZES_TO_XXL,
@@ -154,6 +168,7 @@ export const PRODUCTS: Product[] = [
       },
       {
         color: "Olive",
+        fit: "unisex",
         colorHex: "#605D2D",
         photoDir: "mens/olive",
         sizes: SIZES_TO_XXL,
@@ -161,6 +176,7 @@ export const PRODUCTS: Product[] = [
       },
       {
         color: "Heritage Blue",
+        fit: "unisex",
         colorHex: "#94BDD5",
         photoDir: "mens/heritage-blue",
         sizes: SIZES_TO_XXL,
@@ -170,14 +186,18 @@ export const PRODUCTS: Product[] = [
     printArea: { front: FRONT_PRINT, back: { widthMm: 250, heightMm: 300 } },
   },
   {
+    // KNOWINGLY HALF TRUE, as the tee is. All four say `womens` while Grey and
+    // Olive are photographs of the men's sweater, which is the bug this whole
+    // branch exists to fix. The photoDir values already tell the truth; the
+    // fit labels follow when the catalogue splits.
     slug: "crewneck",
     name: "The Kindred Crewneck",
-    fit: "womens",
     blurb:
       "A structured loop-back crewneck that frames your pet's portrait with room to breathe, the kind of sweater you reach for without thinking.",
     variants: [
       {
         color: "White",
+        fit: "womens",
         colorHex: "#F3F0EC",
         photoDir: "womens/white",
         sizes: SIZES_TO_XL,
@@ -185,6 +205,7 @@ export const PRODUCTS: Product[] = [
       },
       {
         color: "Peach",
+        fit: "womens",
         colorHex: "#FBC1A3",
         photoDir: "womens/peach",
         sizes: SIZES_TO_XL,
@@ -192,6 +213,7 @@ export const PRODUCTS: Product[] = [
       },
       {
         color: "Grey",
+        fit: "womens",
         colorHex: "#B9B9B9",
         photoDir: "mens/grey",
         sizes: SIZES_TO_XL,
@@ -199,6 +221,7 @@ export const PRODUCTS: Product[] = [
       },
       {
         color: "Olive",
+        fit: "womens",
         colorHex: "#656B52",
         photoDir: "mens/olive",
         sizes: SIZES_TO_XL,
@@ -220,6 +243,7 @@ export const PRODUCTS: Product[] = [
     variants: [
       {
         color: "Natural",
+        fit: "unisex",
         colorHex: "#E5DFD2",
         photoDir: "unisex/beige",
         sizes: ["One size"],
@@ -268,6 +292,33 @@ export function printPixels(
 /** Looks up a product by slug, or returns undefined for an unknown slug. */
 export function getProduct(slug: string): Product | undefined {
   return PRODUCTS.find((product) => product.slug === slug);
+}
+
+/**
+ * The distinct fits a product actually offers, in variant order.
+ *
+ * Variant order, not alphabetical: the first variant is the default colourway
+ * and therefore its fit is the one a product leads with, on the home tile and
+ * on the product page. Reordering the variants array moves it.
+ */
+export function fitsFor(product: Product): Fit[] {
+  return [...new Set(product.variants.map((variant) => variant.fit))];
+}
+
+/**
+ * Whether this product needs a fit selector at all.
+ *
+ * False where a garment has one cut for everyone, and then the right interface
+ * is nothing: no pill, no disabled control. Silence is the correct interface
+ * for a choice that does not exist.
+ */
+export function hasFitChoice(product: Product): boolean {
+  return fitsFor(product).length > 1;
+}
+
+/** The variants of a product cut this way. */
+export function variantsForFit(product: Product, fit: Fit): Variant[] {
+  return product.variants.filter((variant) => variant.fit === fit);
 }
 
 /** Lowest variant price for a product, used for "from R x" labels. */

@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { MAX_QTY, MIN_QTY } from "@/lib/checkout";
-import { getProduct, type ProductSlug } from "@/lib/products";
+import { getProduct, type Fit, type ProductSlug } from "@/lib/products";
 
 /**
  * One line in the cart. `artworkId` is the line identity: every artwork is a
@@ -20,6 +20,15 @@ import { getProduct, type ProductSlug } from "@/lib/products";
 export interface CartItem {
   productSlug: ProductSlug;
   color: string;
+  /**
+   * The cut of the garment on this line.
+   *
+   * Carried because a colour no longer names one garment: the men's and the
+   * women's crewneck both come in White, at different blank costs and
+   * potentially different prices. Without this, the line cannot say which
+   * sweater it is, and neither can the price check or the job sheet.
+   */
+  fit: Fit;
   size: string;
   qty: number;
   artworkId: string;
@@ -116,7 +125,8 @@ export const useCartStore = create<CartState>()(
           // re-derives every amount server-side. A cart that disagrees with it
           // shows somebody one number and charges another.
           const variant = getProduct(item.productSlug)?.variants.find(
-            (candidate) => candidate.color === item.color,
+            (candidate) =>
+              candidate.color === item.color && candidate.fit === item.fit,
           );
 
           const items = [...state.items];
@@ -134,7 +144,17 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: CART_STORAGE_KEY,
-      version: 1,
+      /*
+       * 2 BECAUSE A LINE GAINED ITS FIT, and every cart held at version 1 is
+       * dropped rather than migrated. That is what this field is for.
+       *
+       * Migrating was considered and is not possible honestly: a stored line
+       * names a colour, and a crewneck colour has since changed fit, price and
+       * size run. White is two garments now. Guessing which one a held line
+       * meant, on an item that cannot be returned, is worse than asking
+       * somebody to choose again.
+       */
+      version: 2,
       // Guarded getter: there is no localStorage on the server, and zustand
       // treats a throwing getter as "no storage" and skips persistence.
       storage: createJSONStorage(() => localStorage),

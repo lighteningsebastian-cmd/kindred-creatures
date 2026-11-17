@@ -199,6 +199,44 @@ describe("job sheet", () => {
     linkTtlHours: 168,
   });
 
+  it("names the fit, because the printer pulls a specific blank off a shelf", () => {
+    const withFit = jobSheetEmail({
+      orderRef: REF,
+      orderDate: "17 July 2026",
+      lines: [
+        {
+          productName: HOODIE.name,
+          color: "Charcoal",
+          fit: "womens",
+          size: "L",
+          qty: 1,
+          printAreaMm: HOODIE.printArea,
+          printPx: printPixels(HOODIE, "back"),
+          printFileUrl: printUrl,
+        },
+      ],
+      shipTo: ["Thandi Mokoena", "Cape Town", "8001"],
+      customerEmail: "thandi@example.test",
+      customerPhone: "0821234567",
+      linkTtlHours: 168,
+    });
+
+    expect(withFit.text).toContain("Women's fit");
+    // The HTML body escapes the apostrophe, as it escapes every value a
+    // customer or the catalogue supplies.
+    expect(withFit.html).toContain("Women&#39;s fit");
+  });
+
+  it("says nothing about fit on an order placed before fits existed", () => {
+    // Those rows carry a null fit and inventing one would be a lie in the data.
+    // The sheet omits the segment rather than printing the word "null" at the
+    // printer, who would then have to guess.
+    for (const body of [rendered.html, rendered.text]) {
+      expect(body).not.toContain("null");
+      expect(body).not.toContain("undefined");
+    }
+  });
+
   it("headlines the order reference and date", () => {
     expect(rendered.subject).toContain(REF);
     expect(rendered.html).toContain(REF);

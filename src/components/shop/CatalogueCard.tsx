@@ -5,6 +5,7 @@ import { GarmentShots } from "@/components/products/GarmentShots";
 import { catalogueShots } from "@/lib/garment-shots";
 import {
   FIT_LABELS,
+  fitsFor,
   formatZar,
   fromPriceZar,
   type Product,
@@ -90,10 +91,13 @@ export function CatalogueCard({ product }: { product: Product }) {
           <span className="text-sm text-muted">Sizes {sizesHint}</span>
           {/* The crewneck is the women's cut and runs one size shorter, so the
               fit belongs next to the size range rather than buried in the
-              blurb: it is the thing that decides whether someone orders. */}
-          {product.fit ? (
-            <span className="text-sm text-muted">{FIT_LABELS[product.fit]}</span>
-          ) : null}
+              blurb: it is the thing that decides whether someone orders.
+
+              The product's FIRST fit, because a card still stands for a whole
+              product. When the grid is drawn per fit, the card takes one. */}
+          <span className="text-sm text-muted">
+            {FIT_LABELS[fitsFor(product)[0]!]}
+          </span>
         </div>
 
         <div className="mt-auto flex flex-col gap-2 pt-2">

@@ -87,6 +87,7 @@ describe("ReorderFlow", () => {
       productSlug: "hoodie",
       // The first variant, which is White on every garment (owner, 5 August).
       color: "White",
+      fit: "unisex",
       size: "L",
       qty: 1,
       artworkId: ARTWORK_ID,

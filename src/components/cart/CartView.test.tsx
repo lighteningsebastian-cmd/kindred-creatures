@@ -20,6 +20,7 @@ function line(overrides: Partial<CartItem> = {}): CartItem {
   return {
     productSlug: "hoodie",
     color: "White",
+    fit: "unisex",
     size: "M",
     qty: 1,
     artworkId: "art-1",
@@ -198,7 +199,7 @@ describe("CartView", () => {
     useCartStore.setState({ items: [] });
     window.localStorage.setItem(
       "kindred-cart-v1",
-      JSON.stringify({ state: { items: [line({ qty: 3 })] }, version: 1 }),
+      JSON.stringify({ state: { items: [line({ qty: 3 })] }, version: 2 }),
     );
     useCartStore.persist.rehydrate();
 

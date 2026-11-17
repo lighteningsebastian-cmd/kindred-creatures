@@ -1,6 +1,7 @@
 import { pgTable, text, integer, uuid, timestamp } from "drizzle-orm/pg-core";
 import type { ArtStyle } from "@/lib/images/provider";
 import type { Species } from "@/lib/breeds";
+import type { Fit } from "@/lib/products";
 
 /** Lifecycle of an artwork as it moves through the customizer pipeline. */
 export type ArtworkStatus =
@@ -285,6 +286,14 @@ export const orderItems = pgTable("order_items", {
     .references(() => orders.id),
   productSlug: text("product_slug").notNull(),
   color: text("color").notNull(),
+  // How the garment on this line is cut.
+  //
+  // NULLABLE, and deliberately so. Orders placed before the men's and women's
+  // ranges were separated genuinely have no fit, and backfilling one would be
+  // a lie in the data: at the time, a crewneck colour did not say which
+  // sweater it was. Everything that reads this must cope with null rather than
+  // invent a value, and the job sheet prints nothing where there is nothing.
+  fit: text("fit").$type<Fit>(),
   size: text("size").notNull(),
   qty: integer("qty").notNull(),
   unitPriceZar: integer("unit_price_zar").notNull(),
@@ -584,6 +593,12 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id uuid REFERENCES customer
 -- order_items table gains the nullable per-garment print key here; IF NOT EXISTS
 -- makes it a no-op where the CREATE TABLE above already added it.
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS print_key text;
+
+-- The men's and women's ranges, additive: a line records the cut it was bought
+-- in. Nullable on purpose. Rows written before the split have no fit and must
+-- not be given one, because at the time a crewneck colour did not say which
+-- sweater it was.
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS fit text;
 
 -- Delivery-hardening D1, additive: the short customer-facing order reference.
 -- A pre-existing orders table gains the nullable column here (pre-launch, so

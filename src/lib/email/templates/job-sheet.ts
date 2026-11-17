@@ -6,6 +6,7 @@ import {
   shell,
   type RenderedEmail,
 } from "../layout";
+import { FIT_LABELS, type Fit } from "@/lib/products";
 
 /**
  * The print shop's copy of an order. This is an operations document, not
@@ -18,6 +19,16 @@ import {
 export interface JobSheetLine {
   productName: string;
   color: string;
+  /**
+   * The cut the printer has to pull off the shelf, or null where we do not
+   * know.
+   *
+   * NULL IS A REAL ANSWER, not a gap to fill in. Orders placed before the
+   * men's and women's ranges were separated carry no fit, and the sheet says
+   * nothing rather than guessing: a printer who reads an invented fit pulls
+   * the wrong blank, and a printer who reads nothing asks.
+   */
+  fit?: Fit | null;
   size: string;
   qty: number;
   /**
@@ -61,6 +72,19 @@ export interface JobSheetData {
   linkTtlHours: number;
 }
 
+/**
+ * Colour, fit and size, in the order a printer reads them off a shelf.
+ *
+ * The fit segment is dropped entirely where there is none, rather than printed
+ * as an empty string or the word "null". Saying nothing is what makes a printer
+ * ask; saying "null" is what makes one guess.
+ */
+function describe(line: JobSheetLine): string {
+  return [line.color, line.fit ? FIT_LABELS[line.fit] : null, line.size]
+    .filter((part) => part !== null)
+    .join(" · ");
+}
+
 function dimsText(line: JobSheetLine): string {
   const { front, back } = line.printAreaMm;
   const area =
@@ -84,7 +108,7 @@ function lineHtml(line: JobSheetLine, index: number): string {
     : `<span style="color:${COLORS.taupe500};">Not ready yet, we will follow up</span>`;
   return `<tr>
 ${cell(String(index + 1), "white-space:nowrap;")}
-${cell(`<strong>${escapeHtml(line.productName)}</strong><br />${escapeHtml(`${line.color} · ${line.size}`)}`)}
+${cell(`<strong>${escapeHtml(line.productName)}</strong><br />${escapeHtml(describe(line))}`)}
 ${cell(String(line.qty), "white-space:nowrap;")}
 ${cell(escapeHtml(dimsText(line)))}
 ${cell(file)}
@@ -127,7 +151,7 @@ ${cell(`Customer email: ${escapeHtml(data.customerEmail)}`, `color:${COLORS.taup
     `Ordered ${data.orderDate}`,
     ``,
     ...data.lines.flatMap((line, index) => [
-      `${index + 1}. ${line.productName} · ${line.color} · ${line.size} · qty ${line.qty}`,
+      `${index + 1}. ${line.productName} · ${describe(line)} · qty ${line.qty}`,
       `   Print size: ${dimsText(line)}`,
       `   File: ${line.printFileUrl ?? "not ready yet, we will follow up"}`,
       ``,
