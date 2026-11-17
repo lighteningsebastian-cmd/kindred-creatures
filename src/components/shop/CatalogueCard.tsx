@@ -112,8 +112,15 @@ export function CatalogueCard({
               fit belongs next to the size range rather than buried in the
               blurb: it is the thing that decides whether someone orders.
 
-              This card's own fit, which is the thing it is a card for. */}
-          <span className="text-sm text-muted">{FIT_LABELS[fit]}</span>
+              This card's own fit, which is the thing it is a card for.
+
+              NOT ON THE TOTE. A bag is carried, not worn, and has no cut to
+              speak of: "Unisex fit" under "Sizes One size" is a line that
+              decides nothing. A size run is what tells the two apart, and it
+              is the same rule the old optional fit on the product encoded. */}
+          {sizes.length > 1 ? (
+            <span className="text-sm text-muted">{FIT_LABELS[fit]}</span>
+          ) : null}
         </div>
 
         <div className="mt-auto flex flex-col gap-2 pt-2">
