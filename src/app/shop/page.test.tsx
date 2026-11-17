@@ -27,6 +27,18 @@ describe("shop page, one card per garment and fit", () => {
     );
   });
 
+  it("states a fit on every garment, and none on the tote", () => {
+    // A bag has no cut. "Unisex fit" under "Sizes One size" is a line that
+    // decides nothing, and the card used to leave it off.
+    render(<ShopPage />);
+    expect(screen.getAllByText("Unisex fit")).toHaveLength(
+      PRODUCTS.filter(
+        (product) =>
+          product.slug !== "tote" && fitsFor(product).includes("unisex"),
+      ).length,
+    );
+  });
+
   it("carries the fit in the link only where a product has a choice", () => {
     // No point in a query parameter that can only have one value, and every
     // one of them is a URL that has to be worth indexing.
