@@ -1,11 +1,18 @@
 export type ProductSlug = "hoodie" | "tee" | "crewneck" | "tote";
 
-/** How a garment is cut. The tote has no fit, so it carries none. */
-export type Fit = "unisex" | "womens";
+/**
+ * How a garment is cut.
+ *
+ * "unisex" is not a third option alongside the other two: it means the garment
+ * has one cut for everyone, and a product whose only fit is unisex must not
+ * render a fit selector at all.
+ */
+export type Fit = "unisex" | "womens" | "mens";
 
 export const FIT_LABELS: Record<Fit, string> = {
   unisex: "Unisex fit",
   womens: "Women's fit",
+  mens: "Men's fit",
 };
 
 export interface Variant {
@@ -110,21 +117,21 @@ export const PRODUCTS: Product[] = [
       {
         color: "White",
         colorHex: "#F3EFE9",
-        photoDir: "white",
+        photoDir: "unisex/white",
         sizes: SIZES_TO_XXL,
         priceZar: 999,
       },
       {
         color: "Blue",
         colorHex: "#657188",
-        photoDir: "blue",
+        photoDir: "unisex/blue",
         sizes: SIZES_TO_XXL,
         priceZar: 999,
       },
       {
         color: "Lilac",
         colorHex: "#A898A6",
-        photoDir: "lilac",
+        photoDir: "unisex/lilac",
         sizes: SIZES_TO_XXL,
         priceZar: 999,
       },
@@ -141,21 +148,21 @@ export const PRODUCTS: Product[] = [
       {
         color: "White",
         colorHex: "#F5F5F9",
-        photoDir: "white",
+        photoDir: "mens/white",
         sizes: SIZES_TO_XXL,
         priceZar: 599,
       },
       {
         color: "Olive",
         colorHex: "#605D2D",
-        photoDir: "olive",
+        photoDir: "mens/olive",
         sizes: SIZES_TO_XXL,
         priceZar: 599,
       },
       {
         color: "Heritage Blue",
         colorHex: "#94BDD5",
-        photoDir: "heritage-blue",
+        photoDir: "mens/heritage-blue",
         sizes: SIZES_TO_XXL,
         priceZar: 599,
       },
@@ -172,28 +179,28 @@ export const PRODUCTS: Product[] = [
       {
         color: "White",
         colorHex: "#F3F0EC",
-        photoDir: "white",
+        photoDir: "womens/white",
         sizes: SIZES_TO_XL,
         priceZar: 799,
       },
       {
         color: "Peach",
         colorHex: "#FBC1A3",
-        photoDir: "peach",
+        photoDir: "womens/peach",
         sizes: SIZES_TO_XL,
         priceZar: 799,
       },
       {
         color: "Grey",
         colorHex: "#B9B9B9",
-        photoDir: "grey",
+        photoDir: "mens/grey",
         sizes: SIZES_TO_XL,
         priceZar: 799,
       },
       {
         color: "Olive",
         colorHex: "#656B52",
-        photoDir: "olive",
+        photoDir: "mens/olive",
         sizes: SIZES_TO_XL,
         priceZar: 799,
       },
@@ -214,7 +221,7 @@ export const PRODUCTS: Product[] = [
       {
         color: "Natural",
         colorHex: "#E5DFD2",
-        photoDir: "beige",
+        photoDir: "unisex/beige",
         sizes: ["One size"],
         priceZar: 349,
       },

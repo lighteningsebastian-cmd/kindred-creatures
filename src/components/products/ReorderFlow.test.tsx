@@ -146,7 +146,7 @@ describe("ReorderFlow: the portrait on the garment", () => {
 
     const photo = garment("The Kindred Hoodie in White, back");
     expect(decodeURIComponent(photo.getAttribute("src")!)).toContain(
-      "/garments/hoodie/white/back.webp",
+      "/garments/hoodie/unisex/white/back.webp",
     );
     const plate = screen.getByRole("img", {
       name: "Your portrait on the back of The Kindred Hoodie",
@@ -166,7 +166,7 @@ describe("ReorderFlow: the portrait on the garment", () => {
 
     const photo = garment("The Kindred Tee in White, back");
     expect(decodeURIComponent(photo.getAttribute("src")!)).toContain(
-      "/garments/tee/white/back.webp",
+      "/garments/tee/mens/white/back.webp",
     );
     expect(
       screen.getByRole("img", { name: "Your portrait on the back of The Kindred Tee" }),
@@ -182,7 +182,7 @@ describe("ReorderFlow: the portrait on the garment", () => {
 
     const photo = garment("The Kindred Hoodie in Blue, back");
     expect(decodeURIComponent(photo.getAttribute("src")!)).toContain(
-      "/garments/hoodie/blue/back.webp",
+      "/garments/hoodie/unisex/blue/back.webp",
     );
   });
 
@@ -194,12 +194,12 @@ describe("ReorderFlow: the portrait on the garment", () => {
     await user.click(screen.getByRole("button", { name: "Kindred Tee" }));
 
     expect(parseFloat(photoBox("The Kindred Tee in White, back").style.aspectRatio)).toBeCloseTo(
-      photoAspect("tee", "white", "back"),
+      photoAspect("tee", "mens/white", "back"),
     );
 
     await user.click(screen.getByRole("button", { name: "Olive" }));
     expect(parseFloat(photoBox("The Kindred Tee in Olive, back").style.aspectRatio)).toBeCloseTo(
-      photoAspect("tee", "olive", "back"),
+      photoAspect("tee", "mens/olive", "back"),
     );
   });
 
@@ -217,7 +217,7 @@ describe("ReorderFlow: the portrait on the garment", () => {
       `${tee.printArea.back.widthMm} / ${tee.printArea.back.heightMm}`,
     );
     const placed = shape.parentElement!;
-    const white = placementFor("tee", "white", "back");
+    const white = placementFor("tee", "mens/white", "back");
     expect(placed.style.top).toBe(`${white.top}%`);
     expect(placed.style.left).toBe(`${white.left}%`);
     expect(placed.style.width).toBe(`${white.width}%`);
@@ -225,7 +225,7 @@ describe("ReorderFlow: the portrait on the garment", () => {
     // And it follows the colourway: the tee's Olive shot is framed wider, so
     // the plate has a placement of its own there.
     await user.click(screen.getByRole("button", { name: "Olive" }));
-    const olive = placementFor("tee", "olive", "back");
+    const olive = placementFor("tee", "mens/olive", "back");
     const moved = screen.getByRole("img", {
       name: "Your portrait on the back of The Kindred Tee",
     }).parentElement!.parentElement!;
