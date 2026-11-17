@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { FAQS, HOW_IT_WORKS_STEPS } from "@/lib/content";
-import { PRODUCTS, getProduct } from "@/lib/products";
+import {
+  PRODUCTS,
+  getProduct,
+  fitsFor,
+  hasFitChoice,
+} from "@/lib/products";
 import {
   buildBreadcrumbList,
   buildFaqPage,
@@ -226,37 +231,59 @@ describe("buildProduct", () => {
 });
 
 describe("buildItemList", () => {
-  it("lists every catalogue product as a ListItem, numbered from one", () => {
-    const node = buildItemList({ baseUrl: BASE, products: PRODUCTS });
+  // ONE ENTRY PER CARD, which is one per product and fit rather than one per
+  // product. The grid and the markup cannot be allowed to disagree about what
+  // is for sale or what it costs.
+  const entries = PRODUCTS.flatMap((product) =>
+    fitsFor(product).map((fit) => ({ product, fit })),
+  );
+
+  it("lists every card as a ListItem, numbered from one", () => {
+    const node = buildItemList({ baseUrl: BASE, entries });
     const items = node.itemListElement as Array<Record<string, unknown>>;
 
     expect(node["@context"]).toBe("https://schema.org");
     expect(node["@type"]).toBe("ItemList");
-    expect(node.numberOfItems).toBe(4);
-    expect(items).toHaveLength(4);
-    expect(items.map((item) => item.position)).toEqual([1, 2, 3, 4]);
+    expect(node.numberOfItems).toBe(entries.length);
+    expect(items).toHaveLength(entries.length);
+    expect(items.map((item) => item.position)).toEqual(
+      entries.map((_, index) => index + 1),
+    );
   });
 
-  it("prices each product from its cheapest variant in ZAR", () => {
-    const node = buildItemList({ baseUrl: BASE, products: PRODUCTS });
+  it("points a fit's entry at a URL that names it, where there is a choice", () => {
+    const node = buildItemList({ baseUrl: BASE, entries });
     const items = node.itemListElement as Array<Record<string, unknown>>;
 
     items.forEach((item, index) => {
-      const product = PRODUCTS[index];
+      const { product, fit } = entries[index]!;
+      const embedded = item.item as Record<string, unknown>;
+      const expected = hasFitChoice(product)
+        ? `${BASE}/products/${product.slug}?fit=${fit}`
+        : `${BASE}/products/${product.slug}`;
+      expect(embedded.url).toBe(expected);
+    });
+  });
+
+  it("prices each card from the cheapest variant in that fit, in ZAR", () => {
+    const node = buildItemList({ baseUrl: BASE, entries });
+    const items = node.itemListElement as Array<Record<string, unknown>>;
+
+    items.forEach((item, index) => {
+      const { product, fit } = entries[index]!;
       const embedded = item.item as Record<string, unknown>;
       const offer = embedded.offers as Record<string, unknown>;
 
       expect(embedded["@type"]).toBe("Product");
       expect(embedded.name).toBe(product.name);
-      expect(embedded.url).toBe(`${BASE}/products/${product.slug}`);
       expect(offer.priceCurrency).toBe("ZAR");
-      expect(offer.price).toBe(fromPriceZar(product));
+      expect(offer.price).toBe(fromPriceZar(product, fit));
       expect(Number.isInteger(offer.price)).toBe(true);
     });
   });
 
   it("points each product's brand at the organization node", () => {
-    const node = buildItemList({ baseUrl: BASE, products: PRODUCTS });
+    const node = buildItemList({ baseUrl: BASE, entries });
     const items = node.itemListElement as Array<Record<string, unknown>>;
     const first = (items[0].item as Record<string, unknown>).brand;
     expect(first).toEqual({ "@id": `${BASE}/#organization` });
@@ -265,39 +292,42 @@ describe("buildItemList", () => {
   it("carries an optional collection name when given one", () => {
     const named = buildItemList({
       baseUrl: BASE,
-      products: PRODUCTS,
+      entries,
       name: "The Kindred Creatures range",
     });
     expect(named.name).toBe("The Kindred Creatures range");
 
-    const unnamed = buildItemList({ baseUrl: BASE, products: PRODUCTS });
+    const unnamed = buildItemList({ baseUrl: BASE, entries });
     expect(unnamed).not.toHaveProperty("name");
   });
 
   it("never fabricates ratings or reviews", () => {
-    const node = buildItemList({ baseUrl: BASE, products: PRODUCTS });
+    const node = buildItemList({ baseUrl: BASE, entries });
     const serialised = JSON.stringify(node);
     expect(serialised).not.toContain("aggregateRating");
     expect(serialised).not.toContain("Review");
     expect(serialised).not.toContain("ratingValue");
   });
 
-  it("refuses an empty product list and a relative base URL", () => {
-    expect(() => buildItemList({ baseUrl: BASE, products: [] })).toThrow(
-      /products/,
+  it("refuses an empty card list and a relative base URL", () => {
+    expect(() => buildItemList({ baseUrl: BASE, entries: [] })).toThrow(
+      /entries/,
     );
-    expect(() =>
-      buildItemList({ baseUrl: "/shop", products: PRODUCTS }),
-    ).toThrow(/absolute URL/);
+    expect(() => buildItemList({ baseUrl: "/shop", entries })).toThrow(
+      /absolute URL/,
+    );
   });
 
   it("refuses a non-positive price", () => {
     const broken = {
       ...hoodie,
-      variants: [{ ...hoodie.variants[0], priceZar: 0 }],
+      variants: [{ ...hoodie.variants[0]!, priceZar: 0 }],
     };
     expect(() =>
-      buildItemList({ baseUrl: BASE, products: [broken] }),
+      buildItemList({
+        baseUrl: BASE,
+        entries: [{ product: broken, fit: broken.variants[0]!.fit }],
+      }),
     ).toThrow(/price/);
   });
 });

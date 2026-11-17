@@ -5,9 +5,11 @@ import { GarmentShots } from "@/components/products/GarmentShots";
 import { catalogueShots } from "@/lib/garment-shots";
 import {
   FIT_LABELS,
-  fitsFor,
   formatZar,
   fromPriceZar,
+  hasFitChoice,
+  variantsForFit,
+  type Fit,
   type Product,
 } from "@/lib/products";
 
@@ -18,23 +20,40 @@ import {
  * which are a compact photo-overlay bento; this is a two-up product card built
  * for browsing the range, not a teaser.
  */
-export function CatalogueCard({ product }: { product: Product }) {
-  const href = `/products/${product.slug}`;
-  const price = formatZar(fromPriceZar(product));
-  const colours = product.variants.map((variant) => variant.color).join(", ");
+export function CatalogueCard({
+  product,
+  fit,
+}: {
+  product: Product;
+  fit: Fit;
+}) {
+  /*
+   * A CARD IS A GARMENT IN A FIT. Everything below is narrowed to this one
+   * cut: its photographs, its price, its colours and its size run. A card per
+   * product would have to pick one fit's picture and one fit's price, and with
+   * the crewneck's two a hundred rand apart it would advertise the cheaper one
+   * under a photograph of the other.
+   */
+  const variants = variantsForFit(product, fit);
+
+  // The fit only enters the URL where there is a choice to carry. A parameter
+  // that can hold one value is a second address for the same page.
+  const href = hasFitChoice(product)
+    ? `/products/${product.slug}?fit=${fit}`
+    : `/products/${product.slug}`;
+  const price = formatZar(fromPriceZar(product, fit));
+  const colours = variants.map((variant) => variant.color).join(", ");
 
   // Sizes available, as a plain range: "XS to XXL" for apparel, "One size" for
   // the tote. Built from the variants so the hint can never drift from stock.
-  const sizes = Array.from(
-    new Set(product.variants.flatMap((variant) => variant.sizes)),
-  );
+  const sizes = Array.from(new Set(variants.flatMap((variant) => variant.sizes)));
   const sizesHint =
     sizes.length === 1 ? sizes[0] : `${sizes[0]} to ${sizes[sizes.length - 1]}`;
 
-  // Never empty today: all four products are photographed. The hatched frame
-  // below is the guard for a product added to the catalogue ahead of its
+  // Never empty today: every fit in the range is photographed. The hatched
+  // frame below is the guard for one added to the catalogue ahead of its
   // shoot, which must look incomplete rather than broken.
-  const shots = catalogueShots(product.slug);
+  const shots = catalogueShots(product.slug, fit);
 
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-lg border border-line bg-surface">
@@ -93,11 +112,8 @@ export function CatalogueCard({ product }: { product: Product }) {
               fit belongs next to the size range rather than buried in the
               blurb: it is the thing that decides whether someone orders.
 
-              The product's FIRST fit, because a card still stands for a whole
-              product. When the grid is drawn per fit, the card takes one. */}
-          <span className="text-sm text-muted">
-            {FIT_LABELS[fitsFor(product)[0]!]}
-          </span>
+              This card's own fit, which is the thing it is a card for. */}
+          <span className="text-sm text-muted">{FIT_LABELS[fit]}</span>
         </div>
 
         <div className="mt-auto flex flex-col gap-2 pt-2">

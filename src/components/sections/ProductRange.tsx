@@ -44,9 +44,22 @@ export function ProductRange() {
 
         <div className="mt-10 grid gap-5 sm:grid-cols-2 md:grid-cols-4">
           {PRODUCTS.map((product, index) => {
-            const price = formatZar(fromPriceZar(product));
+            /*
+             * FOUR TILES, ONE FIT EACH. The home page is a teaser for the
+             * range, not the range itself, so a product gets one tile and the
+             * shop does the splitting. The fit it leads with is the first
+             * variant's, which is the same lever products.ts already documents
+             * for the default colourway: reordering that array moves it.
+             *
+             * Without this the crewneck tile would cycle the men's White, Grey
+             * and Olive and then the women's White and Peach, showing two
+             * swatches both labelled White and one "from" price under two
+             * different sweaters.
+             */
+            const fit = product.variants[0]!.fit;
+            const price = formatZar(fromPriceZar(product, fit));
             const href = `/products/${product.slug}`;
-            const shots = colourwayShots(product.slug);
+            const shots = colourwayShots(product.slug, fit);
 
             return (
               <Reveal key={product.slug} delay={index * 0.08}>

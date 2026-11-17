@@ -321,7 +321,14 @@ export function variantsForFit(product: Product, fit: Fit): Variant[] {
   return product.variants.filter((variant) => variant.fit === fit);
 }
 
-/** Lowest variant price for a product, used for "from R x" labels. */
-export function fromPriceZar(product: Product): number {
-  return Math.min(...product.variants.map((variant) => variant.priceZar));
+/**
+ * Lowest variant price, used for "from R x" labels.
+ *
+ * Narrowed to one fit where a fit is given, because a card stands for a
+ * garment in a cut: quoting the whole product's cheapest would advertise the
+ * women's crewneck's price on the men's card.
+ */
+export function fromPriceZar(product: Product, fit?: Fit): number {
+  const variants = fit ? variantsForFit(product, fit) : product.variants;
+  return Math.min(...variants.map((variant) => variant.priceZar));
 }
