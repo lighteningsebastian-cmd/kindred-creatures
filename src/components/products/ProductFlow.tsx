@@ -16,10 +16,18 @@ import {
 } from "@/app/products/[slug]/actions";
 import { emptyProfile } from "@/lib/companion";
 import type { ResumedArtwork } from "@/lib/artwork-resume";
-import type { Product, Variant } from "@/lib/products";
+import {
+  fitsFor,
+  variantsForFit,
+  type Fit,
+  type Product,
+  type Variant,
+} from "@/lib/products";
 
 export type ProductFlowProps = {
   product: Product;
+  /** Fit from the `?fit=` deep link, if present and valid. */
+  initialFit?: string;
   /** Colour from the `?color=` deep link, if present and valid. */
   initialColor?: string;
   /** Size from the `?size=` deep link, if present and valid. */
@@ -43,8 +51,29 @@ function defaultColor(product: Product): Variant {
   return product.variants[0];
 }
 
-function resolveColor(product: Product, name?: string): Variant {
-  return product.variants.find((v) => v.color === name) ?? defaultColor(product);
+/**
+ * The fit this page opens on, from a URL that may name one.
+ *
+ * A catalogue card links to /products/tee?fit=womens, so the flow has to be
+ * able to start on a fit. Anything we cannot honour falls back to the
+ * product's first rather than failing: the parameter sits in a link anyone can
+ * edit, and the canonical URL carries no parameters at all, so this is a
+ * preselection and never a promise.
+ *
+ * Exported for its own test. The selector itself is piece two; this is only
+ * the URL contract, so that the links the shop grid already renders land
+ * somewhere sensible.
+ */
+export function resolveFit(product: Product, name?: string): Fit {
+  const offered = fitsFor(product);
+  return offered.find((fit) => fit === name) ?? offered[0]!;
+}
+
+function resolveColor(product: Product, fit: Fit, name?: string): Variant {
+  const inFit = variantsForFit(product, fit);
+  return (
+    inFit.find((v) => v.color === name) ?? inFit[0] ?? defaultColor(product)
+  );
 }
 
 function resolveSize(color: Variant, size?: string): string | null {
@@ -78,11 +107,13 @@ type Stage = "profile" | "edit" | "reveal" | "colour" | "size" | "photo";
  */
 export function ProductFlow({
   product,
+  initialFit,
   initialColor,
   initialSize,
   resumed = null,
 }: ProductFlowProps) {
-  const startColor = resolveColor(product, initialColor);
+  const startFit = resolveFit(product, initialFit);
+  const startColor = resolveColor(product, startFit, initialColor);
   const [color, setColor] = useState<Variant>(startColor);
   const [size, setSize] = useState<string | null>(() =>
     resolveSize(startColor, initialSize),
@@ -127,7 +158,9 @@ export function ProductFlow({
   }, []);
 
   const handleColorChange = (colorName: string) => {
-    const next = resolveColor(product, colorName);
+    // Within the fit the page opened on: a colour change must not walk from
+    // the women's White to the men's one.
+    const next = resolveColor(product, startFit, colorName);
     setColor(next);
     if (next.sizes.length === 1) setSize(next.sizes[0]);
     else if (size !== null && !next.sizes.includes(size)) setSize(null);

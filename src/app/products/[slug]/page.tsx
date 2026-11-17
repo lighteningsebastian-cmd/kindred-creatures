@@ -21,7 +21,12 @@ type ProductPageProps = {
   // /customize deep links redirect here preserving them, and both preselect
   // the flow. When both are present the portrait step is active on load. The
   // canonical URL carries no params, so indexing and metadata are unaffected.
-  searchParams: Promise<{ color?: string; size?: string; artwork?: string }>;
+  searchParams: Promise<{
+    fit?: string;
+    color?: string;
+    size?: string;
+    artwork?: string;
+  }>;
 };
 
 export function generateStaticParams() {
@@ -106,7 +111,10 @@ export default async function ProductPage({
   const product = getProduct(slug);
   if (!product) notFound();
 
-  const { color, size, artwork } = await searchParams;
+  // `?fit=` is how a catalogue card carries its own cut across. Validated in
+  // ProductFlow against the fits this product is actually offered in, and the
+  // canonical URL still carries no parameters, so indexing is unaffected.
+  const { fit, color, size, artwork } = await searchParams;
 
   // `?artwork=` means a cart line came back to be changed rather than a new
   // piece being started. Null for everything else, including a stale id, which
@@ -135,6 +143,7 @@ export default async function ProductPage({
         <TrackProductView slug={product.slug} priceZar={fromPriceZar(product)} />
         <ProductFlow
           product={product}
+          initialFit={fit}
           initialColor={color}
           initialSize={size}
           resumed={resumed}
