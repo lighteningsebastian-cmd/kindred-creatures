@@ -43,6 +43,44 @@ function Harness({
   );
 }
 
+describe("ProductConfigurator and a garment cut two ways", () => {
+  /*
+   * Invisible until the catalogue splits, and wrong the moment it does. The
+   * flow's colour handler resolves within the fit the page opened on, so a
+   * swatch from the other fit is a control that does nothing when clicked, and
+   * two Whites would light the selected ring on both at once. The panel has to
+   * offer the colours the handler can actually honour.
+   */
+  const crewneck = getProduct("crewneck")!;
+  const twoFits: Product = {
+    ...crewneck,
+    variants: [
+      { ...crewneck.variants[0]!, fit: "womens" },
+      { ...crewneck.variants[1]!, fit: "womens" },
+      {
+        ...crewneck.variants[2]!,
+        fit: "mens",
+        color: "White",
+        photoDir: "mens/white",
+      },
+    ],
+  };
+
+  it("offers only the colours of the fit being shown", () => {
+    render(<Harness product={twoFits} />);
+
+    const swatches = screen
+      .getAllByRole("button")
+      .filter((button) => button.getAttribute("aria-label") !== null)
+      .filter((button) => /^(White|Peach|Grey|Olive)$/.test(button.getAttribute("aria-label")!));
+
+    expect(swatches.map((b) => b.getAttribute("aria-label"))).toEqual([
+      "White",
+      "Peach",
+    ]);
+  });
+});
+
 describe("ProductConfigurator", () => {
   it("prompts for a size until one is chosen, then reports the selection up", async () => {
     const user = userEvent.setup();

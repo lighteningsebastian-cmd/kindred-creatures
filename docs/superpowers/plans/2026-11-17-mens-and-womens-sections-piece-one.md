@@ -451,7 +451,7 @@ Men's crewneck White, and the three women's tee colourways. Middle of the chest,
 
 - [ ] **Step 5: Measure and place the new photographs**
 
-Add their `PHOTO_SIZE` entries from the files. The women's tee shots are 1023 x 1537, a ratio of 0.666 against the men's tee White at 0.832, so they will need their own `PLACEMENT_OVERRIDES`; the men's crewneck White is framed like Grey and Olive and should take the same override they do. Check every one on `/dev/mockups` before committing: a plate that sits beside the garment rather than on it is the failure this catches.
+Their `PHOTO_SIZE` entries are already in place and measured: Task 2 wrote all 48 photographs into the manifest, including the ones no variant points at yet. **Do not retype them.** The women's tee shots are 932 x 1400 on disk, a ratio of 0.666 against the men's tee White at 0.832 (the source files are 1023 x 1537, which the importer resizes), so they will need their own `PLACEMENT_OVERRIDES`; the men's crewneck White is 943 x 1400, framed like Grey and Olive, and should take the same override they do. Check every one on `/dev/mockups` before committing: a plate that sits beside the garment rather than on it is the failure this catches.
 
 - [ ] **Step 6: Run the full suite**
 

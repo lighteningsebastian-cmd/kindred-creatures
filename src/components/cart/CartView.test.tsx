@@ -62,7 +62,7 @@ describe("CartView", () => {
 
     // The thumbnail is the plate they built, drawn from their own profile.
     expect(
-      screen.getByAltText("Your design for The Kindred Hoodie in White"),
+      screen.getByAltText("Your design for The Kindred Hoodie in White · Unisex fit"),
     ).toHaveAttribute("src", "/api/artwork/art-1/plate");
 
     // The cut is on the line, because a colour no longer names one garment.
@@ -91,10 +91,10 @@ describe("CartView", () => {
     render(<CartView />);
 
     expect(
-      await screen.findByAltText("Your design for The Kindred Hoodie in White"),
+      await screen.findByAltText("Your design for The Kindred Hoodie in White · Unisex fit"),
     ).toHaveAttribute("src", "/api/artwork/art-1/plate");
     expect(
-      screen.getByAltText("Your design for The Kindred Hoodie in Lilac"),
+      screen.getByAltText("Your design for The Kindred Hoodie in Lilac · Unisex fit"),
     ).toHaveAttribute("src", "/api/artwork/art-2/plate");
   });
 
@@ -106,11 +106,11 @@ describe("CartView", () => {
     render(<CartView />);
 
     const plate = await screen.findByAltText(
-      "Your design for The Kindred Hoodie in Lilac",
+      "Your design for The Kindred Hoodie in Lilac · Unisex fit",
     );
     fireEvent.error(plate);
 
-    expect(screen.getByAltText("The Kindred Hoodie in Lilac")).toHaveAttribute(
+    expect(screen.getByAltText("The Kindred Hoodie in Lilac · Unisex fit")).toHaveAttribute(
       "src",
       "/garments/hoodie/unisex/lilac/front.webp",
     );
@@ -123,7 +123,12 @@ describe("CartView", () => {
 
     // The artwork carries the profile; the URL carries only the two things it
     // does not know.
-    const href = "/products/hoodie?artwork=art-1&color=Lilac&size=XL";
+    // THE FIT IS IN THE LINK, not just the colour and size. Without it the
+    // product page resolves the product's first fit, so editing a men's White
+    // crewneck would land on the women's one and re-price the line from R899
+    // to R799 under a different photograph.
+    const href =
+      "/products/hoodie?artwork=art-1&color=Lilac&fit=unisex&size=XL";
     expect(
       await screen.findByRole("link", { name: "The Kindred Hoodie" }),
     ).toHaveAttribute("href", href);

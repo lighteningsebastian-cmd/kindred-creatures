@@ -42,9 +42,14 @@ function productName(slug: ProductSlug): string {
  * page already reads.
  */
 function editHref(item: CartItem): string {
+  // THE FIT IS CARRIED, not just the colour and size. Without it the product
+  // page resolves the product's first fit, so editing a men's White crewneck
+  // would open the women's one and replaceLine would re-price the line from
+  // the catalogue: a different garment at a different price, silently.
   const params = new URLSearchParams({
     artwork: item.artworkId,
     color: item.color,
+    fit: item.fit,
     size: item.size,
   });
   return `/products/${item.productSlug}?${params.toString()}`;
