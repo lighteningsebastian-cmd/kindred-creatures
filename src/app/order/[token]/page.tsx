@@ -9,7 +9,13 @@ import { getDb } from "@/lib/db/client";
 import { orderItems, orders, type Order, type OrderStatus } from "@/lib/db/schema";
 import { verifyOrderToken } from "@/lib/order-token";
 import { getCustomer } from "@/lib/account/auth";
-import { formatZar, getProduct, type ProductSlug } from "@/lib/products";
+import {
+  colourAndFit,
+  formatZar,
+  getProduct,
+  type Fit,
+  type ProductSlug,
+} from "@/lib/products";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -95,6 +101,8 @@ type Line = {
   id: string;
   productSlug: string;
   color: string;
+  /** Null on every order placed before the ranges were separated. */
+  fit: Fit | null;
   size: string;
   qty: number;
   unitPriceZar: number;
@@ -127,7 +135,8 @@ function OrderSummary({ order, lines }: { order: Order; lines: Line[] }) {
                 {productName(line.productSlug)}
               </p>
               <p className="mt-1 text-sm text-muted">
-                {line.color} · Size {line.size} · Qty {line.qty}
+                {colourAndFit(line.color, line.fit)} · Size {line.size} · Qty{" "}
+                {line.qty}
               </p>
             </div>
             <p className="shrink-0 text-sm font-medium text-ink">

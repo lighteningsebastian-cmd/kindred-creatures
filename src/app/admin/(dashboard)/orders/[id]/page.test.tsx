@@ -73,6 +73,7 @@ function detail(overrides: { drawn?: boolean; mailed?: boolean } = {}): AdminOrd
         productSlug: "tee",
         productName: "The Kindred Tee",
         color: "White",
+        fit: "womens" as const,
         size: "S",
         qty: 1,
         unitPriceZar: 599,
@@ -109,6 +110,13 @@ describe("an order drawn and waiting on the customer", () => {
     expect(screen.getByRole("button", { name: /re-send approval email/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /retry fulfilment/i })).toBeNull();
     expect(screen.queryByText(/has not run/i)).toBeNull();
+  });
+
+  it("names the cut on the line, so the shelf it comes off is not a guess", async () => {
+    getAdminOrderMock.mockResolvedValue(detail());
+    await renderPage();
+
+    expect(screen.getByText(/Women's fit/)).toBeInTheDocument();
   });
 
   it("says on the timeline whether the customer was told", async () => {

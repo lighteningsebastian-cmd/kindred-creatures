@@ -153,6 +153,7 @@ function toConfirmationLines(items: OrderItem[]): ConfirmationLine[] {
   return items.map((item) => ({
     productName: productName(item.productSlug),
     color: item.color,
+    fit: item.fit,
     size: item.size,
     qty: item.qty,
     unitPriceZar: item.unitPriceZar,

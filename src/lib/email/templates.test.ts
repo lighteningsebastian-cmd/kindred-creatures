@@ -88,6 +88,25 @@ describe("order confirmation", () => {
     expect(rendered.html).toContain("Free");
   });
 
+  it("tells the customer which cut they bought", () => {
+    // Crewneck White is two garments at two prices. A receipt that cannot
+    // identify the garment is the refund conversation this work exists to
+    // prevent.
+    const withFit = orderConfirmationEmail({
+      ...CONFIRMATION,
+      lines: [{ ...CONFIRMATION.lines[0]!, fit: "womens" as const }],
+    });
+    expect(withFit.text).toContain("Women's fit");
+    expect(withFit.html).toContain("Women&#39;s fit");
+  });
+
+  it("says nothing about fit on an order placed before fits existed", () => {
+    for (const body of [rendered.html, rendered.text]) {
+      expect(body).not.toContain("null");
+      expect(body).not.toContain("undefined");
+    }
+  });
+
   it("prices real shipping when it is charged", () => {
     const paid = orderConfirmationEmail({ ...CONFIRMATION, shippingZar: 95 });
     expect(paid.text).toContain(`Shipping: ${formatZar(95)}`);

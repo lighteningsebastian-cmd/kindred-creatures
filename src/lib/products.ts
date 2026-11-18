@@ -322,6 +322,24 @@ export function variantsForFit(product: Product, fit: Fit): Variant[] {
 }
 
 /**
+ * Which garment a line is, for a customer reading it back: "White" on its own,
+ * or "White · Women's fit" where we know the cut.
+ *
+ * ONE PLACE FOR IT, because four surfaces say this sentence: the cart, the
+ * confirmation email, the order status page and the admin order. Crewneck
+ * White is two garments at two prices, so a line that cannot identify the one
+ * that was bought is the refund conversation this work exists to prevent, and
+ * four copies of the sentence is how two of them end up disagreeing.
+ *
+ * NO FIT MEANS NO SEGMENT. Orders placed before the men's and women's ranges
+ * were separated carry none, and nobody recorded which cut they were.
+ * Inventing one on somebody's receipt is worse than saying less.
+ */
+export function colourAndFit(color: string, fit?: Fit | null): string {
+  return fit ? `${color} · ${FIT_LABELS[fit]}` : color;
+}
+
+/**
  * Lowest variant price, used for "from R x" labels.
  *
  * Narrowed to one fit where a fit is given, because a card stands for a

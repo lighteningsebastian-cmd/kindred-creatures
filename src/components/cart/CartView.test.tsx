@@ -65,8 +65,9 @@ describe("CartView", () => {
       screen.getByAltText("Your design for The Kindred Hoodie in White"),
     ).toHaveAttribute("src", "/api/artwork/art-1/plate");
 
-    expect(screen.getByText("White · Size M")).toBeInTheDocument();
-    expect(screen.getByText("Olive · Size L")).toBeInTheDocument();
+    // The cut is on the line, because a colour no longer names one garment.
+    expect(screen.getByText("White · Unisex fit · Size M")).toBeInTheDocument();
+    expect(screen.getByText("Olive · Unisex fit · Size L")).toBeInTheDocument();
 
     // Line totals: 2 x R 899, and 1 x R 449.
     expect(screen.getByText("R 1 798")).toBeInTheDocument();
@@ -128,7 +129,7 @@ describe("CartView", () => {
     ).toHaveAttribute("href", href);
     expect(
       screen.getByRole("link", {
-        name: "Edit The Kindred Hoodie, Lilac, size XL",
+        name: "Edit The Kindred Hoodie, Lilac · Unisex fit, size XL",
       }),
     ).toHaveAttribute("href", href);
   });
@@ -142,7 +143,7 @@ describe("CartView", () => {
     // The cart is not an editor. It was briefly, and a pair of dropdowns in a
     // cart row is a worse copy of a screen that already does this properly.
     expect(document.querySelectorAll("select")).toHaveLength(0);
-    expect(screen.getByText("White · Size M")).toBeInTheDocument();
+    expect(screen.getByText("White · Unisex fit · Size M")).toBeInTheDocument();
   });
 
   it("steps quantity and reprices the line and the total", async () => {
@@ -152,10 +153,10 @@ describe("CartView", () => {
     render(<CartView />);
 
     const increase = await screen.findByRole("button", {
-      name: "Increase quantity of The Kindred Hoodie, White, size M",
+      name: "Increase quantity of The Kindred Hoodie, White · Unisex fit, size M",
     });
     const decrease = screen.getByRole("button", {
-      name: "Decrease quantity of The Kindred Hoodie, White, size M",
+      name: "Decrease quantity of The Kindred Hoodie, White · Unisex fit, size M",
     });
 
     // At one, there is nowhere to step down to: removal is its own control.
@@ -180,7 +181,7 @@ describe("CartView", () => {
 
     await user.click(
       await screen.findByRole("button", {
-        name: "Remove The Kindred Hoodie, White, size M from your cart",
+        name: "Remove The Kindred Hoodie, White · Unisex fit, size M from your cart",
       }),
     );
 

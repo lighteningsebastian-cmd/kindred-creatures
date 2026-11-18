@@ -11,6 +11,7 @@ import {
   fitsFor,
   hasFitChoice,
   variantsForFit,
+  colourAndFit,
 } from "./products";
 
 const PUBLIC = join(process.cwd(), "public");
@@ -50,6 +51,27 @@ describe("fits", () => {
     const crewneck = getProduct("crewneck")!;
     expect(variantsForFit(crewneck, "womens")).toEqual(crewneck.variants);
     expect(variantsForFit(crewneck, "mens")).toEqual([]);
+  });
+});
+
+describe("colourAndFit", () => {
+  /*
+   * Four surfaces show a customer which garment a line is: the cart, the
+   * confirmation email, the order status page and the admin order. All four
+   * read from here, because four copies of the same sentence is how two of
+   * them end up saying different things.
+   */
+  it("names the colour and the cut together", () => {
+    expect(colourAndFit("White", "womens")).toBe("White · Women's fit");
+    expect(colourAndFit("Grey", "mens")).toBe("Grey · Men's fit");
+  });
+
+  it("says only the colour where there is no fit to state", () => {
+    // Every order placed before the ranges were separated. The segment is
+    // dropped rather than filled in, because nobody recorded which cut it was
+    // and inventing one on a receipt is worse than saying less.
+    expect(colourAndFit("White", null)).toBe("White");
+    expect(colourAndFit("White", undefined)).toBe("White");
   });
 });
 

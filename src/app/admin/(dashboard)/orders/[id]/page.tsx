@@ -9,7 +9,7 @@ import {
   shortRef,
   type AdminOrderLine,
 } from "@/lib/admin/orders";
-import { formatZar } from "@/lib/products";
+import { colourAndFit, formatZar } from "@/lib/products";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { EmailStatusChip } from "@/components/admin/EmailStatusChip";
 import { OrderActions } from "@/components/admin/OrderActions";
@@ -98,7 +98,8 @@ function Line({ line }: { line: AdminOrderLine }) {
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-ink">{line.productName}</p>
         <p className="mt-1 text-xs text-muted">
-          {line.color} · Size {line.size} · Qty {line.qty} ·{" "}
+          {colourAndFit(line.color, line.fit)} · Size {line.size} · Qty{" "}
+          {line.qty} ·{" "}
           {formatZar(line.unitPriceZar)} each
         </p>
         <p className="mt-2 text-xs">
