@@ -98,9 +98,12 @@ export function CatalogueCard({
             role="img"
             aria-label={`Available in ${colours}`}
           >
-            {product.variants.map((variant) => (
+            {/* This fit's colourways, like the price, the colour list and the
+                size run above. Keyed on the directory rather than the colour,
+                because two fits of one garment can share a colour name. */}
+            {variants.map((variant) => (
               <span
-                key={variant.color}
+                key={variant.photoDir}
                 title={variant.color}
                 className="h-4 w-4 rounded-full border border-black/10"
                 style={{ backgroundColor: variant.colorHex }}

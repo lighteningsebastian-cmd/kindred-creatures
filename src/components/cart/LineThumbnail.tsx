@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { garmentImageUrl } from "@/lib/garments";
 import {
+  colourAndFit,
   getProduct,
   type Fit,
   type ProductSlug,
@@ -79,7 +80,7 @@ export function LineThumbnail({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={`/api/artwork/${item.artworkId}/plate`}
-          alt={`Your design for ${productLabel} in ${item.color}`}
+          alt={`Your design for ${productLabel} in ${colourAndFit(item.color, item.fit)}`}
           className="h-full w-full object-contain"
           onError={() => setPlateFailed(true)}
         />
@@ -90,7 +91,7 @@ export function LineThumbnail({
   return garment ? (
     <Image
       src={garment}
-      alt={`${productLabel} in ${item.color}`}
+      alt={`${productLabel} in ${colourAndFit(item.color, item.fit)}`}
       fill
       sizes={sizes}
       className="object-cover"

@@ -7,7 +7,12 @@ import { Container } from "@/components/ui/Container";
 import { Input } from "@/components/ui/Input";
 import { EmailSuggestion } from "@/components/ui/EmailSuggestion";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { formatZar, getProduct, type ProductSlug } from "@/lib/products";
+import {
+  colourAndFit,
+  formatZar,
+  getProduct,
+  type ProductSlug,
+} from "@/lib/products";
 import {
   itemCount,
   subtotalZar,
@@ -659,7 +664,8 @@ export function CheckoutForm() {
                             {productName(item.productSlug)}
                           </p>
                           <p className="mt-1 text-sm text-muted">
-                            {item.color} · Size {item.size} · Qty {item.qty}
+                            {colourAndFit(item.color, item.fit)} · Size{" "}
+                            {item.size} · Qty {item.qty}
                           </p>
                         </div>
                         <p className="shrink-0 text-sm font-medium text-ink">

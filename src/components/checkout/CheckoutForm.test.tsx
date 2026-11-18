@@ -96,7 +96,10 @@ describe("CheckoutForm", () => {
       await screen.findByRole("heading", { name: "Where should they land?" }),
     ).toBeInTheDocument();
     expect(screen.getByText("The Kindred Hoodie")).toBeInTheDocument();
-    expect(screen.getByText("Stone · Size M · Qty 2")).toBeInTheDocument();
+    // The last screen before they hand over money, so it names the cut too.
+    expect(
+      screen.getByText("Stone · Unisex fit · Size M · Qty 2"),
+    ).toBeInTheDocument();
 
     // R 1 798 is over the R 1000 free-shipping threshold the site advertises, so
     // shipping reads Free and the figure repeats as line total, subtotal, total.
@@ -111,7 +114,7 @@ describe("CheckoutForm", () => {
     // This is the screen where the address goes in and the money goes out.
     // Seeing their own creature here is worth more than anywhere else.
     expect(
-      await screen.findByAltText("Your design for The Kindred Hoodie in Stone"),
+      await screen.findByAltText("Your design for The Kindred Hoodie in Stone · Unisex fit"),
     ).toHaveAttribute("src", "/api/artwork/art-1/plate");
   });
 

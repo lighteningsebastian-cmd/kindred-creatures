@@ -2,7 +2,12 @@
 
 import { cn } from "@/lib/cn";
 import { PhotoFrame } from "@/components/ui/PhotoFrame";
-import { formatZar, type Product, type Variant } from "@/lib/products";
+import {
+  formatZar,
+  variantsForFit,
+  type Product,
+  type Variant,
+} from "@/lib/products";
 
 export type ProductConfiguratorProps = {
   product: Product;
@@ -73,11 +78,15 @@ export function ProductConfigurator({
             Colour: <span className="text-muted">{color.color}</span>
           </p>
           <div className="flex flex-wrap gap-3">
-            {product.variants.map((variant) => {
-              const selected = variant.color === color.color;
+            {/* ONLY THE SHOWN FIT'S COLOURS. The flow resolves a colour change
+                within the fit the page opened on, so a swatch from the other
+                fit would be a control that does nothing, and two garments
+                sharing a colour name would light the selected ring on both. */}
+            {variantsForFit(product, color.fit).map((variant) => {
+              const selected = variant.photoDir === color.photoDir;
               return (
                 <button
-                  key={variant.color}
+                  key={variant.photoDir}
                   type="button"
                   onClick={() => onColorChange(variant.color)}
                   aria-pressed={selected}

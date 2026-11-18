@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ShopPage, { metadata } from "./page";
+import { CatalogueCard } from "@/components/shop/CatalogueCard";
 import {
   PRODUCTS,
   fromPriceZar,
@@ -37,6 +38,34 @@ describe("shop page, one card per garment and fit", () => {
           product.slug !== "tote" && fitsFor(product).includes("unisex"),
       ).length,
     );
+  });
+
+  it("shows only the card's own fit in the swatches", () => {
+    /*
+     * Invisible until the catalogue splits, and wrong the moment it does: a
+     * men's crewneck card would render the women's Peach dot beside its own,
+     * while announcing three colours, and two Whites would collide on the
+     * React key. The price, the colour list and the size run are already
+     * narrowed; the dots were not.
+     */
+    const crewneck = getProduct("crewneck")!;
+    const twoFits = {
+      ...crewneck,
+      variants: [
+        { ...crewneck.variants[0]!, fit: "womens" as const },
+        {
+          ...crewneck.variants[2]!,
+          fit: "mens" as const,
+          color: "Grey",
+          photoDir: "mens/grey",
+        },
+      ],
+    };
+
+    render(<CatalogueCard product={twoFits} fit="mens" />);
+    const swatches = screen.getByRole("img", { name: /^Available in/ });
+    expect(swatches).toHaveAccessibleName("Available in Grey");
+    expect(swatches.children).toHaveLength(1);
   });
 
   it("carries the fit in the link only where a product has a choice", () => {
