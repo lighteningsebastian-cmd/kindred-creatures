@@ -12,7 +12,7 @@
  * builder that reads them from wherever they actually live.
  */
 import type { FaqEntry } from "@/lib/content";
-import type { Fit, Product, Variant } from "@/lib/products";
+import type { Fit, Product } from "@/lib/products";
 import { fromPriceZar, hasFitChoice } from "@/lib/products";
 
 const SCHEMA_CONTEXT = "https://schema.org";
@@ -145,35 +145,33 @@ export interface ProductJsonLdInput {
    * Any URL passed is still validated as absolute.
    */
   images?: string[];
-  /**
-   * The variant the offer quotes. Defaults to the cheapest, which is what the
-   * "from R x" label on the page means.
-   */
-  variant?: Variant;
 }
 
 /**
- * Product + a single Offer in ZAR.
+ * Product + an AggregateOffer in ZAR, spanning every variant of it.
  *
- * Price is the variant's whole-rand priceZar, emitted as a number. No rating,
- * no reviews: see the note at the top of this file.
+ * THERE IS NO SINGLE PRICE TO QUOTE. A product page sells every fit of a
+ * garment, and the men's and the women's crewneck are priced apart, so the
+ * page carries a range. A `variant` input used to pick one; it is gone, because
+ * an offer that quoted one variant on a page selling several was the bug.
+ *
+ * No rating, no reviews: see the note at the top of this file.
  */
 export function buildProduct(input: ProductJsonLdInput): JsonLd {
   const baseUrl = requiredHttpUrl(input.baseUrl, "baseUrl").replace(/\/+$/, "");
   const product = required(input.product, "product");
   // Optional: validated only when present. See ProductJsonLdInput.images.
   const images = input.images ?? [];
-  const variant =
-    input.variant ??
-    product.variants.reduce((cheapest, candidate) =>
-      candidate.priceZar < cheapest.priceZar ? candidate : cheapest,
-    );
 
-  required(variant, "variant");
-  if (!Number.isFinite(variant.priceZar) || variant.priceZar <= 0) {
-    throw new Error(
-      `JSON-LD: product "${product.slug}" has a non-positive price: ${variant.priceZar}`,
-    );
+  const prices = required(product.variants, "product.variants").map(
+    (candidate) => candidate.priceZar,
+  );
+  for (const price of prices) {
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new Error(
+        `JSON-LD: product "${product.slug}" has a non-positive price: ${price}`,
+      );
+    }
   }
 
   const url = `${baseUrl}/products/${required(product.slug, "product.slug")}`;
@@ -188,11 +186,23 @@ export function buildProduct(input: ProductJsonLdInput): JsonLd {
     category: "Custom pet portrait apparel",
     brand: { "@id": organizationId(baseUrl) },
     offers: {
-      "@type": "Offer",
+      /*
+       * AN AGGREGATE, because a product page sells every fit of a garment and
+       * the men's and the women's crewneck are priced apart. A single Offer
+       * quoting the cheapest variant would advertise one sweater's price on a
+       * page that also sells the other, which is the sort of thing a customer
+       * screenshots.
+       *
+       * Where every variant costs the same, low and high are equal and this
+       * says exactly what the old single Offer said.
+       */
+      "@type": "AggregateOffer",
       "@id": `${url}#offer`,
       url,
       priceCurrency: "ZAR",
-      price: variant.priceZar,
+      lowPrice: Math.min(...prices),
+      highPrice: Math.max(...prices),
+      offerCount: prices.length,
       availability: "https://schema.org/InStock",
       itemCondition: "https://schema.org/NewCondition",
       seller: { "@id": organizationId(baseUrl) },

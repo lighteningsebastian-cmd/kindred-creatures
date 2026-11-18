@@ -119,7 +119,7 @@ describe("buildProduct", () => {
     expect(node.brand).toEqual({ "@id": `${BASE}/#organization` });
   });
 
-  it("quotes an Offer in whole rands, defaulting to the cheapest variant", () => {
+  it("quotes an AggregateOffer in whole rands", () => {
     const node = buildProduct({
       baseUrl: BASE,
       product: hoodie,
@@ -127,27 +127,14 @@ describe("buildProduct", () => {
     });
     const offer = node.offers as Record<string, unknown>;
 
-    expect(offer["@type"]).toBe("Offer");
+    expect(offer["@type"]).toBe("AggregateOffer");
     expect(offer.priceCurrency).toBe("ZAR");
-    expect(offer.price).toBe(999);
-    expect(typeof offer.price).toBe("number");
+    expect(offer.lowPrice).toBe(999);
+    expect(typeof offer.lowPrice).toBe("number");
     expect(offer.availability).toBe("https://schema.org/InStock");
   });
 
-  it("quotes the variant it is handed", () => {
-    const tee = getProduct("tee")!;
-    const node = buildProduct({
-      baseUrl: BASE,
-      product: tee,
-      images: [`${BASE}/tee.jpg`],
-      variant: tee.variants[0],
-    });
-    const offer = node.offers as Record<string, unknown>;
-    expect(offer.price).toBe(tee.variants[0].priceZar);
-    expect(offer.priceCurrency).toBe("ZAR");
-  });
-
-  it("prices every product in the catalogue in ZAR at its 'from' price", () => {
+  it("prices every product in the catalogue in ZAR across its whole range", () => {
     for (const product of PRODUCTS) {
       const node = buildProduct({
         baseUrl: BASE,
@@ -155,11 +142,12 @@ describe("buildProduct", () => {
         images: [`${BASE}/${product.slug}.jpg`],
       });
       const offer = node.offers as Record<string, unknown>;
-      const cheapest = Math.min(...product.variants.map((v) => v.priceZar));
+      const prices = product.variants.map((v) => v.priceZar);
 
       expect(offer.priceCurrency).toBe("ZAR");
-      expect(offer.price).toBe(cheapest);
-      expect(Number.isInteger(offer.price)).toBe(true);
+      expect(offer.lowPrice).toBe(Math.min(...prices));
+      expect(offer.highPrice).toBe(Math.max(...prices));
+      expect(Number.isInteger(offer.lowPrice)).toBe(true);
     }
   });
 
@@ -227,6 +215,25 @@ describe("buildProduct", () => {
         images: [`${BASE}/hoodie.jpg`],
       }),
     ).toThrow(/price/);
+  });
+});
+
+describe("buildProduct offers", () => {
+  it("quotes the whole range of a product's prices, not just the cheapest", () => {
+    /*
+     * A product page sells every fit of a garment, and the men's and women's
+     * crewneck are priced apart. A single Offer quoting the cheapest would
+     * advertise one sweater's price on a page that also sells the other.
+     */
+    const node = buildProduct({ baseUrl: BASE, product: hoodie });
+    const offers = node.offers as Record<string, unknown>;
+    const prices = hoodie.variants.map((variant) => variant.priceZar);
+
+    expect(offers["@type"]).toBe("AggregateOffer");
+    expect(offers.lowPrice).toBe(Math.min(...prices));
+    expect(offers.highPrice).toBe(Math.max(...prices));
+    expect(offers.offerCount).toBe(hoodie.variants.length);
+    expect(offers.priceCurrency).toBe("ZAR");
   });
 });
 

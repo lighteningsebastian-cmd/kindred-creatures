@@ -1,3 +1,5 @@
+import type { Fit } from "@/lib/products";
+
 /**
  * The analytics layer: GA4 (gtag) behind a single env gate.
  *
@@ -25,10 +27,27 @@
  * dropped or malformed hit.
  */
 export interface AnalyticsEventMap {
-  /** A product page was viewed. value is the "from" price in whole rands. */
-  view_item: { item_id: string; value: number; currency: "ZAR" };
+  /**
+   * A product page was viewed. value is the "from" price in whole rands.
+   *
+   * item_variant IS THE FIT, and item_id stays the slug. The commercial reason
+   * for separating the men's and women's ranges is that they sell differently,
+   * so that has to be answerable; folding the fit into item_id instead would
+   * split every product's history on the day it deployed.
+   */
+  view_item: {
+    item_id: string;
+    item_variant: string;
+    value: number;
+    currency: "ZAR";
+  };
   /** A configured portrait was added to the cart. */
-  add_to_cart: { item_id: string; value: number; currency: "ZAR" };
+  add_to_cart: {
+    item_id: string;
+    item_variant: string;
+    value: number;
+    currency: "ZAR";
+  };
   /** The checkout was reached with a non-empty cart. */
   begin_checkout: { value: number; currency: "ZAR"; item_count: number };
   /**
@@ -101,9 +120,14 @@ export function track<E extends AnalyticsEvent>(
 
 // --- Named helpers, one per event, so call sites read like the action ------
 
-export function trackViewItem(input: { slug: string; priceZar: number }): void {
+export function trackViewItem(input: {
+  slug: string;
+  fit: Fit;
+  priceZar: number;
+}): void {
   track("view_item", {
     item_id: input.slug,
+    item_variant: input.fit,
     value: input.priceZar,
     currency: "ZAR",
   });
@@ -111,10 +135,12 @@ export function trackViewItem(input: { slug: string; priceZar: number }): void {
 
 export function trackAddToCart(input: {
   slug: string;
+  fit: Fit;
   priceZar: number;
 }): void {
   track("add_to_cart", {
     item_id: input.slug,
+    item_variant: input.fit,
     value: input.priceZar,
     currency: "ZAR",
   });

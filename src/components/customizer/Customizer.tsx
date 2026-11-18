@@ -221,7 +221,11 @@ export function Customizer({
       replaceLine(resumed.artworkId, line);
     } else {
       addItem(line);
-      trackAddToCart({ slug: product.slug, priceZar: color.priceZar });
+      trackAddToCart({
+        slug: product.slug,
+        fit: color.fit,
+        priceZar: color.priceZar,
+      });
     }
     router.push("/cart");
   };
