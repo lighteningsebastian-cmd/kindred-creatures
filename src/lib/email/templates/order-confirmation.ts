@@ -1,4 +1,4 @@
-import { formatZar } from "@/lib/products";
+import { colourAndFit, formatZar, type Fit } from "@/lib/products";
 import {
   COLORS,
   FONT_BODY,
@@ -16,6 +16,13 @@ import {
 export interface ConfirmationLine {
   productName: string;
   color: string;
+  /**
+   * The cut, or null on an order placed before the ranges were separated.
+   *
+   * Crewneck White is two garments at two prices. A receipt that cannot
+   * identify which one was bought is the argument this is meant to avoid.
+   */
+  fit?: Fit | null;
   size: string;
   qty: number;
   unitPriceZar: number;
@@ -34,12 +41,19 @@ export interface OrderConfirmationData {
 }
 
 function lineText(line: ConfirmationLine): string {
-  const parts = [line.productName, line.color, line.size, `x${line.qty}`];
+  const parts = [
+    line.productName,
+    colourAndFit(line.color, line.fit),
+    line.size,
+    `x${line.qty}`,
+  ];
   return `${parts.join(" · ")}   ${formatZar(line.unitPriceZar * line.qty)}`;
 }
 
 function lineHtml(line: ConfirmationLine): string {
-  const meta = escapeHtml([line.color, line.size, `x${line.qty}`].join(" · "));
+  const meta = escapeHtml(
+    [colourAndFit(line.color, line.fit), line.size, `x${line.qty}`].join(" · "),
+  );
   return `<tr>
   <td style="padding:10px 0;border-bottom:1px solid ${COLORS.dune200};font-family:${FONT_BODY};font-size:16px;line-height:1.5;color:${COLORS.bark900};">
     ${escapeHtml(line.productName)}<br />

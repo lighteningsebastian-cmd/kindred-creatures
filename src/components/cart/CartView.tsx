@@ -7,7 +7,12 @@ import { Button } from "@/components/ui/Button";
 import { Container } from "@/components/ui/Container";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { FREE_SHIPPING_THRESHOLD_ZAR } from "@/lib/checkout";
-import { formatZar, getProduct, type ProductSlug } from "@/lib/products";
+import {
+  colourAndFit,
+  formatZar,
+  getProduct,
+  type ProductSlug,
+} from "@/lib/products";
 import {
   MAX_QTY,
   MIN_QTY,
@@ -120,7 +125,7 @@ export function CartView() {
               <ul className="flex flex-col border-t border-line">
                 {items.map((item) => {
                   const name = productName(item.productSlug);
-                  const describe = `${name}, ${item.color}, size ${item.size}`;
+                  const describe = `${name}, ${colourAndFit(item.color, item.fit)}, size ${item.size}`;
                   const edit = editHref(item);
                   return (
                     <li
@@ -152,7 +157,8 @@ export function CartView() {
                               </Link>
                             </h2>
                             <p className="mt-1 text-sm text-muted">
-                              {item.color} · Size {item.size}
+                              {colourAndFit(item.color, item.fit)} · Size{" "}
+                              {item.size}
                             </p>
                             <p className="mt-1 text-sm text-muted">
                               {formatZar(item.unitPriceZar)} each
