@@ -17,7 +17,7 @@ import {
 import { emptyProfile } from "@/lib/companion";
 import type { ResumedArtwork } from "@/lib/artwork-resume";
 import {
-  fitsFor,
+  resolveFit,
   variantsForFit,
   type Fit,
   type Product,
@@ -49,24 +49,6 @@ export type ProductFlowProps = {
  */
 function defaultColor(product: Product): Variant {
   return product.variants[0];
-}
-
-/**
- * The fit this page opens on, from a URL that may name one.
- *
- * A catalogue card links to /products/tee?fit=womens, so the flow has to be
- * able to start on a fit. Anything we cannot honour falls back to the
- * product's first rather than failing: the parameter sits in a link anyone can
- * edit, and the canonical URL carries no parameters at all, so this is a
- * preselection and never a promise.
- *
- * Exported for its own test. The selector itself is piece two; this is only
- * the URL contract, so that the links the shop grid already renders land
- * somewhere sensible.
- */
-export function resolveFit(product: Product, name?: string): Fit {
-  const offered = fitsFor(product);
-  return offered.find((fit) => fit === name) ?? offered[0]!;
 }
 
 function resolveColor(product: Product, fit: Fit, name?: string): Variant {

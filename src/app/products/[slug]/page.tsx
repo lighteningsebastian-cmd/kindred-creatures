@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
-import { ProductFlow, resolveFit } from "@/components/products/ProductFlow";
+import { ProductFlow } from "@/components/products/ProductFlow";
 import { resumeArtwork } from "@/lib/artwork-resume";
 import { TrackProductView } from "@/components/analytics/TrackProductView";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -10,6 +10,7 @@ import {
   formatZar,
   fromPriceZar,
   getProduct,
+  resolveFit,
   type Product,
 } from "@/lib/products";
 import { buildBreadcrumbList, buildProduct } from "@/lib/seo/jsonld";

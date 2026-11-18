@@ -302,6 +302,28 @@ export const PLACEMENT_OVERRIDES: Partial<Record<string, PlatePlacement>> = {
   "crewneck/mens/grey/back": { top: 25, left: 27, width: 46 },
   "crewneck/mens/olive/front": { top: 25, left: 56, width: 13 },
   "crewneck/mens/olive/back": { top: 25, left: 27, width: 46 },
+  /*
+   * THE WOMEN'S TEE AND THE MEN'S CREWNECK IN WHITE, derived rather than
+   * guessed. Each is the placement that puts the plate the same share of the
+   * way across and down the garment as the product's reference shot does, from
+   * the outline measured off the file: the same arithmetic the test does in
+   * reverse, so these are the numbers that make it pass rather than numbers it
+   * tolerates.
+   *
+   * The women's tee is 0.666 where the men's White is 0.832, a much narrower
+   * frame, so the garment fills more of it and every plate here is wider and
+   * lower than the product's default. The men's crewneck White is 0.673
+   * against Grey and Olive at 0.932, so despite being the same sweater it
+   * needs its own numbers and not theirs.
+   */
+  "tee/womens/white/front": { top: 31.3, left: 56.9, width: 14.3 },
+  "tee/womens/white/back": { top: 32.5, left: 24.7, width: 50.3 },
+  "tee/womens/peach/front": { top: 31.7, left: 55.9, width: 13.1 },
+  "tee/womens/peach/back": { top: 31.3, left: 26.5, width: 46.8 },
+  "tee/womens/blue/front": { top: 31.3, left: 56.4, width: 14 },
+  "tee/womens/blue/back": { top: 32.4, left: 24.5, width: 50 },
+  "crewneck/mens/white/front": { top: 30.1, left: 56.5, width: 13.6 },
+  "crewneck/mens/white/back": { top: 31.3, left: 25.2, width: 48.7 },
 };
 
 /**

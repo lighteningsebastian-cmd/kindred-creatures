@@ -36,7 +36,10 @@ describe("the range, in colour", () => {
       within(group)
         .getAllByRole("button")
         .map((button) => button.getAttribute("aria-label")),
-    ).toEqual(["Peach", "White", "Grey", "Olive"]);
+    // Two, not five: a home tile shows one fit, and the crewneck leads on the
+    // women's. Grey and Olive are the men's sweater and have a card of their
+    // own on the shop page.
+    ).toEqual(["Peach", "White"]);
   });
 
   it("names each garment's colour group after that garment", () => {

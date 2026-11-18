@@ -103,7 +103,9 @@ export default function MockupsPage() {
 
                   return (
                     <figure
-                      key={`${variant.color}-${side}`}
+                      // On the photoDir, not the colour: the crewneck has two
+                      // Whites and they are two different sweaters.
+                      key={`${variant.photoDir}-${side}`}
                       className="flex flex-col gap-1"
                     >
                       <div
@@ -148,7 +150,7 @@ export default function MockupsPage() {
                         </div>
                       </div>
                       <figcaption className="text-xs text-muted">
-                        {variant.color} · {side}
+                        {variant.color} · {variant.fit} · {side}
                         {garment ? "" : " · no photo"}
                         {overridden
                           ? ` · override ${JSON.stringify(placement)}`

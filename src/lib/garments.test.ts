@@ -111,13 +111,12 @@ describe("garment photography", () => {
     // Asserting the count catches that, and also catches a photograph
     // silently disappearing from disk while PHOTO_SIZE still lists it.
     //
-    // 35 IS WHAT THE CATALOGUE COVERS, not what is on disk. There are 48 .webp
-    // files under public/garments now, and the extra 13 are the women's tee,
-    // the men's crewneck in White and the women's crewneck in Pea Green:
-    // photographed, in PHOTO_SIZE, and not yet sold, so this loop never reaches
-    // them. When the catalogue splits into six, this number goes up with it.
-    // Two of the 35 are the tote's, which is one photograph written to both
-    // front and back because a tote's faces are identical.
+    // 47 IS WHAT THE CATALOGUE COVERS, not what is on disk. There are 48 .webp
+    // files under public/garments; the one this loop never reaches is the
+    // women's crewneck in Pea Green, photographed front only and deliberately
+    // not sold, because the back is where the plate goes. Two of the 47 are
+    // the tote's, which is one photograph written to both front and back
+    // because a tote's faces are identical.
     let checked = 0;
     for (const product of PRODUCTS) {
       for (const variant of product.variants) {
@@ -133,7 +132,7 @@ describe("garment photography", () => {
         }
       }
     }
-    expect(checked, "photographs the catalogue actually shows").toBe(35);
+    expect(checked, "photographs the catalogue actually shows").toBe(47);
   });
 
   it("reports the front and back shapes of tee/olive as the different numbers they are", () => {
@@ -183,7 +182,7 @@ describe("garment photography", () => {
         }
       }
     }
-    expect(checked, "photographs the catalogue actually shows").toBe(35);
+    expect(checked, "photographs the catalogue actually shows").toBe(47);
   });
 
   it("has no source width for a view nobody has photographed", () => {
