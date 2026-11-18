@@ -1,30 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ProductFlow, resolveFit } from "./ProductFlow";
+import { ProductFlow } from "./ProductFlow";
 import { getProduct } from "@/lib/products";
-
-describe("the fit a URL asks for", () => {
-  /*
-   * A card on the shop grid links to /products/tee?fit=womens, so the flow has
-   * to be able to open on a fit. Anything it cannot honour falls back to the
-   * product's first rather than erroring: the parameter is in a link anyone
-   * can edit, and a 500 on a shop page is worse than a sensible default.
-   */
-  it("opens on the fit the URL names", () => {
-    expect(resolveFit(getProduct("crewneck")!, "womens")).toBe("womens");
-  });
-
-  it("falls back to the first fit for one the product is not cut in", () => {
-    expect(resolveFit(getProduct("crewneck")!, "mens")).toBe("womens");
-  });
-
-  it("falls back for a value that is not a fit at all, and for none", () => {
-    expect(resolveFit(getProduct("hoodie")!, "robot")).toBe("unisex");
-    expect(resolveFit(getProduct("hoodie")!, "")).toBe("unisex");
-    expect(resolveFit(getProduct("hoodie")!, undefined)).toBe("unisex");
-  });
-});
 
 const { addItem, replaceLine } = vi.hoisted(() => ({
   addItem: vi.fn(),

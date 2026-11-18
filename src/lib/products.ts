@@ -102,7 +102,14 @@ export interface Product {
 
 /** The apparel size runs. The crewneck is cut smaller and stops at XL. */
 const SIZES_TO_XXL = ["XS", "S", "M", "L", "XL", "XXL"];
-const SIZES_TO_XL = ["XS", "S", "M", "L", "XL"];
+/**
+ * THE WOMEN'S RUN STOPS AT XL, and this is its own constant rather than a
+ * shared one so it cannot quietly gain a 2XL when the men's does. The
+ * supplier's women's range has none, and offering a size that cannot be
+ * supplied, on a personalised garment that cannot be returned, is a refund
+ * waiting to happen.
+ */
+const WOMENS_SIZES = ["XS", "S", "M", "L", "XL"];
 
 /**
  * The front print, identical across the three garments: 110mm wide by 150mm
@@ -148,11 +155,8 @@ export const PRODUCTS: Product[] = [
     printArea: { front: FRONT_PRINT, back: { widthMm: 280, heightMm: 350 } },
   },
   {
-    // KNOWINGLY HALF TRUE, and only until the catalogue splits. Every variant
-    // here says `unisex` while its photoDir says `mens`, because these three
-    // colourways are the men's tee block and always were. The labels are
-    // today's labels on purpose: correcting them is a change a customer can
-    // see, and it belongs in the commit that brings the women's tee with it.
+    // Men's first, because the first variant is the leading fit and the men's
+    // block is what the home tile has always shown.
     slug: "tee",
     name: "The Kindred Tee",
     blurb:
@@ -160,7 +164,7 @@ export const PRODUCTS: Product[] = [
     variants: [
       {
         color: "White",
-        fit: "unisex",
+        fit: "mens",
         colorHex: "#F5F5F9",
         photoDir: "mens/white",
         sizes: SIZES_TO_XXL,
@@ -168,7 +172,7 @@ export const PRODUCTS: Product[] = [
       },
       {
         color: "Olive",
-        fit: "unisex",
+        fit: "mens",
         colorHex: "#605D2D",
         photoDir: "mens/olive",
         sizes: SIZES_TO_XXL,
@@ -176,20 +180,63 @@ export const PRODUCTS: Product[] = [
       },
       {
         color: "Heritage Blue",
-        fit: "unisex",
+        fit: "mens",
         colorHex: "#94BDD5",
         photoDir: "mens/heritage-blue",
         sizes: SIZES_TO_XXL,
+        priceZar: 599,
+      },
+      /*
+       * The women's tee, on the supplier's TANNER block. Its colourway names
+       * are the shoot's, and they are the one thing here the owner has not
+       * confirmed: the folder says "Winter White" while the files say "white",
+       * and these sit beside a men's tee in plain White. Changing a retail
+       * name is one line each and touches nothing else, because photoDir
+       * carries the directory.
+       *
+       * The hexes are sampled from the middle of the chest of each of these
+       * photographs, as the convention above requires.
+       */
+      {
+        color: "Winter White",
+        fit: "womens",
+        colorHex: "#F6F0EB",
+        photoDir: "womens/white",
+        sizes: WOMENS_SIZES,
+        priceZar: 599,
+      },
+      {
+        color: "Peach",
+        fit: "womens",
+        colorHex: "#FDC5A8",
+        photoDir: "womens/peach",
+        sizes: WOMENS_SIZES,
+        priceZar: 599,
+      },
+      {
+        color: "Blue",
+        fit: "womens",
+        colorHex: "#5DBEF4",
+        photoDir: "womens/blue",
+        sizes: WOMENS_SIZES,
         priceZar: 599,
       },
     ],
     printArea: { front: FRONT_PRINT, back: { widthMm: 250, heightMm: 300 } },
   },
   {
-    // KNOWINGLY HALF TRUE, as the tee is. All four say `womens` while Grey and
-    // Olive are photographs of the men's sweater, which is the bug this whole
-    // branch exists to fix. The photoDir values already tell the truth; the
-    // fit labels follow when the catalogue splits.
+    /*
+     * THE GARMENT THIS WHOLE BRANCH EXISTS FOR. Grey and Olive were sold as a
+     * "Women's fit" crewneck over photographs of the men's sweater, because
+     * the importer had stripped the fit out of their filenames. They are the
+     * men's crewneck, and they always were.
+     *
+     * Women's first: the first variant is the leading fit, and the home tile
+     * has always shown the women's sweater.
+     *
+     * TWO WHITES, a hundred rand apart, on different blocks and at different
+     * shapes. That is the pair no colour-keyed lookup could ever have held.
+     */
     slug: "crewneck",
     name: "The Kindred Crewneck",
     blurb:
@@ -200,7 +247,7 @@ export const PRODUCTS: Product[] = [
         fit: "womens",
         colorHex: "#F3F0EC",
         photoDir: "womens/white",
-        sizes: SIZES_TO_XL,
+        sizes: WOMENS_SIZES,
         priceZar: 799,
       },
       {
@@ -208,24 +255,36 @@ export const PRODUCTS: Product[] = [
         fit: "womens",
         colorHex: "#FBC1A3",
         photoDir: "womens/peach",
-        sizes: SIZES_TO_XL,
+        sizes: WOMENS_SIZES,
         priceZar: 799,
+      },
+      // Pea Green belongs here and is absent on purpose: the shoot covered its
+      // front only, and the back is where the plate goes.
+      {
+        // New to the catalogue. It had nowhere to go while crewneck/white held
+        // the women's photograph, so it has never been on the site.
+        color: "White",
+        fit: "mens",
+        colorHex: "#F1EBE6",
+        photoDir: "mens/white",
+        sizes: SIZES_TO_XXL,
+        priceZar: 899,
       },
       {
         color: "Grey",
-        fit: "womens",
+        fit: "mens",
         colorHex: "#B9B9B9",
         photoDir: "mens/grey",
-        sizes: SIZES_TO_XL,
-        priceZar: 799,
+        sizes: SIZES_TO_XXL,
+        priceZar: 899,
       },
       {
         color: "Olive",
-        fit: "womens",
+        fit: "mens",
         colorHex: "#656B52",
         photoDir: "mens/olive",
-        sizes: SIZES_TO_XL,
-        priceZar: 799,
+        sizes: SIZES_TO_XXL,
+        priceZar: 899,
       },
     ],
     printArea: { front: FRONT_PRINT, back: { widthMm: 280, heightMm: 350 } },
@@ -319,6 +378,27 @@ export function hasFitChoice(product: Product): boolean {
 /** The variants of a product cut this way. */
 export function variantsForFit(product: Product, fit: Fit): Variant[] {
   return product.variants.filter((variant) => variant.fit === fit);
+}
+
+/**
+ * The fit a page opens on, from a URL that may name one.
+ *
+ * A catalogue card links to /products/tee?fit=womens, so the flow has to be
+ * able to start on a fit. Anything we cannot honour falls back to the
+ * product's first rather than failing: the parameter sits in a link anyone can
+ * edit, and the canonical URL carries no parameters at all, so this is a
+ * preselection and never a promise.
+ *
+ * IT LIVES HERE, beside the rest of the catalogue, and not in ProductFlow.
+ * It did, and ProductFlow is a client component: the product page called it
+ * from the server and every request to /products/[slug] answered 500. Nothing
+ * caught that. The build compiles the page, the unit tests import the function
+ * directly, and only loading the page in a browser fails. A pure function over
+ * the catalogue belongs with the catalogue.
+ */
+export function resolveFit(product: Product, name?: string): Fit {
+  const offered = fitsFor(product);
+  return offered.find((fit) => fit === name) ?? offered[0]!;
 }
 
 /**

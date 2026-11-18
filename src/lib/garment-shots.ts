@@ -87,7 +87,16 @@ export interface Shot {
 const HERO: Record<string, string> = {
   "hoodie/unisex": "Blue",
   "crewneck/womens": "Peach",
-  "tee/unisex": "White",
+  // The men's crewneck leads on Grey. Not White, for the parchment reason
+  // above, and the choice is between Grey and Olive because White is the only
+  // portrait shot of the three: the shape argument applies to the home tiles,
+  // and the men's crewneck does not have one.
+  "crewneck/mens": "Grey",
+  "tee/mens": "White",
+  // All three women's tee shots are the same shape, so the shape argument is
+  // silent here and only the parchment one speaks: not Winter White. Blue
+  // rather than Peach so the grid does not lead two garments on one colour.
+  "tee/womens": "Blue",
   // Not a choice: the tote comes in one colourway. It is SQUARE rather than
   // portrait, which the shape argument above would otherwise argue against,
   // but a 1:1 tile among 0.80s is far less jarring than the tee's landscape

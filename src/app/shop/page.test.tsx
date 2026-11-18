@@ -10,6 +10,7 @@ import {
   fitsFor,
   getProduct,
   hasFitChoice,
+  variantsForFit,
 } from "@/lib/products";
 
 describe("shop page, one card per garment and fit", () => {
@@ -97,37 +98,54 @@ describe("shop page catalogue", () => {
     expect(screen.getByText("The range")).toBeInTheDocument();
   });
 
-  it("renders all four products, each with its name and 'from' price", () => {
+  // The grid is a card per garment and fit: four products, six cards, because
+  // the tee and the crewneck are each cut two ways.
+  const cards = PRODUCTS.flatMap((product) =>
+    fitsFor(product).map((fit) => ({ product, fit })),
+  );
+
+  it("renders every card with its name and its own 'from' price", () => {
     render(<ShopPage />);
     expect(PRODUCTS).toHaveLength(4);
+    expect(cards).toHaveLength(6);
 
-    for (const product of PRODUCTS) {
-      const heading = screen.getByRole("heading", {
+    for (const { product, fit } of cards) {
+      // Two cards share a name where a product is cut two ways, so the count
+      // of headings bearing it is the assertion, not a single match.
+      const headings = screen.getAllByRole("heading", {
         level: 2,
         name: product.name,
       });
-      expect(heading).toBeInTheDocument();
+      expect(headings).toHaveLength(fitsFor(product).length);
 
-      const price = formatZar(fromPriceZar(product));
-      expect(screen.getByText(price)).toBeInTheDocument();
+      const price = formatZar(fromPriceZar(product, fit));
+      expect(screen.getAllByText(price).length).toBeGreaterThan(0);
     }
   });
 
-  it("gives every product a Personalise CTA to its product page", () => {
+  it("gives every card a Personalise CTA to its product page", () => {
     render(<ShopPage />);
     const ctas = screen.getAllByRole("link", { name: "Personalise" });
-    expect(ctas).toHaveLength(4);
+    expect(ctas).toHaveLength(cards.length);
 
     const hrefs = ctas.map((cta) => cta.getAttribute("href")).sort();
     expect(hrefs).toEqual(
-      PRODUCTS.map((p) => `/products/${p.slug}`).sort(),
+      cards
+        .map(({ product, fit }) =>
+          hasFitChoice(product)
+            ? `/products/${product.slug}?fit=${fit}`
+            : `/products/${product.slug}`,
+        )
+        .sort(),
     );
   });
 
-  it("shows the colours each product comes in", () => {
+  it("shows the colours each card comes in, its own fit's and no others", () => {
     render(<ShopPage />);
-    for (const product of PRODUCTS) {
-      const colours = product.variants.map((v) => v.color).join(", ");
+    for (const { product, fit } of cards) {
+      const colours = variantsForFit(product, fit)
+        .map((v) => v.color)
+        .join(", ");
       expect(
         screen.getByRole("img", { name: `Available in ${colours}` }),
       ).toBeInTheDocument();
@@ -154,15 +172,16 @@ describe("shop page catalogue", () => {
       ),
     ).toBeInTheDocument();
 
-    // One aspect group per photographed garment, each named after the garment
-    // so that three sets of dots on one page are told apart.
+    // One aspect group per photographed CARD, so the tee and the crewneck
+    // each have two: their sets of dots are told apart by position, not name.
     for (const name of ["Hoodie", "Tee", "Crewneck"]) {
+      const product = PRODUCTS.find((p) => p.name.endsWith(name))!;
       expect(
-        screen.getByRole("group", {
+        screen.getAllByRole("group", {
           name: `Which aspect of The Kindred ${name} to show`,
         }),
         name,
-      ).toBeInTheDocument();
+      ).toHaveLength(fitsFor(product).length);
     }
   });
 
@@ -195,7 +214,7 @@ describe("shop page catalogue", () => {
     expect(container.querySelector("a button")).toBeNull();
   });
 
-  it("emits ItemList structured data for the four products in ZAR", () => {
+  it("emits ItemList structured data for every card in ZAR", () => {
     const { container } = render(<ShopPage />);
     const script = container.querySelector(
       'script[type="application/ld+json"]',
@@ -204,8 +223,8 @@ describe("shop page catalogue", () => {
 
     const data = JSON.parse(script!.textContent ?? "{}");
     expect(data["@type"]).toBe("ItemList");
-    expect(data.numberOfItems).toBe(4);
-    expect(data.itemListElement).toHaveLength(4);
+    expect(data.numberOfItems).toBe(cards.length);
+    expect(data.itemListElement).toHaveLength(cards.length);
 
     const first = data.itemListElement[0].item;
     expect(first["@type"]).toBe("Product");
@@ -215,9 +234,12 @@ describe("shop page catalogue", () => {
 
 describe("shop page zoom", () => {
   it("lets every photographed card open its print", () => {
-    // All four now. The tote was the exception until its shoot landed.
+    // Every card, which is six: the tote was the last exception and its shoot
+    // landed, and the tee and crewneck each have two.
     render(<ShopPage />);
-    expect(screen.getAllByRole("button", { name: /enlarge/i })).toHaveLength(4);
+    expect(screen.getAllByRole("button", { name: /enlarge/i })).toHaveLength(
+      PRODUCTS.flatMap((product) => fitsFor(product)).length,
+    );
   });
 
   it("opens on the back plate, which is the view a card leads with", async () => {

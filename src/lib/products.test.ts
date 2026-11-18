@@ -12,6 +12,7 @@ import {
   hasFitChoice,
   variantsForFit,
   colourAndFit,
+  resolveFit,
 } from "./products";
 
 const PUBLIC = join(process.cwd(), "public");
@@ -36,21 +37,110 @@ describe("fits", () => {
 
   it("reports the fits a product offers, in variant order and without repeats", () => {
     expect(fitsFor(getProduct("hoodie")!)).toEqual(["unisex"]);
-    expect(fitsFor(getProduct("crewneck")!)).toEqual(["womens"]);
+    expect(fitsFor(getProduct("crewneck")!)).toEqual(["womens", "mens"]);
   });
 
-  it("says a product with one fit has no choice to offer", () => {
+  it("says a product with one cut has no choice to offer", () => {
     // Silence is the correct interface for a choice that does not exist, so
     // this is what the product page asks before rendering a fit selector.
-    for (const product of PRODUCTS) {
-      expect(hasFitChoice(product), product.slug).toBe(false);
-    }
+    expect(hasFitChoice(getProduct("hoodie")!)).toBe(false);
+    expect(hasFitChoice(getProduct("tote")!)).toBe(false);
   });
 
   it("narrows variants to one fit", () => {
     const crewneck = getProduct("crewneck")!;
-    expect(variantsForFit(crewneck, "womens")).toEqual(crewneck.variants);
-    expect(variantsForFit(crewneck, "mens")).toEqual([]);
+    const womens = variantsForFit(crewneck, "womens");
+    const mens = variantsForFit(crewneck, "mens");
+
+    expect(womens.length + mens.length).toBe(crewneck.variants.length);
+    expect(womens.every((variant) => variant.fit === "womens")).toBe(true);
+    expect(mens.every((variant) => variant.fit === "mens")).toBe(true);
+    expect(variantsForFit(getProduct("hoodie")!, "mens")).toEqual([]);
+  });
+});
+
+describe("the men's and women's ranges", () => {
+  it("sells each garment in the fits it was photographed in", () => {
+    expect(fitsFor(getProduct("tee")!)).toEqual(["mens", "womens"]);
+    expect(fitsFor(getProduct("crewneck")!)).toEqual(["womens", "mens"]);
+    expect(hasFitChoice(getProduct("tee")!)).toBe(true);
+    expect(hasFitChoice(getProduct("crewneck")!)).toBe(true);
+    // One cut for everyone. These must never render a fit selector.
+    expect(hasFitChoice(getProduct("hoodie")!)).toBe(false);
+    expect(hasFitChoice(getProduct("tote")!)).toBe(false);
+  });
+
+  it("stops women's sizes at XL", () => {
+    // The supplier's women's range has no 2XL. Offering a size that cannot be
+    // supplied, on a personalised garment that cannot be returned, is a refund
+    // waiting to happen.
+    for (const product of PRODUCTS) {
+      for (const variant of product.variants) {
+        if (variant.fit !== "womens") continue;
+        expect(variant.sizes, `${product.slug} ${variant.color}`).not.toContain(
+          "XXL",
+        );
+      }
+    }
+  });
+
+  it("gives the crewneck two Whites that are genuinely different garments", () => {
+    const crewneck = getProduct("crewneck")!;
+    const womens = variantsForFit(crewneck, "womens").find(
+      (variant) => variant.color === "White",
+    )!;
+    const mens = variantsForFit(crewneck, "mens").find(
+      (variant) => variant.color === "White",
+    )!;
+
+    expect(womens.photoDir).not.toBe(mens.photoDir);
+    expect(womens.priceZar).not.toBe(mens.priceZar);
+    // Different photographs at different shapes, which is why one key could
+    // never have held both.
+    expect(photoAspect("crewneck", womens.photoDir, "front")).not.toBeCloseTo(
+      photoAspect("crewneck", mens.photoDir, "front"),
+      2,
+    );
+  });
+
+  it("leads each product with the fit its home tile shows", () => {
+    // The first variant is the default colourway and therefore the leading
+    // fit, which is the lever the home page reads. Preserved from before the
+    // split so no tile changes: the tee led on the men's block, the crewneck
+    // on the women's.
+    expect(getProduct("tee")!.variants[0]!.fit).toBe("mens");
+    expect(getProduct("crewneck")!.variants[0]!.fit).toBe("womens");
+  });
+
+  it("keeps Pea Green out of the shop", () => {
+    // Shot front only, and the back is where the plate goes.
+    const crewneck = getProduct("crewneck")!;
+    expect(
+      crewneck.variants.some((variant) => variant.color === "Pea Green"),
+    ).toBe(false);
+  });
+});
+
+describe("resolveFit", () => {
+  /*
+   * A card on the shop grid links to /products/tee?fit=womens, so a page has
+   * to be able to open on a fit. Anything it cannot honour falls back to the
+   * product's first rather than erroring: the parameter is in a link anyone
+   * can edit, and a 500 is worse than a sensible default.
+   */
+  it("opens on the fit the URL names", () => {
+    expect(resolveFit(getProduct("crewneck")!, "womens")).toBe("womens");
+    expect(resolveFit(getProduct("crewneck")!, "mens")).toBe("mens");
+  });
+
+  it("falls back to the first fit for one the product is not cut in", () => {
+    expect(resolveFit(getProduct("hoodie")!, "mens")).toBe("unisex");
+  });
+
+  it("falls back for a value that is not a fit at all, and for none", () => {
+    expect(resolveFit(getProduct("hoodie")!, "robot")).toBe("unisex");
+    expect(resolveFit(getProduct("hoodie")!, "")).toBe("unisex");
+    expect(resolveFit(getProduct("hoodie")!, undefined)).toBe("unisex");
   });
 });
 
@@ -159,15 +249,18 @@ describe("catalog seed", () => {
     expect(fromPriceZar(getProduct("tote")!)).toBe(349);
   });
 
-  it("cuts the crewneck to XL and the rest to XXL", () => {
-    // The crewneck is the women's cut and does not run to XXL. A size offered
-    // that the printer cannot supply is a cancelled order.
-    for (const variant of getProduct("crewneck")!.variants) {
-      expect(variant.sizes).toEqual(["XS", "S", "M", "L", "XL"]);
-    }
-    for (const slug of ["hoodie", "tee"]) {
+  it("cuts the women's blocks to XL and everything else to XXL", () => {
+    // A size offered that the printer cannot supply is a cancelled order, and
+    // the run follows the CUT rather than the product now that two of them
+    // are sold both ways.
+    for (const slug of ["hoodie", "tee", "crewneck"]) {
       for (const variant of getProduct(slug)!.variants) {
-        expect(variant.sizes, slug).toContain("XXL");
+        const where = `${slug} ${variant.color} ${variant.fit}`;
+        if (variant.fit === "womens") {
+          expect(variant.sizes, where).toEqual(["XS", "S", "M", "L", "XL"]);
+        } else {
+          expect(variant.sizes, where).toContain("XXL");
+        }
       }
     }
   });
@@ -177,8 +270,8 @@ describe("catalog seed", () => {
     // worn and has no cut to speak of, so it is unisex like the hoodie: one
     // garment for everyone, and no selector.
     expect(fitsFor(getProduct("hoodie")!)).toEqual(["unisex"]);
-    expect(fitsFor(getProduct("tee")!)).toEqual(["unisex"]);
-    expect(fitsFor(getProduct("crewneck")!)).toEqual(["womens"]);
+    expect(fitsFor(getProduct("tee")!)).toEqual(["mens", "womens"]);
+    expect(fitsFor(getProduct("crewneck")!)).toEqual(["womens", "mens"]);
     expect(fitsFor(getProduct("tote")!)).toEqual(["unisex"]);
   });
 

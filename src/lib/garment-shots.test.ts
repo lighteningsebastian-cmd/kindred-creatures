@@ -120,7 +120,7 @@ describe("catalogue shots", () => {
     // drops a wide garment into a grid of tall ones.
     expect(heroColour("hoodie", "unisex")).toBe("Blue");
     expect(heroColour("crewneck", "womens")).toBe("Peach");
-    expect(heroColour("tee", "unisex")).toBe("White");
+    expect(heroColour("tee", "mens")).toBe("White");
     for (const product of PRODUCTS) {
       for (const fit of fitsFor(product)) {
         const hero = heroColour(product.slug, fit);
@@ -156,12 +156,12 @@ describe("a lead colourway per fit", () => {
   });
 
   it("shows nothing for a fit the product is not cut in", () => {
-    // The crewneck is a women's sweater today. Asking for the men's one has to
-    // come back empty rather than handing over the women's photographs, which
+    // The hoodie has one cut for everyone. Asking it for a women's fit has to
+    // come back empty rather than handing over the unisex photographs, which
     // is the whole failure this branch exists to stop.
-    expect(heroColour("crewneck", "mens")).toBeNull();
-    expect(colourwayShots("crewneck", "mens")).toEqual([]);
-    expect(catalogueShots("crewneck", "mens")).toEqual([]);
+    expect(heroColour("hoodie", "womens")).toBeNull();
+    expect(colourwayShots("hoodie", "womens")).toEqual([]);
+    expect(catalogueShots("hoodie", "womens")).toEqual([]);
   });
 
   it("cycles only the requested fit's own photographs", () => {
@@ -182,9 +182,14 @@ describe("colourwayShots", () => {
   it("offers one shot per colourway, and every one is the back", () => {
     // The home page varies colour; the shop varies view. A front shot here
     // would be the 19px chest badge this change exists to remove.
+    // One tile shows one fit's colourways, not a product's: the count is the
+    // leading fit's, which is what the home page renders.
     for (const product of PRODUCTS) {
+      const leading = product.variants[0]!.fit;
       const shots = colourwayShots(product.slug);
-      expect(shots.length, product.slug).toBe(product.variants.length);
+      expect(shots.length, product.slug).toBe(
+        variantsForFit(product, leading).length,
+      );
       expect(
         shots.every((shot) => shot.view === "back"),
         product.slug,
@@ -192,10 +197,14 @@ describe("colourwayShots", () => {
     }
   });
 
-  it("counts three, four and three", () => {
+  it("counts a tile by its leading fit, not by the whole product", () => {
     expect(colourwayShots("hoodie")).toHaveLength(3);
-    expect(colourwayShots("crewneck")).toHaveLength(4);
+    // Two, not five: the women's sweater is what the home tile shows, and the
+    // men's three are a tile the home page does not have.
+    expect(colourwayShots("crewneck")).toHaveLength(2);
+    expect(colourwayShots("crewneck", "mens")).toHaveLength(3);
     expect(colourwayShots("tee")).toHaveLength(3);
+    expect(colourwayShots("tee", "womens")).toHaveLength(3);
     expect(colourwayShots("tote")).toHaveLength(1); // one colourway, one shot
   });
 

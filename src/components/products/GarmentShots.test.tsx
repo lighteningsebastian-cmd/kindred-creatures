@@ -96,12 +96,15 @@ describe("GarmentShots", () => {
 
 describe("GarmentShots as a colour picker", () => {
   it("names each control after its colour", () => {
-    render(<GarmentShots shots={colourwayShots("crewneck")} slug="crewneck" />);
+    // The men's crewneck, which is the three-colourway set now that the
+    // women's is two.
+    render(
+      <GarmentShots shots={colourwayShots("crewneck", "mens")} slug="crewneck" />,
+    );
     const dots = screen.getAllByRole("button");
     expect(dots.map((dot) => dot.getAttribute("aria-label"))).toEqual([
-      "Peach",
-      "White",
       "Grey",
+      "White",
       "Olive",
     ]);
   });
@@ -139,11 +142,13 @@ describe("GarmentShots as a colour picker", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps four colourways as four distinct controls", async () => {
+  it("keeps a fit's colourways as distinct controls", async () => {
     // Every colourway shot is a "back", so keying the list on the view would
-    // collapse all four onto one React key. This is the test for that.
+    // collapse them all onto one React key. This is the test for that.
     const user = userEvent.setup();
-    render(<GarmentShots shots={colourwayShots("crewneck")} slug="crewneck" />);
+    render(
+      <GarmentShots shots={colourwayShots("crewneck", "mens")} slug="crewneck" />,
+    );
 
     await user.click(screen.getByRole("button", { name: "Olive" }));
 
@@ -151,7 +156,7 @@ describe("GarmentShots as a colour picker", () => {
       "aria-pressed",
       "true",
     );
-    expect(screen.getByRole("button", { name: "Peach" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Grey" })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
