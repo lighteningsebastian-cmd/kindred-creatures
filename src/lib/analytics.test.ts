@@ -20,6 +20,41 @@ function stubGtag() {
   return gtag;
 }
 
+describe("the fit on a product event", () => {
+  /*
+   * The commercial reason for the men's and women's work is that they are two
+   * ranges with different costs and prices. After it ships, "is the women's
+   * range selling" has to be answerable.
+   *
+   * item_id STAYS THE SLUG. Folding the fit into it would split every
+   * product's history in GA on the day this deployed, and the question that
+   * matters is answerable with a dimension beside it.
+   */
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_GA_MEASUREMENT_ID", ID);
+  });
+
+  it("sends the fit as item_variant and keeps item_id the slug", () => {
+    const gtag = stubGtag();
+    trackViewItem({ slug: "crewneck", fit: "womens", priceZar: 799 });
+    expect(gtag).toHaveBeenCalledWith(
+      "event",
+      "view_item",
+      expect.objectContaining({ item_id: "crewneck", item_variant: "womens" }),
+    );
+  });
+
+  it("carries it on add to cart too", () => {
+    const gtag = stubGtag();
+    trackAddToCart({ slug: "tee", fit: "mens", priceZar: 599 });
+    expect(gtag).toHaveBeenCalledWith(
+      "event",
+      "add_to_cart",
+      expect.objectContaining({ item_id: "tee", item_variant: "mens" }),
+    );
+  });
+});
+
 beforeEach(() => {
   delete (window as { gtag?: unknown }).gtag;
   delete (window as { dataLayer?: unknown }).dataLayer;

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Container } from "@/components/ui/Container";
-import { ProductFlow } from "@/components/products/ProductFlow";
+import { ProductFlow, resolveFit } from "@/components/products/ProductFlow";
 import { resumeArtwork } from "@/lib/artwork-resume";
 import { TrackProductView } from "@/components/analytics/TrackProductView";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -116,6 +116,10 @@ export default async function ProductPage({
   // canonical URL still carries no parameters, so indexing is unaffected.
   const { fit, color, size, artwork } = await searchParams;
 
+  // The same resolution the flow does, because the view event has to report
+  // the fit the page actually opened on rather than what the URL asked for.
+  const openedFit = resolveFit(product, fit);
+
   // `?artwork=` means a cart line came back to be changed rather than a new
   // piece being started. Null for everything else, including a stale id, which
   // simply opens an empty flow instead of an error page.
@@ -140,7 +144,11 @@ export default async function ProductPage({
     <div className="bg-base py-14 md:py-20">
       <Container>
         <JsonLd data={structuredData} />
-        <TrackProductView slug={product.slug} priceZar={fromPriceZar(product)} />
+        <TrackProductView
+          slug={product.slug}
+          fit={openedFit}
+          priceZar={fromPriceZar(product, openedFit)}
+        />
         <ProductFlow
           product={product}
           initialFit={fit}
