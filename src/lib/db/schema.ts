@@ -480,6 +480,45 @@ export type NewWebhookEvent = typeof webhookEvents.$inferInsert;
  * of a generated migration so the local PGlite dev/test database is ready with
  * zero setup. For production (Neon) this same DDL is safe to run once at boot.
  */
+/**
+ * Giving the orders placed before the split the cut they were actually sold in.
+ *
+ * WHY THERE IS ANYTHING TO REPAIR. The importer stripped the fit out of every
+ * filename, so the crewneck was sold as one "Women's fit" garment in four
+ * colourways while Grey and Olive were photographs of the MEN'S sweater. The
+ * tee was labelled unisex and photographed on the men's block throughout. No
+ * order recorded a fit, because there was no fit to record.
+ *
+ * WHAT MAKES IT DETERMINED is that the colour decides it. A customer who chose
+ * Grey saw the men's crewneck; a customer who chose Peach saw the women's one.
+ * This writes down what each of them was looking at, which is the only honest
+ * answer available and better than the column staying silent on the one
+ * garment whose fit was wrong.
+ *
+ * WHAT IT DOES NOT FIX. Those Grey and Olive orders took a SIZE from the
+ * women's run, XS to XL, because that is the run the page offered. The blank
+ * is the men's. Recording the fit makes the job sheet honest; it does not make
+ * the size right, and those specific orders are worth a human looking at.
+ *
+ * IT IS SAFE TO RUN FOREVER. Only a null can be a pre-split row: checkout has
+ * required a fit on every line since the column arrived, so this matches
+ * nothing once it has run.
+ */
+export const BACKFILL_FIT_SQL = `
+UPDATE order_items
+   SET fit = CASE
+     WHEN product_slug IN ('hoodie', 'tote') THEN 'unisex'
+     WHEN product_slug = 'tee' THEN 'mens'
+     WHEN product_slug = 'crewneck' AND color IN ('White', 'Peach') THEN 'womens'
+     WHEN product_slug = 'crewneck' AND color IN ('Grey', 'Olive') THEN 'mens'
+   END
+ WHERE fit IS NULL
+   AND (
+     product_slug IN ('hoodie', 'tote', 'tee')
+     OR (product_slug = 'crewneck' AND color IN ('White', 'Peach', 'Grey', 'Olive'))
+   );
+`;
+
 export const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS artworks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -707,4 +746,6 @@ CREATE TABLE IF NOT EXISTS breed_requests (
   species text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+${BACKFILL_FIT_SQL}
 `;
