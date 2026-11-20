@@ -1,8 +1,14 @@
 // @vitest-environment node
 import { describe, it, expect } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
-import { artworks, breedRequests } from "@/lib/db/schema";
+import {
+  BACKFILL_FIT_SQL,
+  artworks,
+  breedRequests,
+  orderItems,
+  orders,
+} from "@/lib/db/schema";
 
 /**
  * The auto-DDL runs the ALTER statements on every boot, so the one thing worth
@@ -76,5 +82,109 @@ describe("companion profile columns", () => {
       .from(breedRequests)
       .where(eq(breedRequests.id, row!.id));
     expect(found).toHaveLength(1);
+  });
+});
+
+describe("backfilling the fit onto orders placed before the ranges split", () => {
+  /*
+   * WHAT EACH CUSTOMER WAS ACTUALLY SHOWN, which is the only honest source for
+   * a value nobody recorded at the time.
+   *
+   * Before the split there was one crewneck, labelled "Women's fit", offered
+   * in White, Peach, Grey and Olive. Two of those four were photographs of the
+   * MEN'S sweater: the importer had stripped the fit out of their filenames,
+   * so Grey and Olive were the men's garment under a women's label. White and
+   * Peach were the women's. The tee was labelled unisex and its photographs
+   * were the men's block throughout. The hoodie and the tote have one cut.
+   *
+   * So the mapping is decided by the colour, and this pins it.
+   */
+  async function seedLine(productSlug: string, color: string) {
+    const db = await getDb();
+    const [order] = await db
+      .insert(orders)
+      .values({
+        status: "paid",
+        email: "thandi@example.co.za",
+        firstName: "Thandi",
+        lastName: "Mokoena",
+        phone: "082 123 4567",
+        addressLine1: "14 Loop Street",
+        suburb: "Gardens",
+        city: "Cape Town",
+        province: "Western Cape",
+        postalCode: "8001",
+        subtotalZar: 799,
+        shippingZar: 99,
+        totalZar: 898,
+      })
+      .returning();
+    const [artwork] = await db
+      .insert(artworks)
+      .values({ productSlug })
+      .returning();
+    const [line] = await db
+      .insert(orderItems)
+      .values({
+        orderId: order!.id,
+        productSlug,
+        color,
+        size: "M",
+        qty: 1,
+        unitPriceZar: 799,
+        artworkId: artwork!.id,
+      })
+      .returning();
+    return line!.id;
+  }
+
+  it("reads each historical line's cut off the photograph it was sold under", async () => {
+    const db = await getDb();
+    const ids = {
+      greyCrewneck: await seedLine("crewneck", "Grey"),
+      oliveCrewneck: await seedLine("crewneck", "Olive"),
+      whiteCrewneck: await seedLine("crewneck", "White"),
+      peachCrewneck: await seedLine("crewneck", "Peach"),
+      tee: await seedLine("tee", "Heritage Blue"),
+      hoodie: await seedLine("hoodie", "Blue"),
+      tote: await seedLine("tote", "Natural"),
+    };
+
+    // They start with nothing, because nothing recorded it.
+    const before = await db.select().from(orderItems);
+    expect(before.every((line) => line.fit === null)).toBe(true);
+
+    await db.execute(sql.raw(BACKFILL_FIT_SQL));
+
+    const after = new Map(
+      (await db.select().from(orderItems)).map((line) => [line.id, line.fit]),
+    );
+    expect(after.get(ids.greyCrewneck)).toBe("mens");
+    expect(after.get(ids.oliveCrewneck)).toBe("mens");
+    expect(after.get(ids.whiteCrewneck)).toBe("womens");
+    expect(after.get(ids.peachCrewneck)).toBe("womens");
+    expect(after.get(ids.tee)).toBe("mens");
+    expect(after.get(ids.hoodie)).toBe("unisex");
+    expect(after.get(ids.tote)).toBe("unisex");
+  });
+
+  it("leaves a line that already names its fit alone", async () => {
+    // It runs on every boot, so it has to be a no-op the second time and every
+    // time after. Only a null can be a pre-split row: checkout has required a
+    // fit since the day the column arrived.
+    const db = await getDb();
+    const id = await seedLine("crewneck", "Grey");
+    await db
+      .update(orderItems)
+      .set({ fit: "womens" })
+      .where(eq(orderItems.id, id));
+
+    await db.execute(sql.raw(BACKFILL_FIT_SQL));
+
+    const [line] = await db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.id, id));
+    expect(line!.fit).toBe("womens");
   });
 });
